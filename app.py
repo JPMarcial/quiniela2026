@@ -1,0 +1,338 @@
+import streamlit as st
+import pandas as pd
+from openpyxl import load_workbook
+
+# ==========================================
+# CONFIGURACIÓN
+# ==========================================
+
+st.set_page_config(
+    page_title="Quiniela Mundial 2026",
+    page_icon="⚽",
+    layout="wide"
+)
+
+st.title("⚽ Quiniela Mundial 2026")
+
+pagina = st.sidebar.radio(
+    "Menú",
+    [
+        "🏆 Ranking",
+        "👤 Participantes",
+        "⚽ Partidos",
+        "🎯 Desempate",
+        "📊 Estadísticas"
+    ]
+)
+
+# ==========================================
+# ARCHIVO EXCEL
+# ==========================================
+
+archivo_excel = "Quiniela US-MX-CAN 2026 (formato).xlsx"
+
+# ==========================================
+# FUNCIÓN PARA LEER RESULTADO
+# ==========================================
+
+def leer_resultado(ws, fila):
+
+    c = str(ws[f"C{fila}"].value).strip().lower()
+    d = str(ws[f"D{fila}"].value).strip().lower()
+    e = str(ws[f"E{fila}"].value).strip().lower()
+
+    if c == "x":
+        return "Local"
+
+    elif d == "x":
+        return "Empate"
+
+    elif e == "x":
+        return "Visitante"
+
+    return None
+
+# ==========================================
+# LEER EXCEL
+# ==========================================
+
+try:
+
+    wb = load_workbook(
+        archivo_excel,
+        data_only=True
+    )
+
+except Exception as e:
+
+    st.error(f"No se pudo abrir el Excel: {e}")
+    st.stop()
+
+# ==========================================
+# RESULTADOS OFICIALES
+# ==========================================
+
+if "RESULTADOS" not in wb.sheetnames:
+
+    st.error(
+        "No existe la hoja RESULTADOS"
+    )
+
+    st.stop()
+
+ws_resultados = wb["RESULTADOS"]
+
+# ==========================================
+# PARTICIPANTES
+# ==========================================
+
+participantes = {}
+
+for hoja in wb.sheetnames:
+
+    if hoja.upper() == "RESULTADOS":
+        continue
+
+    ws = wb[hoja]
+
+    nombre = ws["C2"].value
+
+    desempate_local = ws["J15"].value
+    desempate_visitante = ws["L15"].value
+
+    pronosticos = []
+
+    for fila in range(6, 200):
+
+        local = ws[f"B{fila}"].value
+        visitante = ws[f"F{fila}"].value
+
+        if local is None or visitante is None:
+            continue
+
+        local = str(local).strip()
+        visitante = str(visitante).strip()
+
+        resultado = leer_resultado(ws, fila)
+
+        resultado_oficial = leer_resultado(
+            ws_resultados,
+            fila
+        )
+
+        acierto = False
+
+        if (
+            resultado is not None
+            and resultado_oficial is not None
+            and resultado == resultado_oficial
+        ):
+            acierto = True
+
+        pronosticos.append(
+            {
+                "Partido": f"{local} vs {visitante}",
+                "Pronóstico": resultado,
+                "Resultado Oficial": resultado_oficial,
+                "Acierto": acierto
+            }
+        )
+
+    participantes[nombre] = {
+        "pronosticos": pronosticos,
+        "desempate_local": desempate_local,
+        "desempate_visitante": desempate_visitante
+    }
+
+# ==========================================
+# CALCULAR PUNTOS
+# ==========================================
+
+puntos = {}
+
+for nombre, datos in participantes.items():
+
+    total = 0
+
+    for p in datos["pronosticos"]:
+
+        if p["Acierto"]:
+            total += 1
+
+    puntos[nombre] = total
+
+# ==========================================
+# RANKING
+# ==========================================
+
+if pagina == "🏆 Ranking":
+
+    ranking = pd.DataFrame(
+        [
+            {
+                "Participante": nombre,
+                "Puntos": puntos[nombre],
+                "Desempate":
+                f"{participantes[nombre]['desempate_local']}-{participantes[nombre]['desempate_visitante']}"
+            }
+            for nombre in participantes
+        ]
+    )
+
+    ranking = ranking.sort_values(
+        by="Puntos",
+        ascending=False
+    )
+
+    ranking.index = range(
+        1,
+        len(ranking) + 1
+    )
+
+    st.subheader("Tabla General")
+
+    st.dataframe(
+        ranking,
+        use_container_width=True
+    )
+
+# ==========================================
+# PARTICIPANTES
+# ==========================================
+
+elif pagina == "👤 Participantes":
+
+    jugador = st.selectbox(
+        "Selecciona participante",
+        list(participantes.keys())
+    )
+
+    st.subheader(
+        f"Pronósticos de {jugador}"
+    )
+
+    df = pd.DataFrame(
+        participantes[jugador]["pronosticos"]
+    )
+
+    st.dataframe(
+        df,
+        use_container_width=True
+    )
+
+# ==========================================
+# PARTIDOS
+# ==========================================
+
+elif pagina == "⚽ Partidos":
+
+    primer_jugador = list(
+        participantes.keys()
+    )[0]
+
+    lista_partidos = [
+        p["Partido"]
+        for p in participantes[primer_jugador]["pronosticos"]
+    ]
+
+    partido_seleccionado = st.selectbox(
+        "Selecciona partido",
+        lista_partidos
+    )
+
+    datos_partido = []
+
+    for nombre, datos in participantes.items():
+
+        for p in datos["pronosticos"]:
+
+            if p["Partido"] == partido_seleccionado:
+
+                datos_partido.append(
+                    {
+                        "Participante": nombre,
+                        "Pronóstico": p["Pronóstico"],
+                        "Resultado Oficial": p["Resultado Oficial"]
+                    }
+                )
+
+    st.dataframe(
+        pd.DataFrame(datos_partido),
+        use_container_width=True
+    )
+
+# ==========================================
+# DESEMPATE
+# ==========================================
+
+elif pagina == "🎯 Desempate":
+
+    desempates = []
+
+    for nombre, datos in participantes.items():
+
+        desempates.append(
+            {
+                "Participante": nombre,
+                "Rep. Checa": datos["desempate_local"],
+                "México": datos["desempate_visitante"]
+            }
+        )
+
+    st.dataframe(
+        pd.DataFrame(desempates),
+        use_container_width=True
+    )
+
+# ==========================================
+# ESTADÍSTICAS
+# ==========================================
+
+elif pagina == "📊 Estadísticas":
+
+    total_local = 0
+    total_empate = 0
+    total_visitante = 0
+
+    for nombre, datos in participantes.items():
+
+        for p in datos["pronosticos"]:
+
+            if p["Pronóstico"] == "Local":
+                total_local += 1
+
+            elif p["Pronóstico"] == "Empate":
+                total_empate += 1
+
+            elif p["Pronóstico"] == "Visitante":
+                total_visitante += 1
+
+    estadisticas = pd.DataFrame(
+        {
+            "Resultado": [
+                "Local",
+                "Empate",
+                "Visitante"
+            ],
+            "Cantidad": [
+                total_local,
+                total_empate,
+                total_visitante
+            ]
+        }
+    )
+
+    st.subheader(
+        "Distribución de pronósticos"
+    )
+
+    st.bar_chart(
+        estadisticas.set_index(
+            "Resultado"
+        )
+    )
+
+    st.dataframe(
+        estadisticas,
+        use_container_width=True
+    )
