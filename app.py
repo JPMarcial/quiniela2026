@@ -320,9 +320,9 @@ elif pagina == "🗓️ Calendario":
                 continue
 
             fecha = ws_cal[f"B{fila}"].value
-hora = ws_cal[f"C{fila}"].value
+            hora = ws_cal[f"C{fila}"].value
 
-if fecha is not None:
+            if fecha is not None:
     try:
         fecha = fecha.strftime("%d/%m/%Y")
     except:
