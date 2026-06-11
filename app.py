@@ -4,6 +4,11 @@ import requests
 
 from io import BytesIO
 from openpyxl import load_workbook
+from datetime import datetime
+
+ultima_actualizacion = datetime.now().strftime(
+    "%d/%m/%Y %H:%M"
+)
 
 # ==========================================
 # CONFIGURACIÓN
@@ -16,16 +21,20 @@ st.set_page_config(
 )
 
 st.title("⚽ Quiniela Mundial 2026")
+st.caption(
+    f"Última actualización: {ultima_actualizacion}"
+)
 
 pagina = st.sidebar.radio(
     "Menú",
     [
-        "🏆 Ranking",
-        "👤 Participantes",
-        "⚽ Partidos",
-        "🎯 Desempate",
-        "📊 Estadísticas"
-    ]
+    "🏆 Ranking",
+    "👤 Participantes",
+    "⚽ Partidos",
+    "🗓️ Calendario",
+    "🎯 Desempate",
+    "📊 Estadísticas"
+]
 )
 
 # ==========================================
@@ -193,7 +202,7 @@ if pagina == "🏆 Ranking":
                 "Participante": nombre,
                 "Puntos": puntos[nombre],
                 "Desempate":
-                f"{participantes[nombre]['desempate_local']}-{participantes[nombre]['desempate_visitante']}"
+f"{int(participantes[nombre]['desempate_local'])}-{int(participantes[nombre]['desempate_visitante'])}"
             }
             for nombre in participantes
         ]
@@ -284,7 +293,46 @@ elif pagina == "⚽ Partidos":
 # ==========================================
 # DESEMPATE
 # ==========================================
+elif pagina == "🗓️ Calendario":
 
+    if "CALENDARIO" not in wb.sheetnames:
+
+        st.warning(
+            "No existe la hoja CALENDARIO"
+        )
+
+    else:
+
+        ws_cal = wb["CALENDARIO"]
+
+        calendario = []
+
+        for fila in range(2, 500):
+
+            partido = ws_cal[f"A{fila}"].value
+
+            if partido is None:
+                continue
+
+            fecha = ws_cal[f"B{fila}"].value
+            hora = ws_cal[f"C{fila}"].value
+
+            calendario.append(
+                {
+                    "Partido": partido,
+                    "Fecha": fecha,
+                    "Hora (CDMX)": hora
+                }
+            )
+
+        st.subheader(
+            "Calendario de partidos"
+        )
+
+        st.dataframe(
+            pd.DataFrame(calendario),
+            use_container_width=True
+        )
 elif pagina == "🎯 Desempate":
 
     desempates = []
@@ -292,12 +340,12 @@ elif pagina == "🎯 Desempate":
     for nombre, datos in participantes.items():
 
         desempates.append(
-            {
-                "Participante": nombre,
-                "Rep. Checa": datos["desempate_local"],
-                "México": datos["desempate_visitante"]
-            }
-        )
+    {
+        "Participante": nombre,
+        "Rep. Checa": int(datos["desempate_local"]) if datos["desempate_local"] is not None else "",
+        "México": int(datos["desempate_visitante"]) if datos["desempate_visitante"] is not None else ""
+    }
+)
 
     st.dataframe(
         pd.DataFrame(desempates),
