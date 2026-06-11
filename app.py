@@ -119,7 +119,7 @@ participantes = {}
 
 for hoja in wb.sheetnames:
 
-    if hoja.upper() == "RESULTADOS, "CALENDARIO"":
+    if hoja.upper() in ["RESULTADOS", "CALENDARIO"]:
         continue
 
     ws = wb[hoja]
