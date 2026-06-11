@@ -31,9 +31,7 @@ pagina = st.sidebar.radio(
     "🏆 Ranking",
     "👤 Participantes",
     "⚽ Partidos",
-    "🗓️ Calendario",
-    "🎯 Desempate",
-    "📊 Estadísticas"
+    "🗓️ Calendario"
 ]
 )
 
@@ -357,51 +355,51 @@ elif pagina == "🗓️ Calendario":
 # ESTADÍSTICAS
 # ==========================================
 
-elif pagina == "📊 Estadísticas":
+#elif pagina == "📊 Estadísticas":
 
-    total_local = 0
-    total_empate = 0
-    total_visitante = 0
+  #  total_local = 0
+  #  total_empate = 0
+  #  total_visitante = 0
 
-    for nombre, datos in participantes.items():
+   # for nombre, datos in participantes.items():
 
-        for p in datos["pronosticos"]:
+    #    for p in datos["pronosticos"]:
 
-            if p["Pronóstico"] == "Local":
-                total_local += 1
+     #       if p["Pronóstico"] == "Local":
+         #       total_local += 1
 
-            elif p["Pronóstico"] == "Empate":
-                total_empate += 1
+      #      elif p["Pronóstico"] == "Empate":
+        #        total_empate += 1
 
-            elif p["Pronóstico"] == "Visitante":
-                total_visitante += 1
+       #     elif p["Pronóstico"] == "Visitante":
+          #      total_visitante += 1
 
-    estadisticas = pd.DataFrame(
-        {
-            "Resultado": [
-                "Local",
-                "Empate",
-                "Visitante"
-            ],
-            "Cantidad": [
-                total_local,
-                total_empate,
-                total_visitante
-            ]
-        }
-    )
+#    estadisticas = pd.DataFrame(
+ #       {
+  #          "Resultado": [
+   #             "Local",
+    #            "Empate",
+     #           "Visitante"
+      #      ],
+       #     "Cantidad": [
+        #        total_local,
+         #       total_empate,
+          #      total_visitante
+           # ]
+       # }
+   # )
 
-    st.subheader(
-        "Distribución de pronósticos"
-    )
+  #  st.subheader(
+    #    "Distribución de pronósticos"
+   # )
 
-    st.bar_chart(
-        estadisticas.set_index(
-            "Resultado"
-        )
-    )
+  #  st.bar_chart(
+      #  estadisticas.set_index(
+     #       "Resultado"
+    #    )
+   # )
 
-    st.dataframe(
-        estadisticas,
-        use_container_width=True
-    )
+   # st.dataframe(
+     #   estadisticas,
+    #    use_container_width=True
+   # )
