@@ -119,7 +119,7 @@ participantes = {}
 
 for hoja in wb.sheetnames:
 
-    if hoja.upper() == "RESULTADOS":
+    if hoja.upper() == "RESULTADOS, "CALENDARIO"":
         continue
 
     ws = wb[hoja]
@@ -201,8 +201,13 @@ if pagina == "🏆 Ranking":
             {
                 "Participante": nombre,
                 "Puntos": puntos[nombre],
-                "Desempate":
-f"{int(participantes[nombre]['desempate_local'])}-{int(participantes[nombre]['desempate_visitante'])}"
+               "Desempate":
+(
+    f"{int(participantes[nombre]['desempate_local'])}-{int(participantes[nombre]['desempate_visitante'])}"
+    if participantes[nombre]['desempate_local'] is not None
+    and participantes[nombre]['desempate_visitante'] is not None
+    else "-"
+)
             }
             for nombre in participantes
         ]
