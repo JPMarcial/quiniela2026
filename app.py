@@ -45,6 +45,16 @@ URL_DRIVE = (
     f"https://docs.google.com/uc?export=download&id={FILE_ID}"
 )
 
+@st.cache_data(ttl=60)
+def cargar_excel():
+
+    respuesta = requests.get(URL_DRIVE)
+
+    if respuesta.status_code != 200:
+        return None
+
+    return respuesta.content
+
 # ==========================================
 # FUNCIÓN PARA LEER RESULTADO
 # ==========================================
@@ -72,9 +82,9 @@ def leer_resultado(ws, fila):
 
 try:
 
-    respuesta = requests.get(URL_DRIVE)
+    contenido_excel = cargar_excel()
 
-    if respuesta.status_code != 200:
+    if contenido_excel is None:
 
         st.error(
             "No se pudo descargar el archivo desde Google Drive."
@@ -83,7 +93,7 @@ try:
         st.stop()
 
     wb = load_workbook(
-        BytesIO(respuesta.content),
+        BytesIO(contenido_excel),
         data_only=True
     )
 
