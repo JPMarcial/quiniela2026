@@ -1,5 +1,8 @@
 import streamlit as st
 import pandas as pd
+import requests
+
+from io import BytesIO
 from openpyxl import load_workbook
 
 # ==========================================
@@ -26,10 +29,14 @@ pagina = st.sidebar.radio(
 )
 
 # ==========================================
-# ARCHIVO EXCEL
+# GOOGLE DRIVE
 # ==========================================
 
-archivo_excel = "Quiniela US-MX-CAN 2026 (formato).xlsx"
+FILE_ID = "1svfBlcw4oOEltibwpv1c8I4h6sHmeq7z"
+
+URL_DRIVE = (
+    f"https://docs.google.com/uc?export=download&id={FILE_ID}"
+)
 
 # ==========================================
 # FUNCIÓN PARA LEER RESULTADO
@@ -53,19 +60,32 @@ def leer_resultado(ws, fila):
     return None
 
 # ==========================================
-# LEER EXCEL
+# LEER EXCEL DESDE GOOGLE DRIVE
 # ==========================================
 
 try:
 
+    respuesta = requests.get(URL_DRIVE)
+
+    if respuesta.status_code != 200:
+
+        st.error(
+            "No se pudo descargar el archivo desde Google Drive."
+        )
+
+        st.stop()
+
     wb = load_workbook(
-        archivo_excel,
+        BytesIO(respuesta.content),
         data_only=True
     )
 
 except Exception as e:
 
-    st.error(f"No se pudo abrir el Excel: {e}")
+    st.error(
+        f"No se pudo abrir el archivo desde Drive: {e}"
+    )
+
     st.stop()
 
 # ==========================================
