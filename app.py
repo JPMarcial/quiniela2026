@@ -203,9 +203,9 @@ if pagina == "🏆 Ranking":
                 "Puntos": puntos[nombre],
                "Desempate":
 (
-    f"{int(participantes[nombre]['desempate_local'])}-{int(participantes[nombre]['desempate_visitante'])}"
-    if participantes[nombre]['desempate_local'] is not None
-    and participantes[nombre]['desempate_visitante'] is not None
+    f"{int(float(participantes[nombre]['desempate_local']))}-{int(float(participantes[nombre]['desempate_visitante']))}"
+    if participantes[nombre]['desempate_local'] not in [None, ""]
+    and participantes[nombre]['desempate_visitante'] not in [None, ""]
     else "-"
 )
             }
@@ -295,9 +295,11 @@ elif pagina == "⚽ Partidos":
         use_container_width=True
     )
 
+
 # ==========================================
-# DESEMPATE
+# CALENDARIO
 # ==========================================
+
 elif pagina == "🗓️ Calendario":
 
     if "CALENDARIO" not in wb.sheetnames:
@@ -323,16 +325,16 @@ elif pagina == "🗓️ Calendario":
             hora = ws_cal[f"C{fila}"].value
 
             if fecha is not None:
-    try:
-        fecha = fecha.strftime("%d/%m/%Y")
-    except:
-        pass
+                try:
+                    fecha = fecha.strftime("%d/%m/%Y")
+                except:
+                    fecha = str(fecha)
 
-if hora is not None:
-    try:
-        hora = hora.strftime("%H:%M")
-    except:
-        pass
+            if hora is not None:
+                try:
+                    hora = hora.strftime("%H:%M")
+                except:
+                    hora = str(hora)
 
             calendario.append(
                 {
@@ -350,24 +352,6 @@ if hora is not None:
             pd.DataFrame(calendario),
             use_container_width=True
         )
-elif pagina == "🎯 Desempate":
-
-    desempates = []
-
-    for nombre, datos in participantes.items():
-
-        desempates.append(
-    {
-        "Participante": nombre,
-        "Rep. Checa": int(datos["desempate_local"]) if datos["desempate_local"] is not None else "",
-        "México": int(datos["desempate_visitante"]) if datos["desempate_visitante"] is not None else ""
-    }
-)
-
-    st.dataframe(
-        pd.DataFrame(desempates),
-        use_container_width=True
-    )
 
 # ==========================================
 # ESTADÍSTICAS
