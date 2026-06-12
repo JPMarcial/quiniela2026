@@ -21,6 +21,11 @@ st.set_page_config(
 )
 
 st.title("⚽ Quiniela Mundial 2026")
+
+import time
+
+inicio = time.time()
+
 st.info(
     "⚽ La información se actualiza desde Google Drive. La carga inicial puede tardar algunos segundos."
 )
@@ -213,6 +218,7 @@ for nombre, datos in participantes.items():
 # ==========================================
 # RANKING
 # ==========================================
+st.write(f"Tiempo de carga: {round(time.time() - inicio, 2)} segundos")
 
 if pagina == "🏆 Ranking":
 
