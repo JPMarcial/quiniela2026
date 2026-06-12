@@ -84,10 +84,10 @@ def cargar_participantes():
 
     contenido_excel = cargar_excel()
 
-wb_local = load_workbook(
-    BytesIO(contenido_excel),
-    data_only=True
-)
+    wb_local = load_workbook(
+        BytesIO(contenido_excel),
+        data_only=True
+    )
 
     participantes_local = {}
 
