@@ -21,6 +21,9 @@ st.set_page_config(
 )
 
 st.title("⚽ Quiniela Mundial 2026")
+st.info(
+    "⚽ La información se actualiza desde Google Drive. La carga inicial puede tardar algunos segundos."
+)
 st.caption(
     f"Última actualización: {ultima_actualizacion}"
 )
@@ -76,6 +79,56 @@ def leer_resultado(ws, fila):
 
     return None
 
+@st.cache_data(ttl=86400)
+def cargar_participantes():
+
+    contenido_excel = cargar_excel()
+
+wb_local = load_workbook(
+    BytesIO(contenido_excel),
+    data_only=True
+)
+
+    participantes_local = {}
+
+    for hoja in wb_local.sheetnames:
+
+        if hoja.upper() in ["RESULTADOS", "CALENDARIO"]:
+            continue
+
+        ws = wb_local[hoja]
+
+        nombre = ws["C2"].value
+
+        desempate_local = ws["J15"].value
+        desempate_visitante = ws["L15"].value
+
+        pronosticos = []
+
+        for fila in range(6, 200):
+
+            local = ws[f"B{fila}"].value
+            visitante = ws[f"F{fila}"].value
+
+            if local is None or visitante is None:
+                continue
+
+            pronosticos.append(
+                {
+                    "fila": fila,
+                    "Partido": f"{local} vs {visitante}",
+                    "Pronóstico": leer_resultado(ws, fila)
+                }
+            )
+
+        participantes_local[nombre] = {
+            "pronosticos": pronosticos,
+            "desempate_local": desempate_local,
+            "desempate_visitante": desempate_visitante
+        }
+
+    return participantes_local
+
 # ==========================================
 # LEER EXCEL DESDE GOOGLE DRIVE
 # ==========================================
@@ -119,67 +172,26 @@ if "RESULTADOS" not in wb.sheetnames:
 
 ws_resultados = wb["RESULTADOS"]
 
-# ==========================================
-# PARTICIPANTES
-# ==========================================
+participantes = cargar_participantes()
 
-participantes = {}
+for nombre, datos in participantes.items():
 
-for hoja in wb.sheetnames:
+    for p in datos["pronosticos"]:
 
-    if hoja.upper() in ["RESULTADOS", "CALENDARIO"]:
-        continue
-
-    ws = wb[hoja]
-
-    nombre = ws["C2"].value
-
-    desempate_local = ws["J15"].value
-    desempate_visitante = ws["L15"].value
-
-    pronosticos = []
-
-    for fila in range(6, 200):
-
-        local = ws[f"B{fila}"].value
-        visitante = ws[f"F{fila}"].value
-
-        if local is None or visitante is None:
-            continue
-
-        local = str(local).strip()
-        visitante = str(visitante).strip()
-
-        resultado = leer_resultado(ws, fila)
+        fila = p["fila"]
 
         resultado_oficial = leer_resultado(
             ws_resultados,
             fila
         )
 
-        acierto = False
+        p["Resultado Oficial"] = resultado_oficial
 
-        if (
-            resultado is not None
-            and resultado_oficial is not None
-            and resultado == resultado_oficial
-        ):
-            acierto = True
-
-        pronosticos.append(
-            {
-                "Partido": f"{local} vs {visitante}",
-                "Pronóstico": resultado,
-                "Resultado Oficial": resultado_oficial,
-                "Acierto": acierto
-            }
+        p["Acierto"] = (
+            resultado_oficial is not None
+            and p["Pronóstico"] == resultado_oficial
         )
 
-    participantes[nombre] = {
-        "pronosticos": pronosticos,
-        "desempate_local": desempate_local,
-        "desempate_visitante": desempate_visitante
-    }
 
 # ==========================================
 # CALCULAR PUNTOS
@@ -361,55 +373,4 @@ elif pagina == "🗓️ Calendario":
             use_container_width=True
         )
 
-# ==========================================
-# ESTADÍSTICAS
-# ==========================================
 
-#elif pagina == "📊 Estadísticas":
-
-  #  total_local = 0
-  #  total_empate = 0
-  #  total_visitante = 0
-
-   # for nombre, datos in participantes.items():
-
-    #    for p in datos["pronosticos"]:
-
-     #       if p["Pronóstico"] == "Local":
-         #       total_local += 1
-
-      #      elif p["Pronóstico"] == "Empate":
-        #        total_empate += 1
-
-       #     elif p["Pronóstico"] == "Visitante":
-          #      total_visitante += 1
-
-#    estadisticas = pd.DataFrame(
- #       {
-  #          "Resultado": [
-   #             "Local",
-    #            "Empate",
-     #           "Visitante"
-      #      ],
-       #     "Cantidad": [
-        #        total_local,
-         #       total_empate,
-          #      total_visitante
-           # ]
-       # }
-   # )
-
-  #  st.subheader(
-    #    "Distribución de pronósticos"
-   # )
-
-  #  st.bar_chart(
-      #  estadisticas.set_index(
-     #       "Resultado"
-    #    )
-   # )
-
-   # st.dataframe(
-     #   estadisticas,
-    #    use_container_width=True
-   # )
