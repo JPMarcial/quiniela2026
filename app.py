@@ -246,6 +246,82 @@ if pagina == "🏆 Ranking":
 
     ranking = ranking.reset_index(drop=True)
 
+    from datetime import date
+
+st.subheader("📅 Partidos para hoy")
+
+hoy = date.today()
+
+partidos_hoy = []
+
+if "CALENDARIO" in wb.sheetnames:
+
+    ws_cal = wb["CALENDARIO"]
+
+    for fila in range(2, 500):
+
+        partido = ws_cal[f"A{fila}"].value
+
+        if partido is None:
+            continue
+
+        fecha = ws_cal[f"B{fila}"].value
+        hora = ws_cal[f"C{fila}"].value
+        resultado = ws_cal[f"D{fila}"].value
+
+        try:
+
+            if hasattr(fecha, "date"):
+                fecha_partido = fecha.date()
+            else:
+                continue
+
+            if fecha_partido == hoy:
+
+                if resultado not in [None, ""]:
+
+                    equipos = partido.split(" vs ")
+
+                    if len(equipos) == 2:
+
+                        local = equipos[0]
+                        visitante = equipos[1]
+
+                        texto = (
+                            f"⚽ {local} {resultado} {visitante}"
+                        )
+
+                    else:
+
+                        texto = f"⚽ {partido} ({resultado})"
+
+                else:
+
+                    texto = (
+                        f"🕒 {hora.strftime('%H:%M')} - {partido}"
+                        if hasattr(hora, "strftime")
+                        else f"{hora} - {partido}"
+                    )
+
+                partidos_hoy.append(texto)
+
+        except:
+            pass
+
+if len(partidos_hoy) == 0:
+
+    st.info(
+        "No hay partidos programados para hoy."
+    )
+
+else:
+
+    for p in partidos_hoy:
+
+        st.write(p)
+
+st.divider()
+
     st.subheader("Tabla General")
 
     st.dataframe(
