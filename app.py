@@ -349,6 +349,9 @@ elif pagina == "🗓️ Calendario":
 
             fecha = ws_cal[f"B{fila}"].value
             hora = ws_cal[f"C{fila}"].value
+            resultado_final = ws_cal[f"D{fila}"].value
+            if resultado_final is None:
+                resultado_final = " "
 
             if fecha is not None:
                 try:
@@ -366,7 +369,8 @@ elif pagina == "🗓️ Calendario":
                 {
                     "Partido": partido,
                     "Fecha": fecha,
-                    "Hora (CDMX)": hora
+                    "Hora (CDMX)": hora,
+                    "Resultado Final": resultado_final
                 }
             )
 
