@@ -5,6 +5,7 @@ import requests
 from io import BytesIO
 from openpyxl import load_workbook
 from datetime import datetime
+from zoneinfo import ZoneInfo
 
 ultima_actualizacion = datetime.now(
     ZoneInfo("America/Mexico_City")
