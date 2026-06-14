@@ -250,7 +250,8 @@ if pagina == "🏆 Ranking":
 
     st.dataframe(
         ranking,
-        use_container_width=True
+        use_container_width=True,
+        hide_index=True
     )
 
 # ==========================================
@@ -269,14 +270,20 @@ elif pagina == "👤 Participantes":
     )
 
     df = pd.DataFrame(
-        participantes[jugador]["pronosticos"]
+    participantes[jugador]["pronosticos"]
+    )
+
+    df = df.drop(
+        columns=["fila"],
+        errors="ignore"
     )
 
     df = df.reset_index(drop=True)
 
     st.dataframe(
         df,
-        use_container_width=True
+        use_container_width=True,
+        hide_index=True
     )
 
 # ==========================================
@@ -321,8 +328,9 @@ elif pagina == "⚽ Partidos":
 
     st.dataframe(
         df_partido,
-            use_container_width=True
-        )
+        use_container_width=True,
+        hide_index=True
+    )
 
 
 # ==========================================
@@ -387,7 +395,8 @@ elif pagina == "🗓️ Calendario":
 
         st.dataframe(
             df_cal,
-            use_container_width=True
-                )
+            use_container_width=True,
+            hide_index=True
+        )
 
 
