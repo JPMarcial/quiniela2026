@@ -6,7 +6,9 @@ from io import BytesIO
 from openpyxl import load_workbook
 from datetime import datetime
 
-ultima_actualizacion = datetime.now().strftime(
+ultima_actualizacion = datetime.now(
+    ZoneInfo("America/Mexico_City")
+).strftime(
     "%d/%m/%Y %H:%M"
 )
 
@@ -30,7 +32,7 @@ st.info(
     "⚽ La información se actualiza desde Google Drive. La carga inicial puede tardar algunos segundos."
 )
 st.caption(
-    f"Última actualización: {ultima_actualizacion}"
+    f"Página actualizada: {ultima_actualizacion} (hora CDMX)"
 )
 
 pagina = st.sidebar.radio(
