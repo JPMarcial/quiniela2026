@@ -248,79 +248,79 @@ if pagina == "🏆 Ranking":
 
     from datetime import date
 
-        st.subheader("📅 Partidos para hoy")
+    st.subheader("📅 Partidos para hoy")
 
-        hoy = date.today()
+    hoy = date.today()
         
-        partidos_hoy = []
+    partidos_hoy = []
         
-        if "CALENDARIO" in wb.sheetnames:
+    if "CALENDARIO" in wb.sheetnames:
+       
+        ws_cal = wb["CALENDARIO"]
         
-            ws_cal = wb["CALENDARIO"]
+        for fila in range(2, 500):
         
-            for fila in range(2, 500):
+            partido = ws_cal[f"A{fila}"].value
         
-                partido = ws_cal[f"A{fila}"].value
+            if partido is None:
+                continue
         
-                if partido is None:
+            fecha = ws_cal[f"B{fila}"].value
+            hora = ws_cal[f"C{fila}"].value
+            resultado = ws_cal[f"D{fila}"].value
+        
+            try:
+        
+                if hasattr(fecha, "date"):
+                    fecha_partido = fecha.date()
+                else:
                     continue
         
-                fecha = ws_cal[f"B{fila}"].value
-                hora = ws_cal[f"C{fila}"].value
-                resultado = ws_cal[f"D{fila}"].value
+                if fecha_partido == hoy:
         
-                try:
+                    if resultado not in [None, ""]:
         
-                    if hasattr(fecha, "date"):
-                        fecha_partido = fecha.date()
-                    else:
-                        continue
+                        equipos = partido.split(" vs ")
         
-                    if fecha_partido == hoy:
+                        if len(equipos) == 2:
         
-                        if resultado not in [None, ""]:
+                            local = equipos[0]
+                            visitante = equipos[1]
         
-                            equipos = partido.split(" vs ")
-        
-                            if len(equipos) == 2:
-        
-                                local = equipos[0]
-                                visitante = equipos[1]
-        
-                                texto = (
-                                    f"⚽ {local} {resultado} {visitante}"
-                                )
-        
-                            else:
-        
-                                texto = f"⚽ {partido} ({resultado})"
+                            texto = (
+                                f"⚽ {local} {resultado} {visitante}"
+                            )
         
                         else:
         
-                            texto = (
-                                f"🕒 {hora.strftime('%H:%M')} - {partido}"
-                                if hasattr(hora, "strftime")
-                                else f"{hora} - {partido}"
-                            )
+                            texto = f"⚽ {partido} ({resultado})"
         
-                        partidos_hoy.append(texto)
+                    else:
         
-                except:
-                    pass
+                        texto = (
+                            f"🕒 {hora.strftime('%H:%M')} - {partido}"
+                            if hasattr(hora, "strftime")
+                            else f"{hora} - {partido}"
+                        )
         
-        if len(partidos_hoy) == 0:
+                    partidos_hoy.append(texto)
         
-            st.info(
-                "No hay partidos programados para hoy."
-            )
+            except:
+                pass
         
-        else:
+    if len(partidos_hoy) == 0:
         
-            for p in partidos_hoy:
+        st.info(
+            "No hay partidos programados para hoy."
+        )
         
-                st.write(p)
+    else:
         
-        st.divider()
+        for p in partidos_hoy:
+        
+            st.write(p)
+        
+    st.divider()
 
     st.subheader("Tabla General")
 
