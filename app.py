@@ -244,10 +244,7 @@ if pagina == "🏆 Ranking":
         ascending=False
     )
 
-    ranking.index = range(
-        1,
-        len(ranking) + 1
-    )
+    ranking = ranking.reset_index(drop=True)
 
     st.subheader("Tabla General")
 
@@ -274,6 +271,8 @@ elif pagina == "👤 Participantes":
     df = pd.DataFrame(
         participantes[jugador]["pronosticos"]
     )
+
+    df = df.reset_index(drop=True)
 
     st.dataframe(
         df,
@@ -316,10 +315,14 @@ elif pagina == "⚽ Partidos":
                     }
                 )
 
+    df_partido = pd.DataFrame(datos_partido)
+
+    df_partido = df_partido.reset_index(drop=True)
+
     st.dataframe(
-        pd.DataFrame(datos_partido),
-        use_container_width=True
-    )
+        df_partido,
+            use_container_width=True
+        )
 
 
 # ==========================================
@@ -378,9 +381,13 @@ elif pagina == "🗓️ Calendario":
             "Calendario de partidos"
         )
 
+        df_cal = pd.DataFrame(calendario)
+
+        df_cal = df_cal.reset_index(drop=True)
+
         st.dataframe(
-            pd.DataFrame(calendario),
+            df_cal,
             use_container_width=True
-        )
+                )
 
 
