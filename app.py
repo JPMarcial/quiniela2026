@@ -253,7 +253,12 @@ if pagina == "🏆 Ranking":
 
     st.subheader("📅 Partidos para hoy")
 
-    hoy = date.today()
+    from datetime import datetime
+    from zoneinfo import ZoneInfo
+
+    hoy = datetime.now(
+        ZoneInfo("America/Mexico_City")
+    ).date()
         
     partidos_hoy = []
         
