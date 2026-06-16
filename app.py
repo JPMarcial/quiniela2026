@@ -230,7 +230,7 @@ if pagina == "🏆 Ranking":
             {
                 "Participante": nombre,
                 "Puntos": puntos[nombre],
-               "Desempate (Mexico vs Chequia)":
+               "Desempate (Chequia vs México)":
 (
     f"{int(float(participantes[nombre]['desempate_local']))}-{int(float(participantes[nombre]['desempate_visitante']))}"
     if participantes[nombre]['desempate_local'] not in [None, ""]
