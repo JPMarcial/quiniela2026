@@ -230,7 +230,7 @@ if pagina == "🏆 Ranking":
             {
                 "Participante": nombre,
                 "Puntos": puntos[nombre],
-               "Desempate":
+               "Desempate (Mexico vs Chequia)":
 (
     f"{int(float(participantes[nombre]['desempate_local']))}-{int(float(participantes[nombre]['desempate_visitante']))}"
     if participantes[nombre]['desempate_local'] not in [None, ""]
@@ -245,6 +245,12 @@ if pagina == "🏆 Ranking":
     ranking = ranking.sort_values(
         by="Puntos",
         ascending=False
+    )
+
+    ranking.insert(
+        0,
+        "Pos",
+        range(1, len(ranking) + 1)
     )
 
     ranking = ranking.reset_index(drop=True)
@@ -362,11 +368,7 @@ if pagina == "🏆 Ranking":
 
     st.subheader("Tabla General")
 
-    st.dataframe(
-        ranking,
-        use_container_width=True,
-        hide_index=True
-    )
+    st.table(ranking)
 
 # ==========================================
 # PARTICIPANTES
