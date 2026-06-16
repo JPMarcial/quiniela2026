@@ -247,11 +247,7 @@ if pagina == "🏆 Ranking":
         ascending=False
     )
 
-    ranking.insert(
-        0,
-        "Pos",
-        range(1, len(ranking) + 1)
-    )
+    
 
     ranking = ranking.reset_index(drop=True)
 
