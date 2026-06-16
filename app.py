@@ -253,6 +253,36 @@ if pagina == "🏆 Ranking":
 
     st.subheader("📅 Partidos para hoy")
 
+    total_partidos = 0
+    partidos_jugados = 0
+    
+    if "CALENDARIO" in wb.sheetnames:
+    
+        ws_cal = wb["CALENDARIO"]
+    
+        for fila in range(2, 500):
+    
+            partido = ws_cal[f"A{fila}"].value
+    
+            if partido is None:
+                continue
+    
+            total_partidos += 1
+    
+            resultado = ws_cal[f"D{fila}"].value
+    
+            if resultado not in [None, ""]:
+                partidos_jugados += 1
+    
+    porcentaje = round(
+        partidos_jugados * 100 / total_partidos,
+        1
+    )
+    
+    st.markdown(
+        f"**⚽ Avance del torneo:** {partidos_jugados}/{total_partidos} partidos ({porcentaje}%)"
+    )
+
     from datetime import datetime
     from zoneinfo import ZoneInfo
 
