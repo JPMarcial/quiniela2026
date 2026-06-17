@@ -32,8 +32,9 @@ pagina = st.sidebar.radio(
 # ==========================================
 # CONFIGURACIÓN GOOGLE DRIVE
 # ==========================================
-FILE_ID = "1SHpn1NmK9_Mq6zJObuVzDqltwCTbeYVEu7ckVoLIrxw"
-URL_DRIVE = f"https://docs.google.com/uc?export=download&id={FILE_ID}"
+FILE_ID = "1svfBlcw4oOEltibwpv1c8I4h6sHmeq7z" 
+
+URL_DRIVE = f"https://docs.google.com/spreadsheets/d/{FILE_ID}/export?format=xlsx"
 
 # ==========================================
 # FUNCIONES DE CARGA Y CACHÉ (60 segundos)
