@@ -249,6 +249,26 @@ if pagina == "🏆 Ranking":
 
     porcentaje = round(partidos_jugados * 100 / total_partidos, 1) if total_partidos > 0 else 0
 
+    # ✨ CÁLCULO DE LÍDER(ES) CON PRIMER NOMBRE SOLO
+    puntaje_maximo = ranking["Puntos"].max() if not ranking.empty else -1
+    
+    if puntaje_maximo != -1:
+        # Filtrar todos los que tengan el puntaje máximo
+        filtro_lideres = ranking[ranking["Puntos"] == puntaje_maximo]["Participante"].tolist()
+        # Extraer solo el primer nombre de cada líder
+        primeros_nombres_lideres = [str(n).strip().split()[0] for n in filtro_lideres]
+        
+        # Unir nombres con comas (o "y" si son dos)
+        if len(primeros_nombres_lideres) > 1:
+            texto_lideres = ", ".join(primeros_nombres_lideres[:-1]) + " y " + primeros_nombres_lideres[-1]
+            etiqueta_lider = "🔥 Líderes Actuales"
+        else:
+            texto_lideres = primeros_nombres_lideres[0]
+            etiqueta_lider = "🔥 Líder Actual"
+    else:
+        texto_lideres = "-"
+        etiqueta_lider = "🔥 Líder Actual"
+
     # Tarjetas de Métricas Destacadas
     col1, col2, col3 = st.columns(3)
     with col1:
@@ -256,8 +276,7 @@ if pagina == "🏆 Ranking":
     with col2:
         st.metric(label="📈 Avance del Torneo", value=f"{porcentaje}%")
     with col3:
-        lider = ranking.iloc[0]["Participante"] if not ranking.empty else "-"
-        st.metric(label="🔥 Líder Actual", value=lider)
+        st.metric(label=etiqueta_lider, value=texto_lideres)
 
     st.divider()
 
@@ -271,10 +290,7 @@ if pagina == "🏆 Ranking":
     st.divider()
     st.subheader("Tabla General")
 
-    # Obtener el puntaje máximo del torneo actual
-    puntaje_maximo = ranking["Puntos"].max() if not ranking.empty else -1
-
-    # ✨ SOLO ORO: Ilumina únicamente a los que tengan el primer lugar absoluto o compartido
+    # SOLO ORO: Ilumina únicamente a los que tengan el primer lugar absoluto o compartido
     def resaltar_solo_oro(row):
         if row["Puntos"] == puntaje_maximo and puntaje_maximo != -1:
             return ['background-color: #ffd700; color: #000000; font-weight: bold;'] * len(row)
