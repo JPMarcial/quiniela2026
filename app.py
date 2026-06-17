@@ -272,9 +272,11 @@ if pagina == "🏆 Ranking":
 
     porcentaje = round(partidos_jugados * 100 / total_partidos, 1) if total_partidos > 0 else 0
 
-    # Cálculo de Líderes (Primer Nombre)
+    # Obtener puntajes extremos antes de modificar los nombres
     puntaje_maximo = ranking["Puntos"].max() if not ranking.empty else -1
+    puntaje_minimo = ranking["Puntos"].min() if not ranking.empty else -1
     
+    # Cálculo de Líderes (Primer Nombre)
     if puntaje_maximo != -1:
         filtro_lideres = ranking[ranking["Puntos"] == puntaje_maximo]["Participante"].tolist()
         primeros_nombres_lideres = [str(n).strip().split()[0] for n in filtro_lideres]
@@ -304,22 +306,31 @@ if pagina == "🏆 Ranking":
     if len(partidos_hoy) == 0:
         st.info("No hay partidos programados para hoy.")
     else:
-        # ✨ SE APLICA LA CLASE CSS CON TAMAÑO AGRANDADO
         for p in partidos_hoy:
             st.markdown(f'<p class="partido-hoy">{p}</p>', unsafe_allow_html=True)
 
     st.divider()
     st.subheader("Tabla General")
 
-    # Destacar líderes de forma elegante con la corona
+    # 🫏 Asignación de emojis (Corona arriba y Burro/Caracol abajo)
     if puntaje_maximo != -1:
-        ranking["Participante"] = ranking.apply(
-            lambda r: f"👑 {r['Participante']}" if r["Puntos"] == puntaje_maximo else r["Participante"], axis=1
-        )
+        def agregar_emoji(r):
+            if r["Puntos"] == puntaje_maximo:
+                return f"👑 {r['Participante']}"
+            elif r["Puntos"] == puntaje_minimo and puntaje_minimo != puntaje_maximo:
+                return f"🫏 {r['Participante']}" # Puedes cambiar "🫏" por "🐌" si prefieren el caracol
+            return r["Participante"]
 
+        ranking["Participante"] = ranking.apply(agregar_emoji, axis=1)
+
+    # Estilo premium para resaltar filas
     def resaltar_estilo_premium(row):
+        # Si es el líder, fondo amarillo/oro
         if puntaje_maximo != -1 and row["Puntos"] == puntaje_maximo:
             return ['background-color: #fffbeb; color: #b45309; font-weight: bold;'] * len(row)
+        # Si es el último lugar (y no coincide con el primero), fondo gris/rojo suave opcional
+        elif puntaje_minimo != -1 and row["Puntos"] == puntaje_minimo and puntaje_minimo != puntaje_maximo:
+            return ['background-color: #f8f9fa; color: #6c757d; font-style: italic;'] * len(row)
         return [''] * len(row)
 
     ranking_estilizado = ranking.style.apply(resaltar_estilo_premium, axis=1)
@@ -330,7 +341,6 @@ if pagina == "🏆 Ranking":
     # El monito con su letrero de "se aceptan ideas"
     with st.chat_message("assistant", avatar="👷‍♂️"):
         st.markdown("**¡Hola! Se aceptan ideas o sugerencias para mejorar la página.**")
-
 # ==========================================
 # PARTICIPANTES
 # ==========================================
