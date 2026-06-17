@@ -71,7 +71,7 @@ def determinar_resultado_celdas(c, d, e):
 
 @st.cache_data(ttl=60)  
 def procesar_todo_el_excel(contenido_excel):
-    # ⚡ OPTIMIZACIÓN CLAVE: read_only=True permite que iter_rows funcione a velocidad relámpago
+    # read_only=True + data_only=True = velocidad relámpago
     wb_local = load_workbook(BytesIO(contenido_excel), data_only=True, read_only=True)
 
     if "RESULTADOS" not in wb_local.sheetnames:
@@ -89,32 +89,40 @@ def procesar_todo_el_excel(contenido_excel):
             continue
         resultados_oficiales[fila_idx] = determinar_resultado_celdas(c, d, e)
 
-    # 2. Procesar participantes de forma masiva
+    # 2. Procesar participantes y extraer datos del Calendario en estructuras simples
     participantes_local = {}
+    calendario_local = []
 
     for hoja in wb_local.sheetnames:
-        if hoja.upper() in ["RESULTADOS", "CALENDARIO"]:
+        if hoja.upper() == "RESULTADOS":
+            continue
+            
+        if hoja.upper() == "CALENDARIO":
+            ws_cal = wb_local[hoja]
+            for row in ws_cal.iter_rows(min_row=2, max_row=500, min_col=1, max_col=4, values_only=True):
+                if len(row) < 4 or row[0] is None:
+                    continue
+                calendario_local.append({
+                    "partido": row[0],
+                    "fecha": row[1],
+                    "hora": row[2],
+                    "resultado": row[3]
+                })
             continue
 
         ws = wb_local[hoja]
-        
-        # En modo read_only las celdas directas como ws["C2"].value pueden requerir iterar,
-        # para asegurar máxima velocidad en read_only leemos las cabeceras controladas.
         nombre = hoja
         desempate_local = "-"
         desempate_visitante = "-"
         
-        # Captura rápida de C2, J15 y L15 usando filas optimizadas
         for r_idx, row in enumerate(ws.iter_rows(min_row=2, max_row=15, min_col=3, max_col=12, values_only=True), start=2):
             if r_idx == 2 and len(row) > 0:
                 nombre = row[0] or hoja
             if r_idx == 15 and len(row) >= 10:
-                desempate_local = row[7]       # Columna J (índice 7 relativo a col C que es 0)
-                desempate_visitante = row[9]   # Columna L (índice 9 relativo a col C que es 0)
+                desempate_local = row[7]       
+                desempate_visitante = row[9]   
 
         pronosticos = []
-        
-        # Iteración ultra rápida sobre las filas de pronósticos
         for fila_idx, row in enumerate(ws.iter_rows(min_row=6, max_row=200, min_col=2, max_col=6, values_only=True), start=6):
             if len(row) < 5:
                 continue
@@ -151,7 +159,8 @@ def procesar_todo_el_excel(contenido_excel):
             "desempate_visitante": desempate_visitante,
         }
 
-    return participantes_local, wb_local
+    # ⚡ EXCELENTE: Ahora solo regresamos diccionarios y listas estándar de Python (100% serializables)
+    return participantes_local, calendario_local
 
 
 # ==========================================
@@ -164,13 +173,13 @@ if contenido_excel is None:
     st.error("No se pudo descargar el archivo desde Google Drive.")
     st.stop()
 
-participantes, wb = procesar_todo_el_excel(contenido_excel)
+participantes, calendario_datos = procesar_todo_el_excel(contenido_excel)
 
 if participantes is None:
     st.error("No existe la hoja RESULTADOS en el archivo.")
     st.stop()
 
-# Calcular puntos de forma directa y limpia
+# Calcular puntos
 puntos = {nombre: sum(1 for p in datos["pronosticos"] if p["Acierto"]) for nombre, datos in participantes.items()}
 
 # ==========================================
@@ -179,7 +188,6 @@ puntos = {nombre: sum(1 for p in datos["pronosticos"] if p["Acierto"]) for nombr
 st.write(f"Tiempo de carga: {round(time.time() - inicio, 2)} segundos")
 
 if pagina == "🏆 Ranking":
-    # Construcción segura de datos numéricos para evitar errores de float vacíos en desempates
     ranking_datos = []
     for nombre in participantes:
         dl = participantes[nombre]['desempate_local']
@@ -208,15 +216,12 @@ if pagina == "🏆 Ranking":
     partidos_hoy = []
     hoy = datetime.now(ZoneInfo("America/Mexico_City")).date()
 
-    if "CALENDARIO" in wb.sheetnames:
-        ws_cal = wb["CALENDARIO"]
-
-        for row in ws_cal.iter_rows(min_row=2, max_row=500, min_col=1, max_col=4, values_only=True):
-            if len(row) < 4:
-                continue
-            partido, fecha, hora, resultado = row[0], row[1], row[2], row[3]
-            if partido is None:
-                continue
+    if calendario_datos:
+        for c_partido in calendario_datos:
+            partido = c_partido["partido"]
+            fecha = c_partido["fecha"]
+            hora = c_partido["hora"]
+            resultado = c_partido["resultado"]
 
             total_partidos += 1
             if resultado not in [None, ""]:
@@ -304,20 +309,15 @@ elif pagina == "⚽ Partidos":
 # ==========================================
 
 elif pagina == "🗓️ Calendario":
-    if "CALENDARIO" not in wb.sheetnames:
-        st.warning("No existe la hoja CALENDARIO")
+    if not calendario_datos:
+        st.warning("No existe o está vacía la hoja CALENDARIO")
     else:
-        ws_cal = wb["CALENDARIO"]
-        calendario = []
-
-        for row in ws_cal.iter_rows(min_row=2, max_row=500, min_col=1, max_col=4, values_only=True):
-            if len(row) < 4:
-                continue
-            partido, fecha, hora, resultado_final = row[0], row[1], row[2], row[3]
-            if partido is None:
-                continue
-
-            resultado_final = resultado_final if resultado_final is not None else " "
+        calendario_tabla = []
+        for c_partido in calendario_datos:
+            partido = c_partido["partido"]
+            fecha = c_partido["fecha"]
+            hora = c_partido["hora"]
+            resultado_final = c_partido["resultado"] if c_partido["resultado"] is not None else " "
 
             try:
                 fecha = fecha.strftime("%d/%m/%Y") if hasattr(fecha, "strftime") else str(fecha)
@@ -329,7 +329,7 @@ elif pagina == "🗓️ Calendario":
             except:
                 pass
 
-            calendario.append(
+            calendario_tabla.append(
                 {
                     "Partido": partido,
                     "Fecha": fecha,
@@ -339,4 +339,4 @@ elif pagina == "🗓️ Calendario":
             )
 
         st.subheader("Calendario de partidos")
-        st.dataframe(pd.DataFrame(calendario).reset_index(drop=True), use_container_width=True, hide_index=True)
+        st.dataframe(pd.DataFrame(calendario_tabla).reset_index(drop=True), use_container_width=True, hide_index=True)
