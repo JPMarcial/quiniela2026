@@ -33,7 +33,7 @@ pagina = st.sidebar.radio(
 )
 
 # ==========================================
-# GOOGLE DRIVE
+# GOOGLE DRIVE 
 # ==========================================
 
 FILE_ID = "1svfBlcw4oOEltibwpv1c8I4h6sHmeq7z"
@@ -42,60 +42,113 @@ URL_DRIVE = f"https://docs.google.com/uc?export=download&id={FILE_ID}"
 
 @st.cache_data(ttl=60)
 def cargar_excel():
-    respuesta = requests.get(URL_DRIVE)
-    if respuesta.status_code != 200:
-        return None
-    return respuesta.content
+    try:
+        respuesta = requests.get(URL_DRIVE, timeout=10)
+        if respuesta.status_code == 200:
+            return respuesta.content
+    except Exception as e:
+        st.error(f"Error al descargar Excel de Drive: {e}")
+    return None
 
 
 # ==========================================
-# FUNCIÓN PARA LEER RESULTADO
+# FUNCIÓN AUXILIAR PARA DETERMINAR PRONÓSTICO
 # ==========================================
 
+def determinar_resultado_celdas(c, d, e):
+    c_str = str(c).strip().lower() if c is not None else ""
+    d_str = str(d).strip().lower() if d is not None else ""
+    e_str = str(e).strip().lower() if e is not None else ""
 
-def leer_resultado(ws, fila):
-    c = str(ws[f"C{fila}"].value).strip().lower()
-    d = str(ws[f"D{fila}"].value).strip().lower()
-    e = str(ws[f"E{fila}"].value).strip().lower()
-
-    if c == "x":
+    if c_str == "x":
         return "Local"
-    elif d == "x":
+    elif d_str == "x":
         return "Empate"
-    elif e == "x":
+    elif e_str == "x":
         return "Visitante"
     return None
 
 
-@st.cache_data(ttl=86400)
-def cargar_participantes():
-    contenido_excel = cargar_excel()
-    wb_local = load_workbook(BytesIO(contenido_excel), data_only=True)
+@st.cache_data(ttl=60)  
+def procesar_todo_el_excel(contenido_excel):
+    wb_local = load_workbook(BytesIO(contenido_excel), data_only=True, read_only=True)
+
+    if "RESULTADOS" not in wb_local.sheetnames:
+        return None, None
+
+    # 1. Mapear resultados oficiales de forma instantánea
+    ws_resultados = wb_local["RESULTADOS"]
+    resultados_oficiales = {}
+    
+    for fila_idx, row in enumerate(ws_resultados.iter_rows(min_row=6, max_row=200, min_col=2, max_col=6, values_only=True), start=6):
+        if len(row) < 5:
+            continue
+        local, c, d, e, visitante = row[0], row[1], row[2], row[3], row[4]
+        if local is None or visitante is None:
+            continue
+        resultados_oficiales[fila_idx] = determinar_resultado_celdas(c, d, e)
+
+    # 2. Procesar participantes y extraer datos del Calendario en estructuras simples
     participantes_local = {}
+    calendario_local = []
 
     for hoja in wb_local.sheetnames:
-        if hoja.upper() in ["RESULTADOS", "CALENDARIO"]:
+        if hoja.upper() == "RESULTADOS":
+            continue
+            
+        if hoja.upper() == "CALENDARIO":
+            ws_cal = wb_local[hoja]
+            for row in ws_cal.iter_rows(min_row=2, max_row=500, min_col=1, max_col=4, values_only=True):
+                if len(row) < 4 or row[0] is None:
+                    continue
+                calendario_local.append({
+                    "partido": row[0],
+                    "fecha": row[1],
+                    "hora": row[2],
+                    "resultado": row[3]
+                })
             continue
 
         ws = wb_local[hoja]
-        nombre = ws["C2"].value
-
-        desempate_local = ws["J15"].value
-        desempate_visitante = ws["L15"].value
+        nombre = hoja
+        desempate_local = "-"
+        desempate_visitante = "-"
+        
+        for r_idx, row in enumerate(ws.iter_rows(min_row=2, max_row=15, min_col=3, max_col=12, values_only=True), start=2):
+            if r_idx == 2 and len(row) > 0:
+                nombre = row[0] or hoja
+            if r_idx == 15 and len(row) >= 10:
+                desempate_local = row[7]       
+                desempate_visitante = row[9]   
 
         pronosticos = []
-        for fila in range(6, 200):
-            local = ws[f"B{fila}"].value
-            visitante = ws[f"F{fila}"].value
-
+        for fila_idx, row in enumerate(ws.iter_rows(min_row=6, max_row=200, min_col=2, max_col=6, values_only=True), start=6):
+            if len(row) < 5:
+                continue
+            local, c, d, e, visitante = row[0], row[1], row[2], row[3], row[4]
             if local is None or visitante is None:
                 continue
 
+            resultado_oficial = resultados_oficiales.get(fila_idx)
+            pronostico_jugador = determinar_resultado_celdas(c, d, e)
+
+            es_acierto = (
+                resultado_oficial is not None
+                and pronostico_jugador == resultado_oficial
+            )
+
+            estatus_visual = "⌛ Pautado"
+            if resultado_oficial is not None:
+                estatus_visual = "✅ ¡Acertó!" if es_acierto else "❌ Falló"
+
             pronosticos.append(
                 {
-                    "fila": fila,
+                    "fila": fila_idx,
                     "Partido": f"{local} vs {visitante}",
-                    "Pronóstico": leer_resultado(ws, fila),
+                    "Pronóstico": pronostico_jugador,
+                    "Resultado Oficial": resultado_oficial,
+                    "Estatus": estatus_visual,
+                    "Acierto": es_acierto,
                 }
             )
 
@@ -105,63 +158,27 @@ def cargar_participantes():
             "desempate_visitante": desempate_visitante,
         }
 
-    return participantes_local
+    return participantes_local, calendario_local
 
 
 # ==========================================
-# LEER EXCEL DESDE GOOGLE DRIVE
+# EJECUCIÓN PRINCIPAL
 # ==========================================
 
-try:
-    contenido_excel = cargar_excel()
-    if contenido_excel is None:
-        st.error("No se pudo descargar el archivo desde Google Drive.")
-        st.stop()
+contenido_excel = cargar_excel()
 
-    wb = load_workbook(BytesIO(contenido_excel), data_only=True)
-except Exception as e:
-    st.error(f"No se pudo abrir el archivo desde Drive: {e}")
+if contenido_excel is None:
+    st.error("No se pudo descargar el archivo desde Google Drive.")
     st.stop()
 
-# ==========================================
-# RESULTADOS OFICIALES
-# ==========================================
+participantes, calendario_datos = procesar_todo_el_excel(contenido_excel)
 
-if "RESULTADOS" not in wb.sheetnames:
-    st.error("No existe la hoja RESULTADOS")
+if participantes is None:
+    st.error("No existe la hoja RESULTADOS en el archivo.")
     st.stop()
 
-ws_resultados = wb["RESULTADOS"]
-participantes = cargar_participantes()
-
-for nombre, datos in participantes.items():
-    for p in datos["pronosticos"]:
-        fila = p["fila"]
-        resultado_oficial = leer_resultado(ws_resultados, fila)
-
-        p["Resultado Oficial"] = resultado_oficial
-        p["Acierto"] = (
-            resultado_oficial is not None
-            and p["Pronóstico"] == resultado_oficial
-        )
-
-        # Generar estatus visual con íconos limpios para la pestaña individual
-        if resultado_oficial is not None:
-            p["Estatus"] = "✅ ¡Acertó!" if p["Acierto"] else "❌ Falló"
-        else:
-            p["Estatus"] = "⌛ Pautado"
-
-# ==========================================
-# CALCULAR PUNTOS
-# ==========================================
-
-puntos = {}
-for nombre, datos in participantes.items():
-    total = 0
-    for p in datos["pronosticos"]:
-        if p["Acierto"]:
-            total += 1
-    puntos[nombre] = total
+# Calcular puntos
+puntos = {nombre: sum(1 for p in datos["pronosticos"] if p["Acierto"]) for nombre, datos in participantes.items()}
 
 # ==========================================
 # RANKING
@@ -169,71 +186,43 @@ for nombre, datos in participantes.items():
 st.write(f"Tiempo de carga: {round(time.time() - inicio, 2)} segundos")
 
 if pagina == "🏆 Ranking":
-    ranking = pd.DataFrame(
-        [
-            {
-                "Participante": nombre,
-                "Puntos": puntos[nombre],
-                "Desempate (Chequia vs México)": (
-                    f"{int(float(participantes[nombre]['desempate_local']))}-{int(float(participantes[nombre]['desempate_visitante']))}"
-                    if participantes[nombre]["desempate_local"]
-                    not in [None, ""]
-                    and participantes[nombre]["desempate_visitante"]
-                    not in [None, ""]
-                    else "-"
-                ),
-            }
-            for nombre in participantes
-        ]
-    )
+    ranking_datos = []
+    for nombre in participantes:
+        dl = participantes[nombre]['desempate_local']
+        dv = participantes[nombre]['desempate_visitante']
+        
+        try:
+            val_dl = f"{int(float(dl))}" if dl not in [None, "", "-"] else "-"
+            val_dv = f"{int(float(dv))}" if dv not in [None, "", "-"] else "-"
+            desempate_txt = f"{val_dl}-{val_dv}" if val_dl != "-" and val_dv != "-" else "-"
+        except:
+            desempate_txt = f"{dl}-{dv}" if dl or dv else "-"
 
-    ranking = ranking.sort_values(by="Puntos", ascending=False)
-    ranking = ranking.reset_index(drop=True)
+        ranking_datos.append({
+            "Participante": nombre,
+            "Puntos": puntos[nombre],
+            "Desempate (Chequia vs México)": desempate_txt
+        })
 
-    from datetime import date
+    ranking = pd.DataFrame(ranking_datos)
+    ranking = ranking.sort_values(by="Puntos", ascending=False).reset_index(drop=True)
 
-    st.subheader("📅 Partidos para hoy")
-
+    # Procesar métricas de avance
     total_partidos = 0
     partidos_jugados = 0
+    partidos_hoy = []
+    hoy = datetime.now(ZoneInfo("America/Mexico_City")).date()
 
-    if "CALENDARIO" in wb.sheetnames:
-        ws_cal = wb["CALENDARIO"]
-        for fila in range(2, 500):
-            partido = ws_cal[f"A{fila}"].value
-            if partido is None:
-                continue
+    if calendario_datos:
+        for c_partido in calendario_datos:
+            partido = c_partido["partido"]
+            fecha = c_partido["fecha"]
+            hora = c_partido["hora"]
+            resultado = c_partido["resultado"]
+
             total_partidos += 1
-            resultado = ws_cal[f"D{fila}"].value
             if resultado not in [None, ""]:
                 partidos_jugados += 1
-
-    porcentaje = (
-        round(partidos_jugados * 100 / total_partidos, 1)
-        if total_partidos > 0
-        else 0
-    )
-
-    st.markdown(
-        f"**⚽ Avance del torneo:** {partidos_jugados}/{total_partidos} partidos ({porcentaje}%)"
-    )
-
-    from datetime import datetime
-    from zoneinfo import ZoneInfo
-
-    hoy = datetime.now(ZoneInfo("America/Mexico_City")).date()
-    partidos_hoy = []
-
-    if "CALENDARIO" in wb.sheetnames:
-        ws_cal = wb["CALENDARIO"]
-        for fila in range(2, 500):
-            partido = ws_cal[f"A{fila}"].value
-            if partido is None:
-                continue
-
-            fecha = ws_cal[f"B{fila}"].value
-            hora = ws_cal[f"C{fila}"].value
-            resultado = ws_cal[f"D{fila}"].value
 
             try:
                 if hasattr(fecha, "date"):
@@ -245,9 +234,7 @@ if pagina == "🏆 Ranking":
                     if resultado not in [None, ""]:
                         equipos = partido.split(" vs ")
                         if len(equipos) == 2:
-                            local = equipos[0]
-                            visitante = equipos[1]
-                            texto = f"⚽ {local} {resultado} {visitante}"
+                            texto = f"⚽ {equipos[0]} {resultado} {equipos[1]}"
                         else:
                             texto = f"⚽ {partido} ({resultado})"
                     else:
@@ -256,11 +243,25 @@ if pagina == "🏆 Ranking":
                             if hasattr(hora, "strftime")
                             else f"{hora} - {partido}"
                         )
-
                     partidos_hoy.append(texto)
             except:
                 pass
 
+    porcentaje = round(partidos_jugados * 100 / total_partidos, 1) if total_partidos > 0 else 0
+
+    # Tarjetas de Métricas Destacadas
+    col1, col2, col3 = st.columns(3)
+    with col1:
+        st.metric(label="⚽ Partidos Jugados", value=f"{partidos_jugados} / {total_partidos}")
+    with col2:
+        st.metric(label="📈 Avance del Torneo", value=f"{porcentaje}%")
+    with col3:
+        lider = ranking.iloc[0]["Participante"] if not ranking.empty else "-"
+        st.metric(label="🔥 Líder Actual", value=lider)
+
+    st.divider()
+
+    st.subheader("📅 Partidos para hoy")
     if len(partidos_hoy) == 0:
         st.info("No hay partidos programados para hoy.")
     else:
@@ -269,25 +270,41 @@ if pagina == "🏆 Ranking":
 
     st.divider()
     st.subheader("Tabla General")
-    st.table(ranking)
+
+    # Obtener el puntaje máximo del torneo actual
+    puntaje_maximo = ranking["Puntos"].max() if not ranking.empty else -1
+
+    # ✨ SOLO ORO: Ilumina únicamente a los que tengan el primer lugar absoluto o compartido
+    def resaltar_solo_oro(row):
+        if row["Puntos"] == puntaje_maximo and puntaje_maximo != -1:
+            return ['background-color: #ffd700; color: #000000; font-weight: bold;'] * len(row)
+        return [''] * len(row)
+
+    ranking_estilizado = ranking.style.apply(resaltar_solo_oro, axis=1)
+    st.dataframe(ranking_estilizado, use_container_width=True, hide_index=True)
 
 # ==========================================
 # PARTICIPANTES
 # ==========================================
 
 elif pagina == "👤 Participantes":
-    jugador = st.selectbox(
-        "Selecciona participante", list(participantes.keys())
-    )
+    jugador = st.selectbox("Selecciona participante", list(participantes.keys()))
     st.subheader(f"Pronósticos de {jugador}")
 
     df = pd.DataFrame(participantes[jugador]["pronosticos"])
-    df = df.drop(columns=["fila"], errors="ignore")
-    df = df.reset_index(drop=True)
-
-    # Reordenamos columnas para incluir tu estatus limpio
+    df = df.drop(columns=["fila", "Acierto"], errors="ignore").reset_index(drop=True)
     df = df[["Partido", "Pronóstico", "Resultado Oficial", "Estatus"]]
-    st.dataframe(df, use_container_width=True, hide_index=True)
+
+    # Formato Condicional para los aciertos (Verde) y fallos (Rojo)
+    def color_estatus(val):
+        if "✅" in str(val):
+            return 'background-color: #d4edda; color: #155724; font-weight: bold;'  # Verde suave
+        elif "❌" in str(val):
+            return 'background-color: #f8d7da; color: #721c24;'  # Rojo suave
+        return ''
+
+    df_estilizado = df.style.applymap(color_estatus, subset=["Estatus"])
+    st.dataframe(df_estilizado, use_container_width=True, hide_index=True)
 
 # ==========================================
 # PARTIDOS
@@ -295,9 +312,7 @@ elif pagina == "👤 Participantes":
 
 elif pagina == "⚽ Partidos":
     primer_jugador = list(participantes.keys())[0]
-    lista_partidos = [
-        p["Partido"] for p in participantes[primer_jugador]["pronosticos"]
-    ]
+    lista_partidos = [p["Partido"] for p in participantes[primer_jugador]["pronosticos"]]
 
     partido_seleccionado = st.selectbox("Selecciona partido", lista_partidos)
     datos_partido = []
@@ -314,48 +329,34 @@ elif pagina == "⚽ Partidos":
                     }
                 )
 
-    df_partido = pd.DataFrame(datos_partido)
-    df_partido = df_partido.reset_index(drop=True)
-
-    st.dataframe(
-        df_partido, use_container_width=True, hide_index=True
-    )
+    st.dataframe(pd.DataFrame(datos_partido).reset_index(drop=True), use_container_width=True, hide_index=True)
 
 # ==========================================
 # CALENDARIO
 # ==========================================
 
 elif pagina == "🗓️ Calendario":
-    if "CALENDARIO" not in wb.sheetnames:
-        st.warning("No existe la hoja CALENDARIO")
+    if not calendario_datos:
+        st.warning("No existe o está vacía la hoja CALENDARIO")
     else:
-        ws_cal = wb["CALENDARIO"]
-        calendario = []
+        calendario_tabla = []
+        for c_partido in calendario_datos:
+            partido = c_partido["partido"]
+            fecha = c_partido["fecha"]
+            hora = c_partido["hora"]
+            resultado_final = c_partido["resultado"] if c_partido["resultado"] is not None else " "
 
-        for fila in range(2, 500):
-            partido = ws_cal[f"A{fila}"].value
-            if partido is None:
-                continue
+            try:
+                fecha = fecha.strftime("%d/%m/%Y") if hasattr(fecha, "strftime") else str(fecha)
+            except:
+                pass
 
-            fecha = ws_cal[f"B{fila}"].value
-            hora = ws_cal[f"C{fila}"].value
-            resultado_final = ws_cal[f"D{fila}"].value
-            if resultado_final is None:
-                resultado_final = " "
+            try:
+                hora = hora.strftime("%H:%M") if hasattr(hora, "strftime") else str(hora)
+            except:
+                pass
 
-            if fecha is not None:
-                try:
-                    fecha = fecha.strftime("%d/%m/%Y")
-                except:
-                    fecha = str(fecha)
-
-            if hora is not None:
-                try:
-                    hora = hora.strftime("%H:%M")
-                except:
-                    hora = str(hora)
-
-            calendario.append(
+            calendario_tabla.append(
                 {
                     "Partido": partido,
                     "Fecha": fecha,
@@ -365,9 +366,4 @@ elif pagina == "🗓️ Calendario":
             )
 
         st.subheader("Calendario de partidos")
-        df_cal = pd.DataFrame(calendario)
-        df_cal = df_cal.reset_index(drop=True)
-
-        st.dataframe(
-            df_cal, use_container_width=True, hide_index=True
-        )
+        st.dataframe(pd.DataFrame(calendario_tabla).reset_index(drop=True), use_container_width=True, hide_index=True)
