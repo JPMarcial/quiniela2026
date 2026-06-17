@@ -71,7 +71,6 @@ def determinar_resultado_celdas(c, d, e):
 
 @st.cache_data(ttl=60)  
 def procesar_todo_el_excel(contenido_excel):
-    # read_only=True + data_only=True = velocidad relámpago
     wb_local = load_workbook(BytesIO(contenido_excel), data_only=True, read_only=True)
 
     if "RESULTADOS" not in wb_local.sheetnames:
@@ -159,7 +158,6 @@ def procesar_todo_el_excel(contenido_excel):
             "desempate_visitante": desempate_visitante,
         }
 
-    # ⚡ EXCELENTE: Ahora solo regresamos diccionarios y listas estándar de Python (100% serializables)
     return participantes_local, calendario_local
 
 
@@ -209,8 +207,7 @@ if pagina == "🏆 Ranking":
     ranking = pd.DataFrame(ranking_datos)
     ranking = ranking.sort_values(by="Puntos", ascending=False).reset_index(drop=True)
 
-    st.subheader("📅 Partidos para hoy")
-
+    # Procesar métricas de avance
     total_partidos = 0
     partidos_jugados = 0
     partidos_hoy = []
@@ -252,10 +249,19 @@ if pagina == "🏆 Ranking":
 
     porcentaje = round(partidos_jugados * 100 / total_partidos, 1) if total_partidos > 0 else 0
 
-    st.markdown(
-        f"**⚽ Avance del torneo:** {partidos_jugados}/{total_partidos} partidos ({porcentaje}%)"
-    )
+    # ✨ PUNTO 1: Tarjetas de Métricas Destacadas
+    col1, col2, col3 = st.columns(3)
+    with col1:
+        st.metric(label="⚽ Partidos Jugados", value=f"{partidos_jugados} / {total_partidos}")
+    with col2:
+        st.metric(label="📈 Avance del Torneo", value=f"{porcentaje}%")
+    with col3:
+        lider = ranking.iloc[0]["Participante"] if not ranking.empty else "-"
+        st.metric(label="🔥 Líder Actual", value=lider)
 
+    st.divider()
+
+    st.subheader("📅 Partidos para hoy")
     if len(partidos_hoy) == 0:
         st.info("No hay partidos programados para hoy.")
     else:
@@ -264,7 +270,19 @@ if pagina == "🏆 Ranking":
 
     st.divider()
     st.subheader("Tabla General")
-    st.table(ranking)
+
+    # ✨ PUNTO 2: Resaltado visual del Podio (Oro, Plata, Bronce con texto negro legible)
+    def resaltar_podio(row):
+        if row.name == 0:    # 1er Lugar (Oro)
+            return ['background-color: #ffd700; color: #000000; font-weight: bold;'] * len(row)
+        elif row.name == 1:  # 2do Lugar (Plata)
+            return ['background-color: #c0c0c0; color: #000000; font-weight: bold;'] * len(row)
+        elif row.name == 2:  # 3er Lugar (Bronce)
+            return ['background-color: #cd7f32; color: #000000; font-weight: bold;'] * len(row)
+        return [''] * len(row)
+
+    ranking_estilizado = ranking.style.apply(resaltar_podio, axis=1)
+    st.dataframe(ranking_estilizado, use_container_width=True, hide_index=True)
 
 # ==========================================
 # PARTICIPANTES
@@ -277,7 +295,17 @@ elif pagina == "👤 Participantes":
     df = pd.DataFrame(participantes[jugador]["pronosticos"])
     df = df.drop(columns=["fila", "Acierto"], errors="ignore").reset_index(drop=True)
     df = df[["Partido", "Pronóstico", "Resultado Oficial", "Estatus"]]
-    st.dataframe(df, use_container_width=True, hide_index=True)
+
+    # ✨ PUNTO 5: Formato Condicional para los aciertos (Verde) y fallos (Rojo)
+    def color_estatus(val):
+        if "✅" in str(val):
+            return 'background-color: #d4edda; color: #155724; font-weight: bold;'  # Verde suave
+        elif "❌" in str(val):
+            return 'background-color: #f8d7da; color: #721c24;'  # Rojo suave
+        return ''
+
+    df_estilizado = df.style.applymap(color_estatus, subset=["Estatus"])
+    st.dataframe(df_estilizado, use_container_width=True, hide_index=True)
 
 # ==========================================
 # PARTIDOS
