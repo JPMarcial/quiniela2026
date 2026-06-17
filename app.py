@@ -249,7 +249,7 @@ if pagina == "🏆 Ranking":
 
     porcentaje = round(partidos_jugados * 100 / total_partidos, 1) if total_partidos > 0 else 0
 
-    # CÁLCULO DE LÍDER(ES) CON PRIMER NOMBRE SOLO
+    # Cálculo de Líderes (Primer Nombre)
     puntaje_maximo = ranking["Puntos"].max() if not ranking.empty else -1
     
     if puntaje_maximo != -1:
@@ -287,14 +287,29 @@ if pagina == "🏆 Ranking":
     st.divider()
     st.subheader("Tabla General")
 
-    # SOLO ORO: Ilumina únicamente a los que tengan el primer lugar absoluto o compartido
-    def resaltar_solo_oro(row):
-        if row["Puntos"] == puntaje_maximo and puntaje_maximo != -1:
-            return ['background-color: #ffd700; color: #000000; font-weight: bold;'] * len(row)
+    # ✨ NUEVA FORMA ELEGANTE DE DESTACAR AL LÍDER:
+    # Agrega una corona visual directamente en el texto del nombre para no cansar la vista con fondos chillones
+    if puntaje_maximo != -1:
+        ranking["Participante"] = ranking.apply(
+            lambda r: f"👑 {r['Participante']}" if r["Puntos"] == puntaje_maximo else r["Participante"], axis=1
+        )
+
+    # Opcional: Un fondo crema ultra sutil e hilos dorados en texto para que se vea elegante pero sutil
+    def resaltar_estilo_premium(row):
+        if puntaje_maximo != -1 and row["Puntos"] == puntaje_maximo:
+            return ['background-color: #fffbeb; color: #b45309; font-weight: bold;'] * len(row)
         return [''] * len(row)
 
-    ranking_estilizado = ranking.style.apply(resaltar_solo_oro, axis=1)
+    ranking_estilizado = ranking.style.apply(resaltar_estilo_premium, axis=1)
     st.dataframe(ranking_estilizado, use_container_width=True, hide_index=True)
+
+    st.divider()
+    
+    # ✨ EL MONITO CON SU LETRERO DE "SE ACEPTAN IDEAS"
+    # Usamos st.chat_message con un avatar de ingeniero/organizador para darle dinamismo
+    with st.chat_message("assistant", avatar="👷‍♂️"):
+        st.markdown("**¡Hola! Se aceptan ideas o sugerencias para mejorar la quiniela.**")
+        st.caption("Si tienes alguna regla de desempate nueva, cambios visuales o reporte de errores, ¡avísame por WhatsApp!")
 
 # ==========================================
 # PARTICIPANTES
@@ -316,7 +331,6 @@ elif pagina == "👤 Participantes":
             return 'background-color: #f8d7da; color: #721c24;'
         return ''
 
-    # ✨ CORRECCIÓN AQUÍ: Se cambió .applymap() por .map() compatible con Pandas 2.x
     df_estilizado = df.style.map(color_estatus, subset=["Estatus"])
     st.dataframe(df_estilizado, use_container_width=True, hide_index=True)
 
