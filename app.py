@@ -7,17 +7,25 @@ import requests
 import streamlit as st
 from openpyxl import load_workbook
 
-# Configuración inicial de la página
+ultima_actualizacion = datetime.now(ZoneInfo("America/Mexico_City")).strftime(
+    "%d/%m/%Y %H:%M"
+)
+
+# ==========================================
+# CONFIGURACIÓN
+# ==========================================
+
 st.set_page_config(
     page_title="Quiniela Mundial 2026", page_icon="⚽", layout="wide"
 )
 
-inicio = time.time()
-zona_cdmx = ZoneInfo("America/Mexico_City")
-ultima_actualizacion = datetime.now(zona_cdmx).strftime("%d/%m/%Y %H:%M")
-
 st.title("⚽ Quiniela Mundial 2026")
-st.info("📊 Puntuaciones y resultados gestionados desde tu Excel de Google Drive.")
+
+inicio = time.time()
+
+st.info(
+    "⚽ La información se actualiza desde Google Drive. La carga inicial puede tardar algunos segundos."
+)
 st.caption(f"Página actualizada: {ultima_actualizacion} (hora CDMX)")
 
 pagina = st.sidebar.radio(
@@ -25,19 +33,15 @@ pagina = st.sidebar.radio(
 )
 
 # ==========================================
-# CONFIGURACIÓN GOOGLE DRIVE
+# GOOGLE DRIVE (OPTIMIZADO PARA TIEMPO DE CARGA)
 # ==========================================
+
 FILE_ID = "1svfBlcw4oOEltibwpv1c8I4h6sHmeq7z"
-URL_DRIVE = f"https://docs.google.com/spreadsheets/d/{FILE_ID}/export?format=xlsx"
-
-
-# ==========================================
-# FUNCIONES DE CARGA Y PROCESAMIENTO
-# ==========================================
+URL_DRIVE = f"https://docs.google.com/uc?export=download&id={FILE_ID}"
 
 
 @st.cache_data(ttl=60)
-def descargar_excel_drive():
+def cargar_excel():
     try:
         respuesta = requests.get(URL_DRIVE, timeout=10)
         if respuesta.status_code == 200:
@@ -47,11 +51,16 @@ def descargar_excel_drive():
     return None
 
 
+# ==========================================
+# FUNCIÓN PARA LEER RESULTADO
+# ==========================================
+
+
 def leer_resultado(ws, fila):
-    """Lee las columnas C, D y E para determinar el pronóstico/resultado (X)"""
     c = str(ws[f"C{fila}"].value).strip().lower()
     d = str(ws[f"D{fila}"].value).strip().lower()
     e = str(ws[f"E{fila}"].value).strip().lower()
+
     if c == "x":
         return "Local"
     elif d == "x":
@@ -61,33 +70,25 @@ def leer_resultado(ws, fila):
     return None
 
 
-@st.cache_data(ttl=60)
-def procesar_datos_quiniela(contenido_excel):
-    wb = load_workbook(BytesIO(contenido_excel), data_only=True)
+@st.cache_data(ttl=60)  # ⚡ OPTIMIZACIÓN: Cambiado de 86400 a 60 para actualizar en tiempo real sin romper el caché
+def procesar_todo_el_excel(contenido_excel):
+    wb_local = load_workbook(BytesIO(contenido_excel), data_only=True)
 
-    # 1. Leer pestaña de RESULTADOS OFICIALES
-    resultados_oficiales = {}
-    if "RESULTADOS" in wb.sheetnames:
-        ws_res = wb["RESULTADOS"]
-        for fila in range(6, 200):
-            local = ws_res[f"B{fila}"].value
-            visitante = ws_res[f"F{fila}"].value
-            if local is None or visitante is None:
-                continue
-            partido_clave = f"{str(local).strip().lower()} vs {str(visitante).strip().lower()}"
-            res_oficial = leer_resultado(ws_res, fila)
-            resultados_oficiales[partido_clave] = res_oficial
+    if "RESULTADOS" not in wb_local.sheetnames:
+        return None, None
 
-    # 2. Leer Participantes y sus pronósticos
+    ws_resultados = wb_local["RESULTADOS"]
     participantes_local = {}
-    for hoja in wb.sheetnames:
+
+    for hoja in wb_local.sheetnames:
         if hoja.upper() in ["RESULTADOS", "CALENDARIO"]:
             continue
 
-        ws = wb[hoja]
+        ws = wb_local[hoja]
         nombre = ws["C2"].value or hoja
-        desempate_local = ws["J15"].value or 0
-        desempate_visitante = ws["L15"].value or 0
+
+        desempate_local = ws["J15"].value
+        desempate_visitante = ws["L15"].value
 
         pronosticos = []
         for fila in range(6, 200):
@@ -97,23 +98,25 @@ def procesar_datos_quiniela(contenido_excel):
             if local is None or visitante is None:
                 continue
 
-            partido_clave = f"{str(local).strip().lower()} vs {str(visitante).strip().lower()}"
+            resultado_oficial = leer_resultado(ws_resultados, fila)
             pronostico_jugador = leer_resultado(ws, fila)
-            resultado_oficial = resultados_oficiales.get(partido_clave, None)
 
             es_acierto = (
                 resultado_oficial is not None
                 and pronostico_jugador == resultado_oficial
             )
+
+            # 📊 OPTIMIZACIÓN VISUAL: Taches y palomitas asignados directamente aquí
             estatus_visual = "⌛ Pautado"
             if resultado_oficial is not None:
                 estatus_visual = "✅ ¡Acertó!" if es_acierto else "❌ Falló"
 
             pronosticos.append(
                 {
-                    "Partido": f"{local} vs. {visitante}",
-                    "Pronóstico": pronostico_jugador or "Sin elegir",
-                    "Resultado Oficial": resultado_oficial or "Pendiente",
+                    "fila": fila,
+                    "Partido": f"{local} vs {visitante}",
+                    "Pronóstico": pronostico_jugador,
+                    "Resultado Oficial": resultado_oficial,
                     "Estatus": estatus_visual,
                     "Acierto": es_acierto,
                 }
@@ -125,53 +128,57 @@ def procesar_datos_quiniela(contenido_excel):
             "desempate_visitante": desempate_visitante,
         }
 
-    # 3. Guardamos el objeto wb entero para usarlo en la vista de Ranking de forma idéntica a como lo tenías
-    return participantes_local, wb
+    return participantes_local, wb_local
 
 
 # ==========================================
-# EJECUCIÓN PRINCIPAL
+# EJECUCIÓN PRINCIPAL (UNA SOLA LECTURA DE STREAM)
 # ==========================================
-contenido_drive = descargar_excel_drive()
 
-if contenido_drive is None:
+contenido_excel = cargar_excel()
+
+if contenido_excel is None:
     st.error("No se pudo descargar el archivo desde Google Drive.")
     st.stop()
 
-# Procesamos los datos leyendo el archivo
-participantes, wb = procesar_datos_quiniela(contenido_drive)
+participantes, wb = procesar_todo_el_excel(contenido_excel)
 
-# Calcular puntos por participante
+if participantes is None:
+    st.error("No existe la hoja RESULTADOS en el archivo.")
+    st.stop()
+
+# Calcular puntos
 puntos = {}
 for nombre, datos in participantes.items():
     puntos[nombre] = sum(1 for p in datos["pronosticos"] if p["Acierto"])
 
-st.write(f"⏱️ Tiempo de respuesta: {round(time.time() - inicio, 2)} segundos")
-
 # ==========================================
-# VISTAS / PÁGINAS DE LA APP
+# RANKING
 # ==========================================
+st.write(f"Tiempo de carga: {round(time.time() - inicio, 2)} segundos")
 
 if pagina == "🏆 Ranking":
-    # --- TABLA DE RANKING ---
-    datos_ranking = []
-    for nombre in participantes:
-        dl = participantes[nombre]["desempate_local"]
-        dv = participantes[nombre]["desempate_visitante"]
-        datos_ranking.append(
+    ranking = pd.DataFrame(
+        [
             {
                 "Participante": nombre,
                 "Puntos": puntos[nombre],
-                "Desempate": f"{int(float(dl))}-{int(float(dv))}",
+                "Desempate (Chequia vs México)": (
+                    f"{int(float(participantes[nombre]['desempate_local']))}-{int(float(participantes[nombre]['desempate_visitante']))}"
+                    if participantes[nombre]["desempate_local"]
+                    not in [None, ""]
+                    and participantes[nombre]["desempate_visitante"]
+                    not in [None, ""]
+                    else "-"
+                ),
             }
-        )
-
-    ranking_df = pd.DataFrame(datos_ranking).sort_values(
-        by="Puntos", ascending=False
+            for nombre in participantes
+        ]
     )
-    ranking_df = ranking_df.reset_index(drop=True)
 
-    # 🛠️ AQUÍ INICIA TU BLOQUE EXACTO DE CÓDIGO OPTIMIZADO
+    ranking = ranking.sort_values(by="Puntos", ascending=False)
+    ranking = ranking.reset_index(drop=True)
+
     from datetime import date
 
     st.subheader("📅 Partidos para hoy")
@@ -181,12 +188,15 @@ if pagina == "🏆 Ranking":
 
     if "CALENDARIO" in wb.sheetnames:
         ws_cal = wb["CALENDARIO"]
+
         for fila in range(2, 500):
             partido = ws_cal[f"A{fila}"].value
             if partido is None:
                 continue
+
             total_partidos += 1
             resultado = ws_cal[f"D{fila}"].value
+
             if resultado not in [None, ""]:
                 partidos_jugados += 1
 
@@ -204,11 +214,11 @@ if pagina == "🏆 Ranking":
     from zoneinfo import ZoneInfo
 
     hoy = datetime.now(ZoneInfo("America/Mexico_City")).date()
-
     partidos_hoy = []
 
     if "CALENDARIO" in wb.sheetnames:
         ws_cal = wb["CALENDARIO"]
+
         for fila in range(2, 500):
             partido = ws_cal[f"A{fila}"].value
             if partido is None:
@@ -216,54 +226,68 @@ if pagina == "🏆 Ranking":
 
             fecha = ws_cal[f"B{fila}"].value
             hora = ws_cal[f"C{fila}"].value
-            resultado = ws_cal[f"D{fila}"].value or "vs"
+            resultado = ws_cal[f"D{fila}"].value
 
-            # Validar y comparar la fecha del Excel con "hoy"
-            fecha_valida = None
-            if hasattr(fecha, "date"):  # Si openpyxl lo leyó como datetime nativo
-                fecha_valida = fecha.date()
-            elif hasattr(fecha, "strftime"):
-                fecha_valida = fecha
-            else:
-                try:  # Si viene como texto 'DD/MM/YYYY'
-                    fecha_valida = datetime.strptime(
-                        str(fecha), "%d/%m/%Y"
-                    ).date()
-                except:
-                    pass
+            try:
+                if hasattr(fecha, "date"):
+                    fecha_partido = fecha.date()
+                else:
+                    continue
 
-            if fecha_valida == hoy:
-                hora_str = (
-                    hora.strftime("%H:%M")
-                    if hasattr(hora, "strftime")
-                    else str(hora)
-                )
-                partidos_hoy.append(
-                    {
-                        "Hora": hora_str,
-                        "Partido": partido,
-                        "Marcador": resultado,
-                    }
-                )
+                if fecha_partido == hoy:
+                    # ✨ TU LÓGICA DIRECTA: Balón (⚽) si tiene resultado, Reloj (🕒) si está pendiente
+                    if resultado not in [None, ""]:
+                        equipos = partido.split(" vs ")
 
-    # Mostrar los partidos filtrados de hoy
-    if partidos_hoy:
-        for p in partidos_hoy:
-            st.write(f"🕒 **{p['Hora']}** - {p['Partido']} | Marcador: `{p['Marcador']}`")
+                        if len(equipos) == 2:
+                            local = equipos[0]
+                            visitante = equipos[1]
+                            texto = f"⚽ {local} {resultado} {visitante}"
+                        else:
+                            texto = f"⚽ {partido} ({resultado})"
+                    else:
+                        texto = (
+                            f"🕒 {hora.strftime('%H:%M')} - {partido}"
+                            if hasattr(hora, "strftime")
+                            else f"{hora} - {partido}"
+                        )
+
+                    partidos_hoy.append(texto)
+
+            except:
+                pass
+
+    if len(partidos_hoy) == 0:
+        st.info("No hay partidos programados para hoy.")
     else:
-        st.info("No hay partidos programados para el día de hoy.")
+        for p in partidos_hoy:
+            st.write(p)
 
     st.divider()
-    st.subheader("Tabla General de la Quiniela")
-    st.table(ranking_df)
+    st.subheader("Tabla General")
+    st.table(ranking)
+
+# ==========================================
+# PARTICIPANTES
+# ==========================================
 
 elif pagina == "👤 Participantes":
-    jugador = st.selectbox("Selecciona participante", list(participantes.keys()))
+    jugador = st.selectbox(
+        "Selecciona participante", list(participantes.keys())
+    )
     st.subheader(f"Pronósticos de {jugador}")
 
     df = pd.DataFrame(participantes[jugador]["pronosticos"])
+    df = df.drop(columns=["fila", "Acierto"], errors="ignore")
+    df = df.reset_index(drop=True)
+
+    # Reordenamiento de columnas agregando la nueva columna 'Estatus' (✅ / ❌)
     df = df[["Partido", "Pronóstico", "Resultado Oficial", "Estatus"]]
     st.dataframe(df, use_container_width=True, hide_index=True)
+
+# ==========================================
+# PARTIDOS
+# ==========================================
 
 elif pagina == "⚽ Partidos":
     primer_jugador = list(participantes.keys())[0]
@@ -276,54 +300,66 @@ elif pagina == "⚽ Partidos":
 
     for nombre, datos in participantes.items():
         for p in datos["pronosticos"]:
-            if p["Partido"].lower() == partido_seleccionado.lower():
+            if p["Partido"] == partido_seleccionado:
                 datos_partido.append(
                     {
                         "Participante": nombre,
                         "Pronóstico": p["Pronóstico"],
                         "Resultado Oficial": p["Resultado Oficial"],
-                        "¿Acertó?": "✅ SÍ" if p["Acierto"] else "❌ NO",
+                        "¿Acertó?": "✅ SÍ" if p["Acierto"] else "❌ NO",  # 📊 Agregado visual aquí también
                     }
                 )
 
-    st.dataframe(
-        pd.DataFrame(datos_partido), use_container_width=True, hide_index=True
-    )
+    df_partido = pd.DataFrame(datos_partido)
+    df_partido = df_partido.reset_index(drop=True)
+
+    st.dataframe(df_partido, use_container_width=True, hide_index=True)
+
+# ==========================================
+# CALENDARIO
+# ==========================================
 
 elif pagina == "🗓️ Calendario":
-    st.subheader("🗓️ Calendario del Torneo")
-    if "CALENDARIO" in wb.sheetnames:
+    if "CALENDARIO" not in wb.sheetnames:
+        st.warning("No existe la hoja CALENDARIO")
+    else:
         ws_cal = wb["CALENDARIO"]
-        calendario_lista = []
+        calendario = []
+
         for fila in range(2, 500):
             partido = ws_cal[f"A{fila}"].value
             if partido is None:
                 continue
+
             fecha = ws_cal[f"B{fila}"].value
             hora = ws_cal[f"C{fila}"].value
-            resultado = ws_cal[f"D{fila}"].value or "vs"
+            resultado_final = ws_cal[f"D{fila}"].value
+            if resultado_final is None:
+                resultado_final = " "
 
-            fecha_str = (
-                fecha.strftime("%d/%m/%Y")
-                if hasattr(fecha, "strftime")
-                else str(fecha)
-            )
-            hora_str = (
-                hora.strftime("%H:%M")
-                if hasattr(hora, "strftime")
-                else str(hora)
-            )
+            if fecha is not None:
+                try:
+                    fecha = fecha.strftime("%d/%m/%Y")
+                except:
+                    fecha = str(fecha)
 
-            calendario_lista.append(
+            if hora is not None:
+                try:
+                    hora = hora.strftime("%H:%M")
+                except:
+                    hora = str(hora)
+
+            calendario.append(
                 {
-                    "Fecha": fecha_str,
-                    "Hora (CDMX)": hora_str,
                     "Partido": partido,
-                    "Resultado Final": resultado,
+                    "Fecha": fecha,
+                    "Hora (CDMX)": hora,
+                    "Resultado Final": resultado_final,
                 }
             )
-        st.dataframe(
-            pd.DataFrame(calendario_lista),
-            use_container_width=True,
-            hide_index=True,
-        )
+
+        st.subheader("Calendario de partidos")
+        df_cal = pd.DataFrame(calendario)
+        df_cal = df_cal.reset_index(drop=True)
+
+        st.dataframe(df_cal, use_container_width=True, hide_index=True)
