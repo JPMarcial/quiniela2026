@@ -329,8 +329,7 @@ if pagina == "🏆 Ranking":
     
     # El monito con su letrero de "se aceptan ideas"
     with st.chat_message("assistant", avatar="👷‍♂️"):
-        st.markdown("**¡Hola! Se aceptan ideas o sugerencias para mejorar la quiniela.**")
-        st.caption("Si tienes alguna regla de desempate nueva, cambios visuales o reporte de errores, ¡avísame por WhatsApp!")
+        st.markdown("**¡Hola! Se aceptan ideas o sugerencias para mejorar la página.**")
 
 # ==========================================
 # PARTICIPANTES
