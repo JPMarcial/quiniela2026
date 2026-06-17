@@ -21,6 +21,29 @@ st.set_page_config(
 
 st.title("⚽ Quiniela Mundial 2026")
 
+# ✨ MEJORA DE ACCESIBILIDAD: CSS para aumentar tamaño de letra en tablas y textos de partidos
+st.markdown(
+    """
+    <style>
+    /* Agranda el texto de las tablas de Streamlit (DataFrames) */
+    .stDataFrame div[data-testid="stTable"] td, 
+    .stDataFrame div[data-testid="stTable"] th,
+    div[data-testid="stDataFrameVisualizer"] [role="gridcell"],
+    div[data-testid="stDataFrameVisualizer"] [role="columnheader"] {
+        font-size: 19px !important;
+    }
+    
+    /* Agranda el texto de los partidos del día */
+    .partido-hoy {
+        font-size: 20px !important;
+        font-weight: 500;
+        margin-bottom: 8px;
+    }
+    </style>
+    """,
+    unsafe_allow_html=True
+)
+
 inicio = time.time()
 
 st.info(
@@ -281,20 +304,19 @@ if pagina == "🏆 Ranking":
     if len(partidos_hoy) == 0:
         st.info("No hay partidos programados para hoy.")
     else:
+        # ✨ SE APLICA LA CLASE CSS CON TAMAÑO AGRANDADO
         for p in partidos_hoy:
-            st.write(p)
+            st.markdown(f'<p class="partido-hoy">{p}</p>', unsafe_allow_html=True)
 
     st.divider()
     st.subheader("Tabla General")
 
-    # ✨ NUEVA FORMA ELEGANTE DE DESTACAR AL LÍDER:
-    # Agrega una corona visual directamente en el texto del nombre para no cansar la vista con fondos chillones
+    # Destacar líderes de forma elegante con la corona
     if puntaje_maximo != -1:
         ranking["Participante"] = ranking.apply(
             lambda r: f"👑 {r['Participante']}" if r["Puntos"] == puntaje_maximo else r["Participante"], axis=1
         )
 
-    # Opcional: Un fondo crema ultra sutil e hilos dorados en texto para que se vea elegante pero sutil
     def resaltar_estilo_premium(row):
         if puntaje_maximo != -1 and row["Puntos"] == puntaje_maximo:
             return ['background-color: #fffbeb; color: #b45309; font-weight: bold;'] * len(row)
@@ -305,10 +327,10 @@ if pagina == "🏆 Ranking":
 
     st.divider()
     
-    # ✨ EL MONITO CON SU LETRERO DE "SE ACEPTAN IDEAS"
-    # Usamos st.chat_message con un avatar de ingeniero/organizador para darle dinamismo
+    # El monito con su letrero de "se aceptan ideas"
     with st.chat_message("assistant", avatar="👷‍♂️"):
-        st.markdown("**¡Hola! Se aceptan ideas o sugerencias para mejorar la página.**")
+        st.markdown("**¡Hola! Se aceptan ideas o sugerencias para mejorar la quiniela.**")
+        st.caption("Si tienes alguna regla de desempate nueva, cambios visuales o reporte de errores, ¡avísame por WhatsApp!")
 
 # ==========================================
 # PARTICIPANTES
@@ -322,7 +344,6 @@ elif pagina == "👤 Participantes":
     df = df.drop(columns=["fila", "Acierto"], errors="ignore").reset_index(drop=True)
     df = df[["Partido", "Pronóstico", "Resultado Oficial", "Estatus"]]
 
-    # Formato Condicional para los aciertos (Verde) y fallos (Rojo)
     def color_estatus(val):
         if "✅" in str(val):
             return 'background-color: #d4edda; color: #155724; font-weight: bold;'
