@@ -312,25 +312,23 @@ if pagina == "🏆 Ranking":
     st.divider()
     st.subheader("Tabla General")
 
-    # 🫏 Asignación de emojis (Corona arriba y Burro/Caracol abajo)
+    # 🐌 Asignación de emojis (Corona arriba y Caracol abajo)
     if puntaje_maximo != -1:
         def agregar_emoji(r):
             if r["Puntos"] == puntaje_maximo:
                 return f"👑 {r['Participante']}"
             elif r["Puntos"] == puntaje_minimo and puntaje_minimo != puntaje_maximo:
-                return f"🫏 {r['Participante']}" # Puedes cambiar "🫏" por "🐌" si prefieren el caracol
+                return f"🐌 {r['Participante']}"
             return r["Participante"]
 
         ranking["Participante"] = ranking.apply(agregar_emoji, axis=1)
 
-    # Estilo premium para resaltar filas
+    # Estilo premium para resaltar filas (Oro para el primero, sutil para el último)
     def resaltar_estilo_premium(row):
-        # Si es el líder, fondo amarillo/oro
         if puntaje_maximo != -1 and row["Puntos"] == puntaje_maximo:
             return ['background-color: #fffbeb; color: #b45309; font-weight: bold;'] * len(row)
-        # Si es el último lugar (y no coincide con el primero), fondo gris/rojo suave opcional
         elif puntaje_minimo != -1 and row["Puntos"] == puntaje_minimo and puntaje_minimo != puntaje_maximo:
-            return ['background-color: #f8f9fa; color: #6c757d; font-style: italic;'] * len(row)
+            return ['background-color: #fdf2f8; color: #9d174d; font-style: italic;'] * len(row)
         return [''] * len(row)
 
     ranking_estilizado = ranking.style.apply(resaltar_estilo_premium, axis=1)
