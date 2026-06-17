@@ -249,16 +249,13 @@ if pagina == "🏆 Ranking":
 
     porcentaje = round(partidos_jugados * 100 / total_partidos, 1) if total_partidos > 0 else 0
 
-    # ✨ CÁLCULO DE LÍDER(ES) CON PRIMER NOMBRE SOLO
+    # CÁLCULO DE LÍDER(ES) CON PRIMER NOMBRE SOLO
     puntaje_maximo = ranking["Puntos"].max() if not ranking.empty else -1
     
     if puntaje_maximo != -1:
-        # Filtrar todos los que tengan el puntaje máximo
         filtro_lideres = ranking[ranking["Puntos"] == puntaje_maximo]["Participante"].tolist()
-        # Extraer solo el primer nombre de cada líder
         primeros_nombres_lideres = [str(n).strip().split()[0] for n in filtro_lideres]
         
-        # Unir nombres con comas (o "y" si son dos)
         if len(primeros_nombres_lideres) > 1:
             texto_lideres = ", ".join(primeros_nombres_lideres[:-1]) + " y " + primeros_nombres_lideres[-1]
             etiqueta_lider = "🔥 Líderes Actuales"
@@ -314,12 +311,13 @@ elif pagina == "👤 Participantes":
     # Formato Condicional para los aciertos (Verde) y fallos (Rojo)
     def color_estatus(val):
         if "✅" in str(val):
-            return 'background-color: #d4edda; color: #155724; font-weight: bold;'  # Verde suave
+            return 'background-color: #d4edda; color: #155724; font-weight: bold;'
         elif "❌" in str(val):
-            return 'background-color: #f8d7da; color: #721c24;'  # Rojo suave
+            return 'background-color: #f8d7da; color: #721c24;'
         return ''
 
-    df_estilizado = df.style.applymap(color_estatus, subset=["Estatus"])
+    # ✨ CORRECCIÓN AQUÍ: Se cambió .applymap() por .map() compatible con Pandas 2.x
+    df_estilizado = df.style.map(color_estatus, subset=["Estatus"])
     st.dataframe(df_estilizado, use_container_width=True, hide_index=True)
 
 # ==========================================
