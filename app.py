@@ -101,7 +101,6 @@ def procesar_datos_quiniela(contenido_excel):
             pronostico_jugador = leer_resultado(ws, fila)
             resultado_oficial = resultados_oficiales.get(partido_clave, None)
 
-            # Marcador visual dinámico (Palomita o Tache)
             es_acierto = (
                 resultado_oficial is not None
                 and pronostico_jugador == resultado_oficial
@@ -126,41 +125,8 @@ def procesar_datos_quiniela(contenido_excel):
             "desempate_visitante": desempate_visitante,
         }
 
-    # 3. Leer pestaña de CALENDARIO
-    calendario_lista = []
-    if "CALENDARIO" in wb.sheetnames:
-        ws_cal = wb["CALENDARIO"]
-        for fila in range(2, 500):
-            partido = ws_cal[f"A{fila}"].value
-            if partido is None:
-                continue
-
-            fecha = ws_cal[f"B{fila}"].value
-            hora = ws_cal[f"C{fila}"].value
-            resultado_final = ws_cal[f"D{fila}"].value or "vs"
-
-            # Formatear fecha de forma segura
-            if hasattr(fecha, "strftime"):
-                fecha_str = fecha.strftime("%d/%m/%Y")
-            else:
-                fecha_str = str(fecha)
-
-            # Formatear hora de forma segura
-            if hasattr(hora, "strftime"):
-                hora_str = hora.strftime("%H:%M")
-            else:
-                hora_str = str(hora)
-
-            calendario_lista.append(
-                {
-                    "Fecha": fecha_str,
-                    "Hora (CDMX)": hora_str,
-                    "Partido": partido,
-                    "Resultado Final": resultado_final,
-                }
-            )
-
-    return participantes_local, calendario_lista
+    # 3. Guardamos el objeto wb entero para usarlo en la vista de Ranking de forma idéntica a como lo tenías
+    return participantes_local, wb
 
 
 # ==========================================
@@ -173,7 +139,7 @@ if contenido_drive is None:
     st.stop()
 
 # Procesamos los datos leyendo el archivo
-participantes, calendario = procesar_datos_quiniela(contenido_drive)
+participantes, wb = procesar_datos_quiniela(contenido_drive)
 
 # Calcular puntos por participante
 puntos = {}
@@ -187,6 +153,7 @@ st.write(f"⏱️ Tiempo de respuesta: {round(time.time() - inicio, 2)} segundos
 # ==========================================
 
 if pagina == "🏆 Ranking":
+    # --- TABLA DE RANKING ---
     datos_ranking = []
     for nombre in participantes:
         dl = participantes[nombre]["desempate_local"]
@@ -204,6 +171,89 @@ if pagina == "🏆 Ranking":
     )
     ranking_df = ranking_df.reset_index(drop=True)
 
+    # 🛠️ AQUÍ INICIA TU BLOQUE EXACTO DE CÓDIGO OPTIMIZADO
+    from datetime import date
+
+    st.subheader("📅 Partidos para hoy")
+
+    total_partidos = 0
+    partidos_jugados = 0
+
+    if "CALENDARIO" in wb.sheetnames:
+        ws_cal = wb["CALENDARIO"]
+        for fila in range(2, 500):
+            partido = ws_cal[f"A{fila}"].value
+            if partido is None:
+                continue
+            total_partidos += 1
+            resultado = ws_cal[f"D{fila}"].value
+            if resultado not in [None, ""]:
+                partidos_jugados += 1
+
+    porcentaje = (
+        round(partidos_jugados * 100 / total_partidos, 1)
+        if total_partidos > 0
+        else 0
+    )
+
+    st.markdown(
+        f"**⚽ Avance del torneo:** {partidos_jugados}/{total_partidos} partidos ({porcentaje}%)"
+    )
+
+    from datetime import datetime
+    from zoneinfo import ZoneInfo
+
+    hoy = datetime.now(ZoneInfo("America/Mexico_City")).date()
+
+    partidos_hoy = []
+
+    if "CALENDARIO" in wb.sheetnames:
+        ws_cal = wb["CALENDARIO"]
+        for fila in range(2, 500):
+            partido = ws_cal[f"A{fila}"].value
+            if partido is None:
+                continue
+
+            fecha = ws_cal[f"B{fila}"].value
+            hora = ws_cal[f"C{fila}"].value
+            resultado = ws_cal[f"D{fila}"].value or "vs"
+
+            # Validar y comparar la fecha del Excel con "hoy"
+            fecha_valida = None
+            if hasattr(fecha, "date"):  # Si openpyxl lo leyó como datetime nativo
+                fecha_valida = fecha.date()
+            elif hasattr(fecha, "strftime"):
+                fecha_valida = fecha
+            else:
+                try:  # Si viene como texto 'DD/MM/YYYY'
+                    fecha_valida = datetime.strptime(
+                        str(fecha), "%d/%m/%Y"
+                    ).date()
+                except:
+                    pass
+
+            if fecha_valida == hoy:
+                hora_str = (
+                    hora.strftime("%H:%M")
+                    if hasattr(hora, "strftime")
+                    else str(hora)
+                )
+                partidos_hoy.append(
+                    {
+                        "Hora": hora_str,
+                        "Partido": partido,
+                        "Marcador": resultado,
+                    }
+                )
+
+    # Mostrar los partidos filtrados de hoy
+    if partidos_hoy:
+        for p in partidos_hoy:
+            st.write(f"🕒 **{p['Hora']}** - {p['Partido']} | Marcador: `{p['Marcador']}`")
+    else:
+        st.info("No hay partidos programados para el día de hoy.")
+
+    st.divider()
     st.subheader("Tabla General de la Quiniela")
     st.table(ranking_df)
 
@@ -212,7 +262,6 @@ elif pagina == "👤 Participantes":
     st.subheader(f"Pronósticos de {jugador}")
 
     df = pd.DataFrame(participantes[jugador]["pronosticos"])
-    # Mostramos la columna Estatus que contiene los íconos limpios ✅ / ❌
     df = df[["Partido", "Pronóstico", "Resultado Oficial", "Estatus"]]
     st.dataframe(df, use_container_width=True, hide_index=True)
 
@@ -243,8 +292,38 @@ elif pagina == "⚽ Partidos":
 
 elif pagina == "🗓️ Calendario":
     st.subheader("🗓️ Calendario del Torneo")
-    if calendario:
-        df_cal = pd.DataFrame(calendario)
-        st.dataframe(df_cal, use_container_width=True, hide_index=True)
-    else:
-        st.info("No se encontró información en la pestaña CALENDARIO.")
+    if "CALENDARIO" in wb.sheetnames:
+        ws_cal = wb["CALENDARIO"]
+        calendario_lista = []
+        for fila in range(2, 500):
+            partido = ws_cal[f"A{fila}"].value
+            if partido is None:
+                continue
+            fecha = ws_cal[f"B{fila}"].value
+            hora = ws_cal[f"C{fila}"].value
+            resultado = ws_cal[f"D{fila}"].value or "vs"
+
+            fecha_str = (
+                fecha.strftime("%d/%m/%Y")
+                if hasattr(fecha, "strftime")
+                else str(fecha)
+            )
+            hora_str = (
+                hora.strftime("%H:%M")
+                if hasattr(hora, "strftime")
+                else str(hora)
+            )
+
+            calendario_lista.append(
+                {
+                    "Fecha": fecha_str,
+                    "Hora (CDMX)": hora_str,
+                    "Partido": partido,
+                    "Resultado Final": resultado,
+                }
+            )
+        st.dataframe(
+            pd.DataFrame(calendario_lista),
+            use_container_width=True,
+            hide_index=True,
+        )
