@@ -39,13 +39,99 @@ URL_API_MUNDIAL = (
 
 
 # ==========================================
+# FUNCIONES DE NORMALIZACIÓN Y LIMPIEZA
+# ==========================================
+def limpiar_texto(texto):
+    """Quita acentos, puntos, espacios extras y lo pasa a minúsculas para un cruce perfecto"""
+    if not texto:
+        return ""
+    texto = str(texto).strip().lower()
+    # Eliminar puntos (ej: "vs." -> "vs")
+    texto = texto.replace(".", "")
+    # Reemplazar acentos básicos
+    remplazos = {
+        "á": "a",
+        "é": "e",
+        "í": "i",
+        "ó": "o",
+        "ú": "u",
+        "ü": "u",
+        "ñ": "n",
+    }
+    for orig, dest in remplazos.items():
+        texto = texto.replace(orig, dest)
+    # Reemplazar "vs" con espacios limpios por si acaso
+    if " vs " in texto:
+        partes = texto.split(" vs ")
+        return f"{partes[0].strip()} vs {partes[1].strip()}"
+    return texto
+
+
+# ==========================================
 # FUNCIONES DE CARGA Y CACHÉ
 # ==========================================
 
 
 @st.cache_data(ttl=60)  # Se actualiza cada minuto en vivo
 def obtener_marcadores_api():
-    """Consulta la API pública de resultados en tiempo real"""
+    """Consulta la API pública de resultados y traduce los nombres a tu formato exacto"""
+
+    # Mapeo de nombres en inglés de la API -> Tus nombres exactos
+    traductor = {
+        "mexico": "méxico",
+        "south africa": "sudáfrica",
+        "south korea": "corea del sur",
+        "czech republic": "rep. checa",
+        "czechia": "rep. checa",
+        "canada": "canadá",
+        "bosnia and herzegovina": "bosnia y herzegovina",
+        "usa": "estados unidos",
+        "united states": "estados unidos",
+        "paraguay": "paraguay",
+        "qatar": "catar",
+        "switzerland": "suiza",
+        "brazil": "brasil",
+        "morocco": "marruecos",
+        "haiti": "haití",
+        "scotland": "escocia",
+        "australia": "australia",
+        "turkey": "turquía",
+        "germany": "alemania",
+        "curaçao": "curazao",
+        "curacao": "curazao",
+        "netherlands": "países bajos",
+        "japan": "japón",
+        "ivory coast": "costa de marfil",
+        "ecuador": "ecuador",
+        "sweden": "suecia",
+        "tunisia": "túnez",
+        "spain": "españa",
+        "cape verde": "cabo verde",
+        "belgium": "bélgica",
+        "egypt": "egipto",
+        "saudi arabia": "arabia saudita",
+        "uruguay": "uruguay",
+        "iran": "irán",
+        "new zealand": "nueva zelanda",
+        "france": "francia",
+        "senegal": "senegal",
+        "iraq": "irak",
+        "norway": "noruega",
+        "argentina": "argentina",
+        "algeria": "argelia",
+        "austria": "austria",
+        "jordan": "jordania",
+        "portugal": "portugal",
+        "dr congo": "rd congo",
+        "congo dr": "rd congo",
+        "england": "inglaterra",
+        "croatia": "croacia",
+        "ghana": "ghana",
+        "panama": "panamá",
+        "colombia": "colombia",
+        "uzbekistan": "uzbekistán",
+    }
+
     try:
         respuesta = requests.get(URL_API_MUNDIAL, timeout=10)
         if respuesta.status_code == 200:
@@ -53,10 +139,15 @@ def obtener_marcadores_api():
             diccionario_resultados = {}
 
             for p in partidos:
-                # Normalizamos nombres de equipos para evitar problemas de mayúsculas/minúsculas
-                local = str(p["HomeTeam"]).strip().lower()
-                visita = str(p["AwayTeam"]).strip().lower()
-                clave_partido = f"{local} vs {visita}"
+                local_api = str(p["HomeTeam"]).strip().lower()
+                visita_api = str(p["AwayTeam"]).strip().lower()
+
+                # Traducir usando el diccionario (si no está, deja el original)
+                local_es = traductor.get(local_api, local_api)
+                visita_es = traductor.get(visita_api, visita_api)
+
+                # Generar clave limpia para buscar (Ej: "mexico vs sudafrica")
+                clave_busqueda = limpiar_texto(f"{local_es} vs {visita_es}")
 
                 goles_local = p["HomeTeamScore"]
                 goles_visita = p["AwayTeamScore"]
@@ -65,7 +156,6 @@ def obtener_marcadores_api():
                 marcador_str = "vs"
                 estado = "Programado"
 
-                # Si los goles no son null, el partido se jugó o está en vivo
                 if goles_local is not None and goles_visita is not None:
                     marcador_str = f"{goles_local} - {goles_visita}"
                     estado = "Finalizado"
@@ -76,24 +166,22 @@ def obtener_marcadores_api():
                     else:
                         resultado_texto = "Empate"
 
-                # Guardamos la fecha nativa de la API para la sección calendario
                 fecha_api = None
                 if p.get("Date"):
                     try:
-                        # La API suele mandar fechas en formato ISO UTC
                         fecha_api = datetime.fromisoformat(
                             p["Date"].replace("Z", "+00:00")
                         )
                     except:
                         pass
 
-                diccionario_resultados[clave_partido] = {
+                diccionario_resultados[clave_busqueda] = {
                     "resultado": resultado_texto,
                     "marcador": marcador_str,
                     "estado": estado,
                     "fecha_utc": fecha_api,
-                    "local_original": p["HomeTeam"],
-                    "visita_original": p["AwayTeam"],
+                    "local_display": local_es.title(),
+                    "visita_display": visita_es.title(),
                 }
             return diccionario_resultados
     except Exception as e:
@@ -127,12 +215,10 @@ def leer_resultado_quiniela(ws, fila):
 
 @st.cache_data(ttl=60)
 def procesar_todo(contenido_excel, resultados_api):
-    """Procesa el Excel de los amigos y cruza los datos con la API en un solo paso"""
     wb = load_workbook(BytesIO(contenido_excel), data_only=True)
     participantes_local = {}
 
     for hoja in wb.sheetnames:
-        # Ya no necesitamos procesar hojas de resultados manuales
         if hoja.upper() in ["RESULTADOS", "CALENDARIO", "DATOS_ENVIVO"]:
             continue
 
@@ -149,18 +235,19 @@ def procesar_todo(contenido_excel, resultados_api):
             if local is None or visitante is None:
                 continue
 
-            partido_str = f"{str(local).strip().lower()} vs {str(visitante).strip().lower()}"
+            # Limpiamos el string del partido del Excel para cruzarlo con la API
+            partido_excel_limpio = limpiar_texto(f"{local} vs {visitante}")
             pronostico_jugador = leer_resultado_quiniela(ws, fila)
 
-            # Cruzamos con los datos en vivo de la API
+            # Buscar coincidencia exacta sin acentos ni puntos
             info_api = resultados_api.get(
-                partido_str, {"resultado": None, "marcador": "vs"}
+                partido_excel_limpio, {"resultado": None, "marcador": "vs"}
             )
             resultado_oficial = info_api["resultado"]
 
             pronosticos.append(
                 {
-                    "Partido": f"{local} vs {visitante}",
+                    "Partido": f"{local} vs. {visitante}",
                     "Pronóstico": pronostico_jugador,
                     "Resultado Oficial": resultado_oficial,
                     "Marcador Real": info_api["marcador"],
@@ -190,10 +277,8 @@ if contenido_drive is None:
     st.error("No se pudo obtener el archivo de pronósticos desde Google Drive.")
     st.stop()
 
-# Procesamos toda la info cruzada
 participantes = procesar_todo(contenido_drive, marcadores_en_vivo)
 
-# Calcular tabla de posiciones de la quiniela
 puntos = {}
 for nombre, datos in participantes.items():
     puntos[nombre] = sum(1 for p in datos["pronosticos"] if p["Acierto"])
@@ -222,7 +307,6 @@ if pagina == "🏆 Ranking":
     )
     ranking_df = ranking_df.reset_index(drop=True)
 
-    # Métricas de avance del torneo directo desde la API
     total_juegos = len(marcadores_en_vivo)
     jugados = sum(
         1 for x in marcadores_en_vivo.values() if x["estado"] == "Finalizado"
@@ -233,24 +317,22 @@ if pagina == "🏆 Ranking":
         f"**⚽ Avance del torneo:** {jugados}/{total_juegos} partidos ({porcentaje}%)"
     )
 
-    # Filtro de partidos para el día de hoy (Hora local CDMX)
     st.subheader("📅 Partidos para hoy")
     hoy = datetime.now(zona_cdmx).date()
     hay_partidos_hoy = False
 
     for clave, info in marcadores_en_vivo.items():
         if info["fecha_utc"]:
-            # Convertimos la hora UTC de la API a hora de CDMX
             fecha_cdmx = info["fecha_utc"].astimezone(zona_cdmx)
             if fecha_cdmx.date() == hoy:
                 hay_partidos_hoy = True
                 if info["estado"] == "Finalizado":
                     st.write(
-                        f"⚽ {info['local_original']} **{info['marcador']}** {info['visita_original']} ✓"
+                        f"⚽ {info['local_display']} **{info['marcador']}** {info['visita_display']} ✓"
                     )
                 else:
                     st.write(
-                        f"🕒 {fecha_cdmx.strftime('%H:%M')} - {info['local_original']} vs {info['visita_original']}"
+                        f"🕒 {fecha_cdmx.strftime('%H:%M')} - {info['local_display']} vs. {info['visita_display']}"
                     )
 
     if not hay_partidos_hoy:
@@ -261,13 +343,20 @@ if pagina == "🏆 Ranking":
     st.table(ranking_df)
 
 elif pagina == "👤 Participantes":
-    jugador = st.selectbox("Selecciona participante", list(participantes.keys()))
+    jugador = st.selectbox(
+        "Selecciona participante", list(participantes.keys())
+    )
     st.subheader(f"Pronósticos de {jugador}")
 
     df = pd.DataFrame(participantes[jugador]["pronosticos"])
-    # Reordenamos columnas para una vista más estética
     df = df[
-        ["Partido", "Pronóstico", "Marcador Real", "Resultado Oficial", "Acierto"]
+        [
+            "Partido",
+            "Pronóstico",
+            "Marcador Real",
+            "Resultado Oficial",
+            "Acierto",
+        ]
     ]
     st.dataframe(df, use_container_width=True, hide_index=True)
 
@@ -282,7 +371,10 @@ elif pagina == "⚽ Partidos":
 
     for nombre, datos in participantes.items():
         for p in datos["pronosticos"]:
-            if p["Partido"].lower() == partido_seleccionado.lower():
+            if (
+                limpiar_texto(p["Partido"])
+                == limpiar_texto(partido_seleccionado)
+            ):
                 datos_partido.append(
                     {
                         "Participante": nombre,
@@ -312,12 +404,14 @@ elif pagina == "🗓️ Calendario":
             {
                 "Fecha": fecha_str,
                 "Hora (CDMX)": hora_str,
-                "Partido": f"{info['local_original']} vs {info['visita_original']}",
+                "Partido": f"{info['local_display']} vs. {info['visita_display']}",
                 "Marcador": info["marcador"],
                 "Estado": info["estado"],
             }
         )
 
     st.dataframe(
-        pd.DataFrame(lista_calendario), use_container_width=True, hide_index=True
+        pd.DataFrame(lista_calendario),
+        use_container_width=True,
+        hide_index=True,
     )
