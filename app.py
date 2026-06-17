@@ -71,18 +71,19 @@ def determinar_resultado_celdas(c, d, e):
 
 @st.cache_data(ttl=60)  
 def procesar_todo_el_excel(contenido_excel):
-    # read_only=False pero usando iter_rows optimiza la velocidad manteniendo la compatibilidad
-    wb_local = load_workbook(BytesIO(contenido_excel), data_only=True)
+    # ⚡ OPTIMIZACIÓN CLAVE: read_only=True permite que iter_rows funcione a velocidad relámpago
+    wb_local = load_workbook(BytesIO(contenido_excel), data_only=True, read_only=True)
 
     if "RESULTADOS" not in wb_local.sheetnames:
         return None, None
 
-    # 1. Mapear resultados oficiales de forma instantánea a un diccionario indexado por fila
+    # 1. Mapear resultados oficiales de forma instantánea
     ws_resultados = wb_local["RESULTADOS"]
     resultados_oficiales = {}
     
-    # Leemos desde la fila 6 hasta la 200 en un solo paso de memoria
     for fila_idx, row in enumerate(ws_resultados.iter_rows(min_row=6, max_row=200, min_col=2, max_col=6, values_only=True), start=6):
+        if len(row) < 5:
+            continue
         local, c, d, e, visitante = row[0], row[1], row[2], row[3], row[4]
         if local is None or visitante is None:
             continue
@@ -96,14 +97,27 @@ def procesar_todo_el_excel(contenido_excel):
             continue
 
         ws = wb_local[hoja]
-        nombre = ws["C2"].value or hoja
-        desempate_local = ws["J15"].value
-        desempate_visitante = ws["L15"].value
+        
+        # En modo read_only las celdas directas como ws["C2"].value pueden requerir iterar,
+        # para asegurar máxima velocidad en read_only leemos las cabeceras controladas.
+        nombre = hoja
+        desempate_local = "-"
+        desempate_visitante = "-"
+        
+        # Captura rápida de C2, J15 y L15 usando filas optimizadas
+        for r_idx, row in enumerate(ws.iter_rows(min_row=2, max_row=15, min_col=3, max_col=12, values_only=True), start=2):
+            if r_idx == 2 and len(row) > 0:
+                nombre = row[0] or hoja
+            if r_idx == 15 and len(row) >= 10:
+                desempate_local = row[7]       # Columna J (índice 7 relativo a col C que es 0)
+                desempate_visitante = row[9]   # Columna L (índice 9 relativo a col C que es 0)
 
         pronosticos = []
         
-        # Iteración ultra rápida sobre las filas de pronósticos del jugador
+        # Iteración ultra rápida sobre las filas de pronósticos
         for fila_idx, row in enumerate(ws.iter_rows(min_row=6, max_row=200, min_col=2, max_col=6, values_only=True), start=6):
+            if len(row) < 5:
+                continue
             local, c, d, e, visitante = row[0], row[1], row[2], row[3], row[4]
             if local is None or visitante is None:
                 continue
@@ -165,22 +179,26 @@ puntos = {nombre: sum(1 for p in datos["pronosticos"] if p["Acierto"]) for nombr
 st.write(f"Tiempo de carga: {round(time.time() - inicio, 2)} segundos")
 
 if pagina == "🏆 Ranking":
-    ranking = pd.DataFrame(
-        [
-            {
-                "Participante": nombre,
-                "Puntos": puntos[nombre],
-                "Desempate (Chequia vs México)": (
-                    f"{int(float(participantes[nombre]['desempate_local']))}-{int(float(participantes[nombre]['desempate_visitante']))}"
-                    if participantes[nombre]["desempate_local"] not in [None, ""]
-                    and participantes[nombre]["desempate_visitante"] not in [None, ""]
-                    else "-"
-                ),
-            }
-            for nombre in participantes
-        ]
-    )
+    # Construcción segura de datos numéricos para evitar errores de float vacíos en desempates
+    ranking_datos = []
+    for nombre in participantes:
+        dl = participantes[nombre]['desempate_local']
+        dv = participantes[nombre]['desempate_visitante']
+        
+        try:
+            val_dl = f"{int(float(dl))}" if dl not in [None, "", "-"] else "-"
+            val_dv = f"{int(float(dv))}" if dv not in [None, "", "-"] else "-"
+            desempate_txt = f"{val_dl}-{val_dv}" if val_dl != "-" and val_dv != "-" else "-"
+        except:
+            desempate_txt = f"{dl}-{dv}" if dl or dv else "-"
 
+        ranking_datos.append({
+            "Participante": nombre,
+            "Puntos": puntos[nombre],
+            "Desempate (Chequia vs México)": desempate_txt
+        })
+
+    ranking = pd.DataFrame(ranking_datos)
     ranking = ranking.sort_values(by="Puntos", ascending=False).reset_index(drop=True)
 
     st.subheader("📅 Partidos para hoy")
@@ -193,8 +211,9 @@ if pagina == "🏆 Ranking":
     if "CALENDARIO" in wb.sheetnames:
         ws_cal = wb["CALENDARIO"]
 
-        # Optimizamos también la lectura del Calendario completo en un solo viaje
         for row in ws_cal.iter_rows(min_row=2, max_row=500, min_col=1, max_col=4, values_only=True):
+            if len(row) < 4:
+                continue
             partido, fecha, hora, resultado = row[0], row[1], row[2], row[3]
             if partido is None:
                 continue
@@ -292,6 +311,8 @@ elif pagina == "🗓️ Calendario":
         calendario = []
 
         for row in ws_cal.iter_rows(min_row=2, max_row=500, min_col=1, max_col=4, values_only=True):
+            if len(row) < 4:
+                continue
             partido, fecha, hora, resultado_final = row[0], row[1], row[2], row[3]
             if partido is None:
                 continue
