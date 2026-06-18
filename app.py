@@ -231,7 +231,7 @@ if pagina == "🏆 Ranking":
         })
 
     ranking = pd.DataFrame(ranking_datos)
-    ranking = ranking.sort_values(by="Puntos", ascending=False).reset_index(drop=True)
+    ranking = ranking = ranking.sort_values(by="Puntos", ascending=False).reset_index(drop=True)
 
     # Procesar métricas de avance
     total_partidos = 0
@@ -315,9 +315,13 @@ if pagina == "🏆 Ranking":
     st.divider()
     st.subheader("Tabla General")
 
-    # 🐌 Asignación de emojis (Corona arriba y Caracol abajo)
+    # 🐌 Asignación de emojis (Corona arriba, Caracol abajo y Caracol especial para Cristian)
     if puntaje_maximo != -1:
         def agregar_emoji(r):
+            # Condición especial para Cristian Plascencia Espinoza (siempre lleva caracol, a menos que vaya en primero)
+            if str(r["Participante"]).strip() == "Cristian Plascencia Espinoza" and r["Puntos"] != puntaje_maximo:
+                return f"🐌 {r['Participante']}"
+            
             if r["Puntos"] == puntaje_maximo:
                 return f"👑 {r['Participante']}"
             elif r["Puntos"] == puntaje_minimo and puntaje_minimo != puntaje_maximo:
@@ -326,11 +330,14 @@ if pagina == "🏆 Ranking":
 
         ranking["Participante"] = ranking.apply(agregar_emoji, axis=1)
 
-    # Estilo premium para resaltar filas (Oro para el primero, sutil para el último)
+    # Estilo premium para resaltar filas (Oro para el primero, rosa sutil para los caracoles)
     def resaltar_estilo_premium(row):
+        # Primero revisamos si el nombre limpio corresponde a Cristian
+        nombre_limpio = str(row["Participante"]).replace("👑", "").replace("🐌", "").strip()
+        
         if puntaje_maximo != -1 and row["Puntos"] == puntaje_maximo:
             return ['background-color: #fffbeb; color: #b45309; font-weight: bold;'] * len(row)
-        elif puntaje_minimo != -1 and row["Puntos"] == puntaje_minimo and puntaje_minimo != puntaje_maximo:
+        elif (puntaje_minimo != -1 and row["Puntos"] == puntaje_minimo and puntaje_minimo != puntaje_maximo) or (nombre_limpio == "Cristian Plascencia Espinoza"):
             return ['background-color: #fdf2f8; color: #9d174d; font-style: italic;'] * len(row)
         return [''] * len(row)
 
@@ -341,7 +348,6 @@ if pagina == "🏆 Ranking":
     
     with st.chat_message("assistant", avatar="👷‍♂️"):
         st.markdown("**¡Hola! Se aceptan ideas o sugerencias para mejorar la página.**")
-
 # ==========================================
 # PARTICIPANTES
 # ==========================================
