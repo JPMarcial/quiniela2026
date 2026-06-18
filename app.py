@@ -103,7 +103,8 @@ def procesar_todo_el_excel(contenido_excel):
     ws_resultados = wb_local["RESULTADOS"]
     resultados_oficiales = {}
     
-    for fila_idx, row in enumerate(ws_resultados.iter_rows(min_row=6, max_row=200, min_col=2, max_col=6, values_only=True), start=6):
+    # 🛠️ CORRECCIÓN: Se aumentó max_row de 200 a 500 para leer todos los partidos oficiales
+    for fila_idx, row in enumerate(ws_resultados.iter_rows(min_row=6, max_row=500, min_col=2, max_col=6, values_only=True), start=6):
         if len(row) < 5:
             continue
         local, c, d, e, visitante = row[0], row[1], row[2], row[3], row[4]
@@ -137,6 +138,7 @@ def procesar_todo_el_excel(contenido_excel):
         desempate_local = "-"
         desempate_visitante = "-"
         
+        # Leer metadatos del usuario
         for r_idx, row in enumerate(ws.iter_rows(min_row=2, max_row=15, min_col=3, max_col=12, values_only=True), start=2):
             if r_idx == 2 and len(row) > 0:
                 nombre = row[0] or hoja
@@ -145,7 +147,8 @@ def procesar_todo_el_excel(contenido_excel):
                 desempate_visitante = row[9]   
 
         pronosticos = []
-        for fila_idx, row in enumerate(ws.iter_rows(min_row=6, max_row=200, min_col=2, max_col=6, values_only=True), start=6):
+        # 🛠️ CORRECCIÓN: Se aumentó max_row de 200 a 500 para capturar los pronósticos completos de cada jugador
+        for fila_idx, row in enumerate(ws.iter_rows(min_row=6, max_row=500, min_col=2, max_col=6, values_only=True), start=6):
             if len(row) < 5:
                 continue
             local, c, d, e, visitante = row[0], row[1], row[2], row[3], row[4]
@@ -336,9 +339,9 @@ if pagina == "🏆 Ranking":
 
     st.divider()
     
-    # El monito con su letrero de "se aceptan ideas"
     with st.chat_message("assistant", avatar="👷‍♂️"):
         st.markdown("**¡Hola! Se aceptan ideas o sugerencias para mejorar la página.**")
+
 # ==========================================
 # PARTICIPANTES
 # ==========================================
