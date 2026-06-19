@@ -318,7 +318,7 @@ if pagina == "🏆 Ranking":
     # 🐌 Asignación de emojis (Corona arriba, Caracol abajo y Caracol exclusivo para Cristian)
     if puntaje_maximo != -1:
         def agregar_emoji(r):
-            if str(r["Participante"]).strip() == "Cristian Plascencia Espinoza":
+            if str(r["Participante"]).strip() == "Victor Vazquez":
                 return f"🐌 {r['Participante']}"
             
             if r["Puntos"] == puntaje_maximo:
