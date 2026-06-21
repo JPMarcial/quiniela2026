@@ -608,6 +608,19 @@ elif pagina == "🤖 Resultados API":
         goles_local = partido["score"]["fullTime"]["home"]
         goles_visitante = partido["score"]["fullTime"]["away"]
 
+        resultado_quiniela = ""
+
+        if estado == "FINISHED":
+        
+            if goles_local > goles_visitante:
+                resultado_quiniela = "Local"
+        
+            elif goles_local < goles_visitante:
+                resultado_quiniela = "Visitante"
+        
+            else:
+                resultado_quiniela = "Empate"
+        
         resultados.append(
             {
                 "Partido": f"{local} vs. {visitante}",
@@ -616,7 +629,8 @@ elif pagina == "🤖 Resultados API":
                     f"{goles_local}-{goles_visitante}"
                     if goles_local is not None
                     else ""
-                )
+                ),
+                "Resultado Quiniela": resultado_quiniela
             }
         )
 
