@@ -321,14 +321,27 @@ if pagina == "🏆 Ranking":
                 else:
                     continue
 
+                # REEMPLÁZALO POR ESTE:
                 if fecha_partido == hoy:
-                    if resultado not in [None, ""]:
+                    # Revisar si la API tiene estatus en tiempo real para este partido
+                    clave_busqueda = f"{str(partido).replace(' vs ', ' vs ').strip().lower()}"
+                    resultados_api = obtener_resultados_api()
+                    api_status = resultados_api.get(clave_busqueda, "")
+                
+                    if str(api_status).startswith("LIVE:"):
+                        # Si está en juego, extrae el marcador en vivo
+                        marcador_vivo = api_status.split(":")[1]
+                        equipos = partido.split(" vs ")
+                        texto = f"🔴 **EN JUEGO:** {equipos[0]} {marcador_vivo.split('-')[0]} - {marcador_vivo.split('-')[1]} {equipos[1]}"
+                    elif resultado not in [None, ""]:
+                        # Si ya terminó en el Excel o la API
                         equipos = partido.split(" vs ")
                         if len(equipos) == 2:
                             texto = f"⚽ {equipos[0]} {resultado} {equipos[1]}"
                         else:
                             texto = f"⚽ {partido} ({resultado})"
                     else:
+                        # Si aún no empieza
                         texto = (
                             f"🕒 {hora.strftime('%H:%M')} - {partido}"
                             if hasattr(hora, "strftime")
