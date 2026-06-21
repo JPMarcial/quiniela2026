@@ -100,7 +100,7 @@ def cargar_excel():
 
 @st.cache_data(ttl=60)
 def obtener_resultados_api():
-    """Consulta la API y devuelve un diccionario mapeado con clave 'Local vs Visitante' y valor 'Resultado'"""
+    """Consulta la API y devuelve un diccionario mapeado con clave 'Local vs Visitante' y valor 'Resultado' o marcador en vivo"""
     dict_resultados = {}
     headers = {"X-Auth-Token": API_KEY}
     try:
@@ -118,10 +118,14 @@ def obtener_resultados_api():
                 goles_local = partido["score"]["fullTime"]["home"]
                 goles_visitante = partido["score"]["fullTime"]["away"]
                 
-                # Formato clave estándar para evitar errores de emparejamiento con el Excel
                 clave_partido = f"{local.strip().lower()} vs {visitante.strip().lower()}"
                 
-                if estado == "FINISHED" and goles_local is not None and goles_visitante is not None:
+                # 🔴 EN JUEGO: Si el partido está corriendo, guardamos el marcador en vivo
+                if estado == "IN_PLAY" and goles_local is not None and goles_visitante is not None:
+                    dict_resultados[clave_partido] = f"LIVE:{goles_local}-{goles_visitante}"
+                
+                # 🏁 TERMINADO: Conservamos la lógica original para el cálculo de puntos
+                elif estado == "FINISHED" and goles_local is not None and goles_visitante is not None:
                     if goles_local > goles_visitante:
                         dict_resultados[clave_partido] = "Local"
                     elif goles_local < goles_visitante:
@@ -129,7 +133,7 @@ def obtener_resultados_api():
                     else:
                         dict_resultados[clave_partido] = "Empate"
     except Exception as e:
-        pass # Si falla la API, el sistema continuará usando los datos manuales del Excel
+        pass
     return dict_resultados
 
 # ==========================================
