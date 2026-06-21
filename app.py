@@ -568,7 +568,7 @@ elif pagina == "🤖 Resultados API":
     }
 
     respuesta = requests.get(
-        "https://api.football-data.org/v4/matches",
+        "https://api.football-data.org/v4/competitions/WC/matches",
         headers=headers
     )
 
