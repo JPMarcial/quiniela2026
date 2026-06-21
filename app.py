@@ -52,7 +52,7 @@ st.info(
 st.caption(f"Página actualizada: {ultima_actualizacion} (hora CDMX)")
 
 pagina = st.sidebar.radio(
-    "Menú", ["🏆 Ranking", "👤 Participantes", "⚽ Partidos", "🗓️ Calendario"]
+    "Menú", ["🏆 Ranking", "👤 Participantes", "⚽ Partidos", "🗓️ Calendario", "🔧 API TEST"]
 )
 
 # ==========================================
@@ -427,3 +427,38 @@ elif pagina == "🗓️ Calendario":
 
         st.subheader("Calendario de partidos")
         st.dataframe(pd.DataFrame(calendario_tabla).reset_index(drop=True), use_container_width=True, hide_index=True)
+
+# ==========================================
+# API TEST
+# ==========================================
+
+elif pagina == "🔧 API TEST":
+
+    st.subheader("Prueba de API Mundial")
+
+    API_KEY = "b0ddb5d580614b7ba76872163c286ed1"
+
+    headers = {
+        "X-Auth-Token": API_KEY
+    }
+
+    try:
+
+        respuesta = requests.get(
+            "https://api.football-data.org/v4/matches",
+            headers=headers
+        )
+
+        st.write(
+            f"Status: {respuesta.status_code}"
+        )
+
+        datos = respuesta.json()
+
+        st.json(datos)
+
+    except Exception as e:
+
+        st.error(
+            f"Error: {e}"
+        )
