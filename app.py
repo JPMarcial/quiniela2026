@@ -21,11 +21,10 @@ st.set_page_config(
 
 st.title("⚽ Quiniela Mundial 2026")
 
-# ✨ MEJORA DE ACCESIBILIDAD: CSS para aumentar tamaño de letra en tablas y textos de partidos
+# CSS para aumentar tamaño de letra en tablas y textos de partidos
 st.markdown(
     """
     <style>
-    /* Agranda el texto de las tablas de Streamlit (DataFrames) */
     .stDataFrame div[data-testid="stTable"] td, 
     .stDataFrame div[data-testid="stTable"] th,
     div[data-testid="stDataFrameVisualizer"] [role="gridcell"],
@@ -33,7 +32,6 @@ st.markdown(
         font-size: 19px !important;
     }
     
-    /* Agranda el texto de los partidos del día */
     .partido-hoy {
         font-size: 20px !important;
         font-weight: 500;
@@ -54,7 +52,6 @@ st.caption(f"Página actualizada: {ultima_actualizacion} (hora CDMX)")
 # Revisar si en la URL se incluyó el parámetro ?admin=true
 es_admin = st.query_params.get("admin") == "true"
 
-# Si eres admin ves todo el menú; si no, solo las secciones del público
 if es_admin:
     opciones_menu = ["🏆 Ranking", "👤 Participantes", "⚽ Partidos", "🗓️ Calendario", "🔧 API TEST", "🤖 Resultados API"]
 else:
@@ -70,6 +67,7 @@ FILE_ID = "1svfBlcw4oOEltibwpv1c8I4h6sHmeq7z"
 URL_DRIVE = f"https://docs.google.com/uc?export=download&id={FILE_ID}"
 API_KEY = "b0ddb5d580614b7ba76872163c286ed1"
 
+# Diccionario expandido de traducción para asegurar compatibilidad estricta
 TRADUCCION_EQUIPOS = {
     "Mexico": "México", "South Africa": "Sudáfrica", "South Korea": "Corea del Sur", "Czechia": "República Checa",
     "Canada": "Canadá", "Bosnia and Herzegovina": "Bosnia y Herzegovina", "United States": "Estados Unidos",
@@ -100,7 +98,7 @@ def cargar_excel():
 
 @st.cache_data(ttl=60)
 def obtener_resultados_api():
-    """Consulta la API y devuelve un diccionario mapeado con clave 'Local vs Visitante' y valor 'Resultado' o marcador en vivo"""
+    """Consulta la API y devuelve un diccionario mapeado con clave 'local vs visitante' en minúsculas y traducido"""
     dict_resultados = {}
     headers = {"X-Auth-Token": API_KEY}
     try:
@@ -111,6 +109,7 @@ def obtener_resultados_api():
                 local_api = partido["homeTeam"]["name"]
                 visitante_api = partido["awayTeam"]["name"]
                 
+                # CORRECCIÓN CRÍTICA: Traducir correctamente antes de armar la clave de búsqueda
                 local = TRADUCCION_EQUIPOS.get(local_api, local_api)
                 visitante = TRADUCCION_EQUIPOS.get(visitante_api, visitante_api)
                 
@@ -118,13 +117,13 @@ def obtener_resultados_api():
                 goles_local = partido["score"]["fullTime"]["home"]
                 goles_visitante = partido["score"]["fullTime"]["away"]
                 
-                clave_partido = f"{local.strip().lower()} vs {visitante.strip().lower()}"
+                clave_partido = f"{str(local).strip().lower()} vs {str(visitante).strip().lower()}"
                 
-                # 🔴 EN JUEGO: Si el partido está corriendo, guardamos el marcador en vivo
-                if estado == "IN_PLAY" and goles_local is not None and goles_visitante is not None:
+                # Si el partido está corriendo (IN_PLAY o PAUSED/HALFTIME)
+                if estado in ["IN_PLAY", "PAUSED"] and goles_local is not None and goles_visitante is not None:
                     dict_resultados[clave_partido] = f"LIVE:{goles_local}-{goles_visitante}"
                 
-                # 🏁 TERMINADO: Conservamos la lógica original para el cálculo de puntos
+                # Si ya terminó
                 elif estado == "FINISHED" and goles_local is not None and goles_visitante is not None:
                     if goles_local > goles_visitante:
                         dict_resultados[clave_partido] = "Local"
@@ -161,7 +160,6 @@ def procesar_todo_el_excel(contenido_excel):
     if "RESULTADOS" not in wb_local.sheetnames:
         return None, None
 
-    # Traer datos automatizados de la API antes de mapear
     resultados_automatizados = obtener_resultados_api()
 
     # 1. Mapear resultados oficiales
@@ -177,7 +175,6 @@ def procesar_todo_el_excel(contenido_excel):
             
         clave_busqueda = f"{str(local).strip().lower()} vs {str(visitante).strip().lower()}"
         
-        # 🤖 AUTOMATIZACIÓN INYECTADA: Si la API tiene el resultado, úsalo. Si no, usa el del Excel.
         if clave_busqueda in resultados_automatizados:
             resultados_oficiales[fila_idx] = resultados_automatizados[clave_busqueda]
         else:
@@ -227,7 +224,6 @@ def procesar_todo_el_excel(contenido_excel):
             resultado_oficial = resultados_oficiales.get(fila_idx)
             pronostico_jugador = determinar_resultado_celdas(c, d, e)
 
-            # Si el resultado viene de la API en vivo ("LIVE:X-X"), no cuenta aún como acierto oficial terminado
             es_acierto = (
                 resultado_oficial is not None
                 and not str(resultado_oficial).startswith("LIVE:")
@@ -262,7 +258,7 @@ def procesar_todo_el_excel(contenido_excel):
 
 
 # ==========================================
-# EJECUCIÓN PRINCIPAL Y LOGICA DE RENDERIZADO
+# RENDERS DE PÁGINAS
 # ==========================================
 
 contenido_excel = cargar_excel()
@@ -277,7 +273,6 @@ if participantes is None:
     st.error("No existe la hoja RESULTADOS en el archivo.")
     st.stop()
 
-# Calcular puntos
 puntos = {nombre: sum(1 for p in datos["pronosticos"] if p["Acierto"]) for nombre, datos in participantes.items()}
 
 st.write(f"Tiempo de carga: {round(time.time() - inicio, 2)} segundos")
@@ -310,15 +305,16 @@ if pagina == "🏆 Ranking":
     hoy = datetime.now(ZoneInfo("America/Mexico_City")).date()
 
     if calendario_datos:
+        resultados_api = obtener_resultados_api()
         for c_partido in calendario_datos:
             partido = c_partido["partido"]
             fecha = c_partido["fecha"]
             hora = c_partido["hora"]
             resultado = c_partido["resultado"]
 
-            total_partidos += 1
             if resultado not in [None, ""]:
                 partidos_jugados += 1
+            total_partidos += 1
 
             try:
                 if hasattr(fecha, "date"):
@@ -327,25 +323,22 @@ if pagina == "🏆 Ranking":
                     continue
 
                 if fecha_partido == hoy:
-                    # Corregido: Buscamos usando estrictamente la clave en minúsculas
                     clave_busqueda = f"{str(partido).strip().lower()}"
-                    resultados_api = obtener_resultados_api()
                     api_status = resultados_api.get(clave_busqueda, "")
                 
+                    # CORRECCIÓN EN RENDER: Si la API lo reporta vivo, extraer goles y formatear de inmediato
                     if str(api_status).startswith("LIVE:"):
                         marcador_vivo = api_status.split(":")[1]
-                        # Forzamos la separación sin depender de las mayúsculas/minúsculas originales
+                        g_local, g_vis = marcador_vivo.split("-")
                         if " vs " in str(partido).lower():
-                            partes_equipos = str(partido).split(str(partido).lower().split(" vs ")[0] + " vs ")
-                            # Separación estándar basada en la API o el texto
-                            equipos = str(partido).lower().split(" vs ")
-                            texto = f"🔴 **EN JUEGO:** {equipos[0].title()} {marcador_vivo.split('-')[0]} - {marcador_vivo.split('-')[1]} {equipos[1].title()}"
+                            equipos = str(partido).split(" vs ")
+                            texto = f"🔴 **EN JUEGO:** {equipos[0]} **{g_local} - {g_vis}** {equipos[1]}"
                         else:
                             texto = f"🔴 **EN JUEGO:** {partido} ({marcador_vivo})"
                     elif resultado not in [None, ""]:
                         if " vs " in str(partido).lower():
-                            equipos = str(partido).lower().split(" vs ")
-                            texto = f"⚽ {equipos[0].title()} {resultado} {equipos[1].title()}"
+                            equipos = str(partido).split(" vs ")
+                            texto = f"⚽ {equipos[0]} {resultado} {equipos[1]}"
                         else:
                             texto = f"⚽ {partido} ({resultado})"
                     else:
@@ -355,7 +348,7 @@ if pagina == "🏆 Ranking":
                             else f"{hora} - {partido}"
                         )
                     partidos_hoy.append(texto)
-            except:
+            except Exception as e:
                 pass
 
     porcentaje = round(partidos_jugados * 100 / total_partidos, 1) if total_partidos > 0 else 0
@@ -550,7 +543,7 @@ elif pagina == "🤖 Resultados API":
                 resultado_quiniela = "Visitante"
             else:
                 resultado_quiniela = "Empate"
-        elif estado == "IN_PLAY":
+        elif estado in ["IN_PLAY", "PAUSED"]:
             resultado_quiniela = "EN JUEGO"
         
         resultados.append({
