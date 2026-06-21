@@ -470,4 +470,108 @@ elif pagina == "⚽ Partidos":
                     {
                         "Participante": nombre,
                         "Pronóstico": p["Pronóstico"],
-                        "Resultado Oficial": p
+                        "Resultado Oficial": p["Resultado Oficial"],
+                        "¿Acertó?": "✅ SÍ" if p["Acierto"] else ("🔴 EN JUEGO" if "LIVE:" in str(p["Resultado Oficial"]) else "❌ NO"),
+                    }
+                )
+
+    st.dataframe(pd.DataFrame(datos_partido).reset_index(drop=True), use_container_width=True, hide_index=True)
+
+elif pagina == "🗓️ Calendario":
+    if not calendario_datos:
+        st.warning("No existe o está vacía la hoja CALENDARIO")
+    else:
+        calendario_tabla = []
+        for c_partido in calendario_datos:
+            partido = c_partido["partido"]
+            fecha = c_partido["fecha"]
+            hora = c_partido["hora"]
+            resultado_final = c_partido["resultado"] if c_partido["resultado"] is not None else " "
+
+            try:
+                fecha = fecha.strftime("%d/%m/%Y") if hasattr(fecha, "strftime") else str(fecha)
+            except:
+                pass
+
+            try:
+                hora = hora.strftime("%H:%M") if hasattr(hora, "strftime") else str(hora)
+            except:
+                pass
+
+            calendario_tabla.append(
+                {
+                    "Partido": partido,
+                    "Fecha": fecha,
+                    "Hora (CDMX)": hora,
+                    "Resultado Final": resultado_final,
+                }
+            )
+
+        st.subheader("Calendario de partidos")
+        st.dataframe(pd.DataFrame(calendario_tabla).reset_index(drop=True), use_container_width=True, hide_index=True)
+
+elif pagina == "🔧 API TEST":
+    st.subheader("Prueba de API Mundial")
+    headers = {"X-Auth-Token": API_KEY}
+    try:
+        respuesta = requests.get("https://api.football-data.org/v4/matches", headers=headers)
+        st.write(f"Status: {respuesta.status_code}")
+        datos = respuesta.json()
+
+        for partido in datos.get("matches", []):
+            local_api = partido["homeTeam"]["name"]
+            visitante_api = partido["awayTeam"]["name"]
+            
+            local = TRADUCCION_EQUIPOS.get(local_api, local_api)
+            visitante = TRADUCCION_EQUIPOS.get(visitante_api, visitante_api)
+            estado = partido["status"]
+            goles_local = partido["score"]["fullTime"]["home"]
+            goles_visitante = partido["score"]["fullTime"]["away"]
+        
+            st.write(f"{local} vs {visitante} | {estado} | {goles_local}-{goles_visitante}")
+    except Exception as e:
+        st.error(f"Error: {e}")
+
+elif pagina == "🤖 Resultados API":
+    st.subheader("Resultados desde API")
+    headers = {"X-Auth-Token": API_KEY}
+    respuesta = requests.get("https://api.football-data.org/v4/competitions/WC/matches", headers=headers)
+    datos = respuesta.json()
+
+    st.write("Status:", respuesta.status_code)
+    
+    if "matches" not in datos:
+        st.error("La API no devolvió partidos")
+        st.write(datos)
+        st.stop()
+    
+    resultados = []
+    for partido in datos["matches"]:
+        local_api = partido["homeTeam"]["name"]
+        visitante_api = partido["awayTeam"]["name"]
+
+        local = TRADUCCION_EQUIPOS.get(local_api, local_api)
+        visitante = TRADUCCION_EQUIPOS.get(visitante_api, visitante_api)
+        estado = partido["status"]
+        goles_local = partido["score"]["fullTime"]["home"]
+        goles_visitante = partido["score"]["fullTime"]["away"]
+
+        resultado_quiniela = ""
+        if estado == "FINISHED":
+            if goles_local > goles_visitante:
+                resultado_quiniela = "Local"
+            elif goles_local < goles_visitante:
+                resultado_quiniela = "Visitante"
+            else:
+                resultado_quiniela = "Empate"
+        elif estado in ["IN_PLAY", "PAUSED"]:
+            resultado_quiniela = "EN JUEGO"
+        
+        resultados.append({
+            "Partido": f"{local} vs {visitante}",
+            "Estado": estado,
+            "Marcador": f"{goles_local}-{goles_visitante}" if goles_local is not None else "",
+            "Resultado Quiniela": resultado_quiniela
+        })
+
+    st.dataframe(pd.DataFrame(resultados), use_container_width=True, hide_index=True)
