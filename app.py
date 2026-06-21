@@ -22,7 +22,7 @@ st.set_page_config(
 
 st.title("⚽ Quiniela Mundial 2026")
 
-# CSS para diseño premium y textos claros
+# CSS limpio para aumentar tamaño de letra en tablas y textos de partidos
 st.markdown(
     """
     <style>
@@ -33,31 +33,10 @@ st.markdown(
         font-size: 19px !important;
     }
     
-    .seccion-partidos {
+    .partido-hoy {
         font-size: 20px !important;
-        font-weight: bold;
-        margin-top: 15px;
-        margin-bottom: 5px;
-    }
-    
-    .partido-vivo {
-        font-size: 19px !important;
-        color: #dc2626;
-        font-weight: 600;
-        margin-bottom: 6px;
-    }
-    
-    .partido-proximo {
-        font-size: 19px !important;
-        color: #1f2937;
-        margin-bottom: 6px;
-    }
-    
-    .partido-terminado {
-        font-size: 19px !important;
-        color: #4b5563;
-        font-style: italic;
-        margin-bottom: 6px;
+        font-weight: 500;
+        margin-bottom: 8px;
     }
     </style>
     """,
@@ -156,7 +135,8 @@ def obtener_resultados_api():
                     lista_en_vivo_cruda.append({
                         "local": local,
                         "visitante": visitante,
-                        "marcador": f"{goles_local} - {goles_visitante}"
+                        "marcador": f"{goles_local} - {goles_visitante}",
+                        "clave": clave_partido
                     })
                 elif estado == "FINISHED" and goles_local is not None and goles_visitante is not None:
                     if goles_local > goles_visitante:
@@ -333,21 +313,19 @@ if pagina == "🏆 Ranking":
 
     total_partidos = 0
     partidos_jugados = 0
-    
-    # Listas independientes para el diseño limpio de los partidos de hoy
-    vivos_hoy = []
-    proximos_hoy = []
-    terminados_hoy = []
-    
+    partidos_hoy = []
     hoy = datetime.now(ZoneInfo("America/Mexico_City")).date()
 
-    # 1. Cargar directamente los juegos vivos desde la API
+    # 1. Traer datos frescos de la API y meter primero el partido en vivo
     resultados_api, juegos_en_vivo = obtener_resultados_api()
+    
+    claves_en_vivo = []
     for juego in juegos_en_vivo:
-        texto = f"🔴 **{juego['local']} {juego['marcador']} {juego['visitante']}** &nbsp;&nbsp;*(Jugándose ahora)*"
-        vivos_hoy.append(texto)
+        texto_vivo = f"🔴 **EN JUEGO:** {juego['local']} **{juego['marcador']}** {juego['visitante']}"
+        partidos_hoy.append(texto_vivo)
+        claves_en_vivo.append(juego['clave'])
 
-    # 2. Filtrar el calendario del Excel para distribuir los demás juegos de hoy de forma limpia
+    # 2. Agregar los partidos del Excel controlando estrictamente que NO se duplique el juego vivo
     if calendario_datos:
         for c_partido in calendario_datos:
             partido = c_partido["partido"]
@@ -360,10 +338,9 @@ if pagina == "🏆 Ranking":
             total_partidos += 1
 
             try:
-                # CORRECCIÓN: Si el partido ya está en la lista de vivos de la API, 
-                # saltamos este ciclo (continue) para que no se duplique abajo en Próximos
+                # Si el partido coincide con el que está en vivo en la API, NO lo metemos de nuevo
                 clave_busqueda = normalizar_texto(partido)
-                if clave_busqueda in resultados_api and any(juego['local'] in partido and juego['visitante'] in partido for juego in juegos_en_vivo):
+                if clave_busqueda in claves_en_vivo:
                     continue
 
                 fecha_partido = None
@@ -379,19 +356,19 @@ if pagina == "🏆 Ranking":
                             pass
                 
                 if fecha_partido == hoy:
-                    # Si ya tiene un resultado asignado en Excel, va a Finalizados
                     if resultado not in [None, ""]:
+                        # Partido Terminado
                         if " vs " in str(partido).lower():
                             col_eq = str(partido).split(re.search(r'\s+vs\s+', str(partido), re.IGNORECASE).group(0))
-                            texto_t = f"⚫ **{col_eq[0].strip()} {resultado} {col_eq[1].strip()}**"
+                            texto = f"⚽ **{col_eq[0].strip()} {resultado} {col_eq[1].strip()}**"
                         else:
-                            texto_t = f"⚫ **{partido}** ({resultado})"
-                        terminados_hoy.append(texto_t)
+                            texto = f"⚽ **{partido}** ({resultado})"
                     else:
-                        # Si no ha empezado, va a Próximos Encuentros
+                        # Partido Programado
                         str_hora = hora.strftime('%H:%M') if hasattr(hora, "strftime") else str(hora)
-                        texto_p = f"🕒 **{str_hora}** &nbsp;|&nbsp; {partido}"
-                        proximos_hoy.append(texto_p)
+                        texto = f"🕒 **{str_hora}** - {partido}"
+                        
+                    partidos_hoy.append(texto)
             except Exception as e:
                 pass
 
@@ -423,26 +400,12 @@ if pagina == "🏆 Ranking":
         st.metric(label=etiqueta_lider, value=texto_lideres)
 
     st.divider()
-    st.subheader("📅 Partidos de Hoy")
-    
-    # Renderizado categorizado y estético de las listas de hoy
-    if not vivos_hoy and not proximos_hoy and not terminados_hoy:
+    st.subheader("📅 Partidos para hoy")
+    if len(partidos_hoy) == 0:
         st.info("No hay partidos programados para hoy.")
     else:
-        if vivos_hoy:
-            st.markdown('<p class="seccion-partidos">🚨 En Vivo</p>', unsafe_allow_html=True)
-            for v in vivos_hoy:
-                st.markdown(f'<p class="partido-vivo">{v}</p>', unsafe_allow_html=True)
-                
-        if proximos_hoy:
-            st.markdown('<p class="seccion-partidos">🕒 Próximos Encuentros</p>', unsafe_allow_html=True)
-            for p in proximos_hoy:
-                st.markdown(f'<p class="partido-proximo">{p}</p>', unsafe_allow_html=True)
-                
-        if terminados_hoy:
-            st.markdown('<p class="seccion-partidos">✅ Finalizados</p>', unsafe_allow_html=True)
-            for t in terminados_hoy:
-                st.markdown(f'<p class="partido-terminado">{t}</p>', unsafe_allow_html=True)
+        for p in partidos_hoy:
+            st.markdown(f'<p class="partido-hoy">{p}</p>', unsafe_allow_html=True)
 
     st.divider()
     st.subheader("Tabla General")
@@ -473,7 +436,6 @@ if pagina == "🏆 Ranking":
     with st.chat_message("assistant", avatar="👷‍♂️"):
         st.markdown("**¡Hola! Se aceptan ideas o sugerencias para mejorar la página.**")
 
-# Las demás subpáginas quedan idénticas...
 elif pagina == "👤 Participantes":
     jugador = st.selectbox("Selecciona participante", list(participantes.keys()))
     st.subheader(f"Pronósticos de {jugador}")
@@ -508,108 +470,4 @@ elif pagina == "⚽ Partidos":
                     {
                         "Participante": nombre,
                         "Pronóstico": p["Pronóstico"],
-                        "Resultado Oficial": p["Resultado Oficial"],
-                        "¿Acertó?": "✅ SÍ" if p["Acierto"] else ("🔴 EN JUEGO" if "LIVE:" in str(p["Resultado Oficial"]) else "❌ NO"),
-                    }
-                )
-
-    st.dataframe(pd.DataFrame(datos_partido).reset_index(drop=True), use_container_width=True, hide_index=True)
-
-elif pagina == "🗓️ Calendario":
-    if not calendario_datos:
-        st.warning("No existe o está vacía la hoja CALENDARIO")
-    else:
-        calendario_tabla = []
-        for c_partido in calendario_datos:
-            partido = c_partido["partido"]
-            fecha = c_partido["fecha"]
-            hora = c_partido["hora"]
-            resultado_final = c_partido["resultado"] if c_partido["resultado"] is not None else " "
-
-            try:
-                fecha = fecha.strftime("%d/%m/%Y") if hasattr(fecha, "strftime") else str(fecha)
-            except:
-                pass
-
-            try:
-                hora = hora.strftime("%H:%M") if hasattr(hora, "strftime") else str(hora)
-            except:
-                pass
-
-            calendario_tabla.append(
-                {
-                    "Partido": partido,
-                    "Fecha": fecha,
-                    "Hora (CDMX)": hora,
-                    "Resultado Final": resultado_final,
-                }
-            )
-
-        st.subheader("Calendario de partidos")
-        st.dataframe(pd.DataFrame(calendario_tabla).reset_index(drop=True), use_container_width=True, hide_index=True)
-
-elif pagina == "🔧 API TEST":
-    st.subheader("Prueba de API Mundial")
-    headers = {"X-Auth-Token": API_KEY}
-    try:
-        respuesta = requests.get("https://api.football-data.org/v4/matches", headers=headers)
-        st.write(f"Status: {respuesta.status_code}")
-        datos = respuesta.json()
-
-        for partido in datos.get("matches", []):
-            local_api = partido["homeTeam"]["name"]
-            visitante_api = partido["awayTeam"]["name"]
-            
-            local = TRADUCCION_EQUIPOS.get(local_api, local_api)
-            visitante = TRADUCCION_EQUIPOS.get(visitante_api, visitante_api)
-            estado = partido["status"]
-            goles_local = partido["score"]["fullTime"]["home"]
-            goles_visitante = partido["score"]["fullTime"]["away"]
-        
-            st.write(f"{local} vs {visitante} | {estado} | {goles_local}-{goles_visitante}")
-    except Exception as e:
-        st.error(f"Error: {e}")
-
-elif pagina == "🤖 Resultados API":
-    st.subheader("Resultados desde API")
-    headers = {"X-Auth-Token": API_KEY}
-    respuesta = requests.get("https://api.football-data.org/v4/competitions/WC/matches", headers=headers)
-    datos = respuesta.json()
-
-    st.write("Status:", respuesta.status_code)
-    
-    if "matches" not in datos:
-        st.error("La API no devolvió partidos")
-        st.write(datos)
-        st.stop()
-    
-    resultados = []
-    for partido in datos["matches"]:
-        local_api = partido["homeTeam"]["name"]
-        visitante_api = partido["awayTeam"]["name"]
-
-        local = TRADUCCION_EQUIPOS.get(local_api, local_api)
-        visitante = TRADUCCION_EQUIPOS.get(visitante_api, visitante_api)
-        estado = partido["status"]
-        goles_local = partido["score"]["fullTime"]["home"]
-        goles_visitante = partido["score"]["fullTime"]["away"]
-
-        resultado_quiniela = ""
-        if estado == "FINISHED":
-            if goles_local > goles_visitante:
-                resultado_quiniela = "Local"
-            elif goles_local < goles_visitante:
-                resultado_quiniela = "Visitante"
-            else:
-                resultado_quiniela = "Empate"
-        elif estado in ["IN_PLAY", "PAUSED"]:
-            resultado_quiniela = "EN JUEGO"
-        
-        resultados.append({
-            "Partido": f"{local} vs {visitante}",
-            "Estado": estado,
-            "Marcador": f"{goles_local}-{goles_visitante}" if goles_local is not None else "",
-            "Resultado Quiniela": resultado_quiniela
-        })
-
-    st.dataframe(pd.DataFrame(resultados), use_container_width=True, hide_index=True)
+                        "Resultado Oficial": p
