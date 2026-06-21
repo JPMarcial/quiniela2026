@@ -227,14 +227,19 @@ def procesar_todo_el_excel(contenido_excel):
             resultado_oficial = resultados_oficiales.get(fila_idx)
             pronostico_jugador = determinar_resultado_celdas(c, d, e)
 
+            # Si el resultado viene de la API en vivo ("LIVE:X-X"), no cuenta aún como acierto oficial terminado
             es_acierto = (
                 resultado_oficial is not None
+                and not str(resultado_oficial).startswith("LIVE:")
                 and pronostico_jugador == resultado_oficial
             )
 
             estatus_visual = "⌛ Pautado"
             if resultado_oficial is not None:
-                estatus_visual = "✅ ¡Acertó!" if es_acierto else "❌ Falló"
+                if str(resultado_oficial).startswith("LIVE:"):
+                    estatus_visual = "🔴 En Juego"
+                else:
+                    estatus_visual = "✅ ¡Acertó!" if es_acierto else "❌ Falló"
 
             pronosticos.append(
                 {
@@ -321,27 +326,29 @@ if pagina == "🏆 Ranking":
                 else:
                     continue
 
-                # REEMPLÁZALO POR ESTE:
                 if fecha_partido == hoy:
-                    # Revisar si la API tiene estatus en tiempo real para este partido
-                    clave_busqueda = f"{str(partido).replace(' vs ', ' vs ').strip().lower()}"
+                    # Corregido: Buscamos usando estrictamente la clave en minúsculas
+                    clave_busqueda = f"{str(partido).strip().lower()}"
                     resultados_api = obtener_resultados_api()
                     api_status = resultados_api.get(clave_busqueda, "")
                 
                     if str(api_status).startswith("LIVE:"):
-                        # Si está en juego, extrae el marcador en vivo
                         marcador_vivo = api_status.split(":")[1]
-                        equipos = partido.split(" vs ")
-                        texto = f"🔴 **EN JUEGO:** {equipos[0]} {marcador_vivo.split('-')[0]} - {marcador_vivo.split('-')[1]} {equipos[1]}"
+                        # Forzamos la separación sin depender de las mayúsculas/minúsculas originales
+                        if " vs " in str(partido).lower():
+                            partes_equipos = str(partido).split(str(partido).lower().split(" vs ")[0] + " vs ")
+                            # Separación estándar basada en la API o el texto
+                            equipos = str(partido).lower().split(" vs ")
+                            texto = f"🔴 **EN JUEGO:** {equipos[0].title()} {marcador_vivo.split('-')[0]} - {marcador_vivo.split('-')[1]} {equipos[1].title()}"
+                        else:
+                            texto = f"🔴 **EN JUEGO:** {partido} ({marcador_vivo})"
                     elif resultado not in [None, ""]:
-                        # Si ya terminó en el Excel o la API
-                        equipos = partido.split(" vs ")
-                        if len(equipos) == 2:
-                            texto = f"⚽ {equipos[0]} {resultado} {equipos[1]}"
+                        if " vs " in str(partido).lower():
+                            equipos = str(partido).lower().split(" vs ")
+                            texto = f"⚽ {equipos[0].title()} {resultado} {equipos[1].title()}"
                         else:
                             texto = f"⚽ {partido} ({resultado})"
                     else:
-                        # Si aún no empieza
                         texto = (
                             f"🕒 {hora.strftime('%H:%M')} - {partido}"
                             if hasattr(hora, "strftime")
@@ -428,6 +435,8 @@ elif pagina == "👤 Participantes":
             return 'background-color: #d4edda; color: #155724; font-weight: bold;'
         elif "❌" in str(val):
             return 'background-color: #f8d7da; color: #721c24;'
+        elif "🔴" in str(val):
+            return 'background-color: #fff3cd; color: #856404; font-weight: bold;'
         return ''
 
     df_estilizado = df.style.map(color_estatus, subset=["Estatus"])
@@ -448,7 +457,7 @@ elif pagina == "⚽ Partidos":
                         "Participante": nombre,
                         "Pronóstico": p["Pronóstico"],
                         "Resultado Oficial": p["Resultado Oficial"],
-                        "¿Acertó?": "✅ SÍ" if p["Acierto"] else "❌ NO",
+                        "¿Acertó?": "✅ SÍ" if p["Acierto"] else ("🔴 EN JUEGO" if "LIVE:" in str(p["Resultado Oficial"]) else "❌ NO"),
                     }
                 )
 
@@ -541,6 +550,8 @@ elif pagina == "🤖 Resultados API":
                 resultado_quiniela = "Visitante"
             else:
                 resultado_quiniela = "Empate"
+        elif estado == "IN_PLAY":
+            resultado_quiniela = "EN JUEGO"
         
         resultados.append({
             "Partido": f"{local} vs {visitante}",
