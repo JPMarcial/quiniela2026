@@ -321,7 +321,7 @@ if pagina == "🏆 Ranking":
     resultados_api, juegos_en_vivo = obtener_resultados_api()
     
     # Inyectar inmediatamente los partidos en vivo reportados por la API
-    for juego en juegos_en_vivo:
+    for juego in juegos_en_vivo:
         texto_en_vivo = f"🔴 **EN JUEGO:** {juego['local']} **{juego['marcador']}** {juego['visitante']}"
         partidos_hoy.append(texto_en_vivo)
 
