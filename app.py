@@ -360,9 +360,10 @@ if pagina == "🏆 Ranking":
             total_partidos += 1
 
             try:
-                # Si el partido ya está en la lista de vivos de la API, no lo duplicamos abajo
+                # CORRECCIÓN: Si el partido ya está en la lista de vivos de la API, 
+                # saltamos este ciclo (continue) para que no se duplique abajo en Próximos
                 clave_busqueda = normalizar_texto(partido)
-                if clave_busqueda in resultados_api and str(resultados_api[clave_busqueda]).startswith("LIVE:"):
+                if clave_busqueda in resultados_api and any(juego['local'] in partido and juego['visitante'] in partido for juego in juegos_en_vivo):
                     continue
 
                 fecha_partido = None
