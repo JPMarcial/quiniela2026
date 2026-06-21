@@ -47,7 +47,7 @@ st.markdown(
 inicio = time.time()
 
 st.info(
-    "⚽ La información se actualiza desde Google Drive. La carga inicial puede tardar algunos segundos."
+    "⚽ La información se actualiza desde Google Drive y la API de fútbol en tiempo real."
 )
 st.caption(f"Página actualizada: {ultima_actualizacion} (hora CDMX)")
 
@@ -56,84 +56,25 @@ pagina = st.sidebar.radio(
 )
 
 # ==========================================
-# GOOGLE DRIVE 
+# CONFIGURACIÓN DE FUENTES DE DATOS
 # ==========================================
 
 FILE_ID = "1svfBlcw4oOEltibwpv1c8I4h6sHmeq7z"
 URL_DRIVE = f"https://docs.google.com/uc?export=download&id={FILE_ID}"
+API_KEY = "b0ddb5d580614b7ba76872163c286ed1"
 
 TRADUCCION_EQUIPOS = {
-
-    "Mexico": "México",
-    "South Africa": "Sudáfrica",
-    "South Korea": "Corea del Sur",
-    "Czechia": "República Checa",
-
-    "Canada": "Canadá",
-    "Bosnia and Herzegovina": "Bosnia y Herzegovina",
-
-    "United States": "Estados Unidos",
-    "Paraguay": "Paraguay",
-
-    "Qatar": "Catar",
-    "Switzerland": "Suiza",
-
-    "Brazil": "Brasil",
-    "Morocco": "Marruecos",
-    "Haiti": "Haití",
-    "Scotland": "Escocia",
-
-    "Australia": "Australia",
-    "Turkey": "Turquía",
-
-    "Germany": "Alemania",
-    "Curacao": "Curazao",
-
-    "Netherlands": "Países Bajos",
-    "Japan": "Japón",
-
-    "Ivory Coast": "Costa de Marfil",
-    "Ecuador": "Ecuador",
-
-    "Sweden": "Suecia",
-    "Tunisia": "Túnez",
-
-    "Spain": "España",
-    "Cape Verde": "Cabo Verde",
-    "Cape Verde Islands": "Cabo Verde",
-
-    "Belgium": "Bélgica",
-    "Egypt": "Egipto",
-
-    "Saudi Arabia": "Arabia Saudita",
-    "Uruguay": "Uruguay",
-
-    "Iran": "Irán",
-    "New Zealand": "Nueva Zelanda",
-
-    "France": "Francia",
-    "Senegal": "Senegal",
-
-    "Iraq": "Irak",
-    "Norway": "Noruega",
-
-    "Argentina": "Argentina",
-    "Algeria": "Argelia",
-
-    "Austria": "Austria",
-    "Jordan": "Jordania",
-
-    "Portugal": "Portugal",
-    "DR Congo": "RD Congo",
-
-    "England": "Inglaterra",
-    "Croatia": "Croacia",
-
-    "Ghana": "Ghana",
-    "Panama": "Panamá",
-
-    "Uzbekistan": "Uzbekistán",
-    "Colombia": "Colombia"
+    "Mexico": "México", "South Africa": "Sudáfrica", "South Korea": "Corea del Sur", "Czechia": "República Checa",
+    "Canada": "Canadá", "Bosnia and Herzegovina": "Bosnia y Herzegovina", "United States": "Estados Unidos",
+    "Paraguay": "Paraguay", "Qatar": "Catar", "Switzerland": "Suiza", "Brazil": "Brasil", "Morocco": "Marruecos",
+    "Haiti": "Haití", "Scotland": "Escocia", "Australia": "Australia", "Turkey": "Turquía", "Germany": "Alemania",
+    "Curacao": "Curazao", "Netherlands": "Países Bajos", "Japan": "Japón", "Ivory Coast": "Costa de Marfil",
+    "Ecuador": "Ecuador", "Sweden": "Suecia", "Tunisia": "Túnez", "Spain": "España", "Cape Verde": "Cabo Verde",
+    "Cape Verde Islands": "Cabo Verde", "Belgium": "Bélgica", "Egypt": "Egipto", "Saudi Arabia": "Arabia Saudita",
+    "Uruguay": "Uruguay", "Iran": "Irán", "New Zealand": "Nueva Zelanda", "France": "Francia", "Senegal": "Senegal",
+    "Iraq": "Irak", "Norway": "Noruega", "Argentina": "Argentina", "Algeria": "Argelia", "Austria": "Austria",
+    "Jordan": "Jordania", "Portugal": "Portugal", "DR Congo": "RD Congo", "England": "Inglaterra",
+    "Croatia": "Croacia", "Ghana": "Ghana", "Panama": "Panamá", "Uzbekistan": "Uzbekistán", "Colombia": "Colombia"
 }
 
 @st.cache_data(ttl=60)
@@ -146,9 +87,46 @@ def cargar_excel():
         st.error(f"Error al descargar Excel de Drive: {e}")
     return None
 
+# ==========================================
+# CONSUMO DE AUTOMATIZACIÓN (API)
+# ==========================================
+
+@st.cache_data(ttl=60)
+def obtener_resultados_api():
+    """Consulta la API y devuelve un diccionario mapeado con clave 'Local vs Visitante' y valor 'Resultado'"""
+    dict_resultados = {}
+    headers = {"X-Auth-Token": API_KEY}
+    try:
+        respuesta = requests.get("https://api.football-data.org/v4/competitions/WC/matches", headers=headers, timeout=10)
+        if respuesta.status_code == 200:
+            datos = respuesta.json()
+            for partido in datos.get("matches", []):
+                local_api = partido["homeTeam"]["name"]
+                visitante_api = partido["awayTeam"]["name"]
+                
+                local = TRADUCCION_EQUIPOS.get(local_api, local_api)
+                visitante = TRADUCCION_EQUIPOS.get(visitante_api, visitante_api)
+                
+                estado = partido["status"]
+                goles_local = partido["score"]["fullTime"]["home"]
+                goles_visitante = partido["score"]["fullTime"]["away"]
+                
+                # Formato clave estándar para evitar errores de emparejamiento con el Excel
+                clave_partido = f"{local.strip().lower()} vs {visitante.strip().lower()}"
+                
+                if estado == "FINISHED" and goles_local is not None and goles_visitante is not None:
+                    if goles_local > goles_visitante:
+                        dict_resultados[clave_partido] = "Local"
+                    elif goles_local < goles_visitante:
+                        dict_resultados[clave_partido] = "Visitante"
+                    else:
+                        dict_resultados[clave_partido] = "Empate"
+    except Exception as e:
+        pass # Si falla la API, el sistema continuará usando los datos manuales del Excel
+    return dict_resultados
 
 # ==========================================
-# FUNCIÓN AUXILIAR PARA DETERMINAR PRONÓSTICO
+# FUNCIONES AUXILIARES
 # ==========================================
 
 def determinar_resultado_celdas(c, d, e):
@@ -172,20 +150,29 @@ def procesar_todo_el_excel(contenido_excel):
     if "RESULTADOS" not in wb_local.sheetnames:
         return None, None
 
-    # 1. Mapear resultados oficiales de forma instantánea
+    # Traer datos automatizados de la API antes de mapear
+    resultados_automatizados = obtener_resultados_api()
+
+    # 1. Mapear resultados oficiales
     ws_resultados = wb_local["RESULTADOS"]
     resultados_oficiales = {}
     
-    # 🛠️ CORRECCIÓN: Se aumentó max_row de 200 a 500 para leer todos los partidos oficiales
     for fila_idx, row in enumerate(ws_resultados.iter_rows(min_row=6, max_row=500, min_col=2, max_col=6, values_only=True), start=6):
         if len(row) < 5:
             continue
         local, c, d, e, visitante = row[0], row[1], row[2], row[3], row[4]
         if local is None or visitante is None:
             continue
-        resultados_oficiales[fila_idx] = determinar_resultado_celdas(c, d, e)
+            
+        clave_busqueda = f"{str(local).strip().lower()} vs {str(visitante).strip().lower()}"
+        
+        # 🤖 AUTOMATIZACIÓN INYECTADA: Si la API tiene el resultado, úsalo. Si no, usa el del Excel.
+        if clave_busqueda in resultados_automatizados:
+            resultados_oficiales[fila_idx] = resultados_automatizados[clave_busqueda]
+        else:
+            resultados_oficiales[fila_idx] = determinar_resultado_celdas(c, d, e)
 
-    # 2. Procesar participantes y extraer datos del Calendario en estructuras simples
+    # 2. Procesar participantes y Calendario
     participantes_local = {}
     calendario_local = []
 
@@ -211,7 +198,6 @@ def procesar_todo_el_excel(contenido_excel):
         desempate_local = "-"
         desempate_visitante = "-"
         
-        # Leer metadatos del usuario
         for r_idx, row in enumerate(ws.iter_rows(min_row=2, max_row=15, min_col=3, max_col=12, values_only=True), start=2):
             if r_idx == 2 and len(row) > 0:
                 nombre = row[0] or hoja
@@ -220,7 +206,6 @@ def procesar_todo_el_excel(contenido_excel):
                 desempate_visitante = row[9]   
 
         pronosticos = []
-        # 🛠️ CORRECCIÓN: Se aumentó max_row de 200 a 500 para capturar los pronósticos completos de cada jugador
         for fila_idx, row in enumerate(ws.iter_rows(min_row=6, max_row=500, min_col=2, max_col=6, values_only=True), start=6):
             if len(row) < 5:
                 continue
@@ -261,7 +246,7 @@ def procesar_todo_el_excel(contenido_excel):
 
 
 # ==========================================
-# EJECUCIÓN PRINCIPAL
+# EJECUCIÓN PRINCIPAL Y LOGICA DE RENDERIZADO
 # ==========================================
 
 contenido_excel = cargar_excel()
@@ -279,9 +264,6 @@ if participantes is None:
 # Calcular puntos
 puntos = {nombre: sum(1 for p in datos["pronosticos"] if p["Acierto"]) for nombre, datos in participantes.items()}
 
-# ==========================================
-# RANKING
-# ==========================================
 st.write(f"Tiempo de carga: {round(time.time() - inicio, 2)} segundos")
 
 if pagina == "🏆 Ranking":
@@ -306,7 +288,6 @@ if pagina == "🏆 Ranking":
     ranking = pd.DataFrame(ranking_datos)
     ranking = ranking.sort_values(by="Puntos", ascending=False).reset_index(drop=True)
 
-    # Procesar métricas de avance
     total_partidos = 0
     partidos_jugados = 0
     partidos_hoy = []
@@ -348,11 +329,9 @@ if pagina == "🏆 Ranking":
 
     porcentaje = round(partidos_jugados * 100 / total_partidos, 1) if total_partidos > 0 else 0
 
-    # Obtener puntajes extremos antes de modificar los nombres
     puntaje_maximo = ranking["Puntos"].max() if not ranking.empty else -1
     puntaje_minimo = ranking["Puntos"].min() if not ranking.empty else -1
     
-    # Cálculo de Líderes (Primer Nombre)
     if puntaje_maximo != -1:
         filtro_lideres = ranking[ranking["Puntos"] == puntaje_maximo]["Participante"].tolist()
         primeros_nombres_lideres = [str(n).strip().split()[0] for n in filtro_lideres]
@@ -367,7 +346,6 @@ if pagina == "🏆 Ranking":
         texto_lideres = "-"
         etiqueta_lider = "🔥 Líder Actual"
 
-    # Tarjetas de Métricas Destacadas
     col1, col2, col3 = st.columns(3)
     with col1:
         st.metric(label="⚽ Partidos Jugados", value=f"{partidos_jugados} / {total_partidos}")
@@ -377,7 +355,6 @@ if pagina == "🏆 Ranking":
         st.metric(label=etiqueta_lider, value=texto_lideres)
 
     st.divider()
-
     st.subheader("📅 Partidos para hoy")
     if len(partidos_hoy) == 0:
         st.info("No hay partidos programados para hoy.")
@@ -388,12 +365,10 @@ if pagina == "🏆 Ranking":
     st.divider()
     st.subheader("Tabla General")
 
-    # 🐌 Asignación de emojis (Corona arriba, Caracol abajo y Caracol exclusivo para Cristian)
     if puntaje_maximo != -1:
         def agregar_emoji(r):
             if str(r["Participante"]).strip() == "Victor Vazquez":
                 return f"🐌 {r['Participante']}"
-            
             if r["Puntos"] == puntaje_maximo:
                 return f"👑 {r['Participante']}"
             elif r["Puntos"] == puntaje_minimo and puntaje_minimo != puntaje_maximo:
@@ -402,7 +377,6 @@ if pagina == "🏆 Ranking":
 
         ranking["Participante"] = ranking.apply(agregar_emoji, axis=1)
 
-    # Estilo premium para resaltar filas (Solo primero y último lugar)
     def resaltar_estilo_premium(row):
         if puntaje_maximo != -1 and row["Puntos"] == puntaje_maximo:
             return ['background-color: #fffbeb; color: #b45309; font-weight: bold;'] * len(row)
@@ -414,12 +388,8 @@ if pagina == "🏆 Ranking":
     st.dataframe(ranking_estilizado, use_container_width=True, hide_index=True)
 
     st.divider()
-    
     with st.chat_message("assistant", avatar="👷‍♂️"):
         st.markdown("**¡Hola! Se aceptan ideas o sugerencias para mejorar la página.**")
-# ==========================================
-# PARTICIPANTES
-# ==========================================
 
 elif pagina == "👤 Participantes":
     jugador = st.selectbox("Selecciona participante", list(participantes.keys()))
@@ -438,10 +408,6 @@ elif pagina == "👤 Participantes":
 
     df_estilizado = df.style.map(color_estatus, subset=["Estatus"])
     st.dataframe(df_estilizado, use_container_width=True, hide_index=True)
-
-# ==========================================
-# PARTIDOS
-# ==========================================
 
 elif pagina == "⚽ Partidos":
     primer_jugador = list(participantes.keys())[0]
@@ -463,10 +429,6 @@ elif pagina == "⚽ Partidos":
                 )
 
     st.dataframe(pd.DataFrame(datos_partido).reset_index(drop=True), use_container_width=True, hide_index=True)
-
-# ==========================================
-# CALENDARIO
-# ==========================================
 
 elif pagina == "🗓️ Calendario":
     if not calendario_datos:
@@ -501,141 +463,66 @@ elif pagina == "🗓️ Calendario":
         st.subheader("Calendario de partidos")
         st.dataframe(pd.DataFrame(calendario_tabla).reset_index(drop=True), use_container_width=True, hide_index=True)
 
-# ==========================================
-# API TEST
-# ==========================================
-    
 elif pagina == "🔧 API TEST":
-
     st.subheader("Prueba de API Mundial")
-
-    API_KEY = "b0ddb5d580614b7ba76872163c286ed1"
-
-    headers = {
-        "X-Auth-Token": API_KEY
-    }
-
+    headers = {"X-Auth-Token": API_KEY}
     try:
-
-        respuesta = requests.get(
-            "https://api.football-data.org/v4/matches",
-            headers=headers
-        )
-
-        st.write(
-            f"Status: {respuesta.status_code}"
-        )
-
+        respuesta = requests.get("https://api.football-data.org/v4/matches", headers=headers)
+        st.write(f"Status: {respuesta.status_code}")
         datos = respuesta.json()
 
-        for partido in datos["matches"]:
-
+        for partido in datos.get("matches", []):
             local_api = partido["homeTeam"]["name"]
             visitante_api = partido["awayTeam"]["name"]
             
-            local = TRADUCCION_EQUIPOS.get(
-                local_api,
-                local_api
-            )
-            
-            visitante = TRADUCCION_EQUIPOS.get(
-                visitante_api,
-                visitante_api
-            )
-        
+            local = TRADUCCION_EQUIPOS.get(local_api, local_api)
+            visitante = TRADUCCION_EQUIPOS.get(visitante_api, visitante_api)
             estado = partido["status"]
-        
             goles_local = partido["score"]["fullTime"]["home"]
             goles_visitante = partido["score"]["fullTime"]["away"]
         
-            st.write(
-                f"{local} vs {visitante} | {estado} | {goles_local}-{goles_visitante}"
-            )
-
+            st.write(f"{local} vs {visitante} | {estado} | {goles_local}-{goles_visitante}")
     except Exception as e:
+        st.error(f"Error: {e}")
 
-        st.error(
-            f"Error: {e}"
-        )
 elif pagina == "🤖 Resultados API":
-
     st.subheader("Resultados desde API")
-
-    API_KEY = "b0ddb5d580614b7ba76872163c286ed1"
-
-    headers = {
-        "X-Auth-Token": API_KEY
-    }
-
-    respuesta = requests.get(
-        "https://api.football-data.org/v4/competitions/WC/matches",
-        headers=headers
-    )
-
+    headers = {"X-Auth-Token": API_KEY}
+    respuesta = requests.get("https://api.football-data.org/v4/competitions/WC/matches", headers=headers)
     datos = respuesta.json()
 
     st.write("Status:", respuesta.status_code)
     
     if "matches" not in datos:
-    
-        st.error(
-            "La API no devolvió partidos"
-        )
-    
+        st.error("La API no devolvió partidos")
         st.write(datos)
-    
         st.stop()
     
     resultados = []
-    
     for partido in datos["matches"]:
-
         local_api = partido["homeTeam"]["name"]
         visitante_api = partido["awayTeam"]["name"]
 
-        local = TRADUCCION_EQUIPOS.get(
-            local_api,
-            local_api
-        )
-
-        visitante = TRADUCCION_EQUIPOS.get(
-            visitante_api,
-            visitante_api
-        )
-
+        local = TRADUCCION_EQUIPOS.get(local_api, local_api)
+        visitante = TRADUCCION_EQUIPOS.get(visitante_api, visitante_api)
         estado = partido["status"]
-
         goles_local = partido["score"]["fullTime"]["home"]
         goles_visitante = partido["score"]["fullTime"]["away"]
 
         resultado_quiniela = ""
-
         if estado == "FINISHED":
-        
             if goles_local > goles_visitante:
                 resultado_quiniela = "Local"
-        
             elif goles_local < goles_visitante:
                 resultado_quiniela = "Visitante"
-        
             else:
                 resultado_quiniela = "Empate"
         
-        resultados.append(
-            {
-                "Partido": f"{local} vs. {visitante}",
-                "Estado": estado,
-                "Marcador": (
-                    f"{goles_local}-{goles_visitante}"
-                    if goles_local is not None
-                    else ""
-                ),
-                "Resultado Quiniela": resultado_quiniela
-            }
-        )
+        resultados.append({
+            "Partido": f"{local} vs {visitante}",
+            "Estado": estado,
+            "Marcador": f"{goles_local}-{goles_visitante}" if goles_local is not None else "",
+            "Resultado Quiniela": resultado_quiniela
+        })
 
-    st.dataframe(
-        pd.DataFrame(resultados),
-        use_container_width=True,
-        hide_index=True
-    )
+    st.dataframe(pd.DataFrame(resultados), use_container_width=True, hide_index=True)
