@@ -52,7 +52,7 @@ st.info(
 st.caption(f"Página actualizada: {ultima_actualizacion} (hora CDMX)")
 
 pagina = st.sidebar.radio(
-    "Menú", ["🏆 Ranking", "👤 Participantes", "⚽ Partidos", "🗓️ Calendario", "🔧 API TEST"]
+    "Menú", ["🏆 Ranking", "👤 Participantes", "⚽ Partidos", "🗓️ Calendario", "🔧 API TEST", "🤖 Resultados API"]
 )
 
 # ==========================================
