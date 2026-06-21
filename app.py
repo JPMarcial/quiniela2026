@@ -22,7 +22,7 @@ st.set_page_config(
 
 st.title("⚽ Quiniela Mundial 2026")
 
-# CSS para diseño limpio y textos grandes
+# CSS para diseño premium y textos claros
 st.markdown(
     """
     <style>
@@ -33,10 +33,31 @@ st.markdown(
         font-size: 19px !important;
     }
     
-    .partido-hoy {
+    .seccion-partidos {
         font-size: 20px !important;
-        font-weight: 500;
-        margin-bottom: 8px;
+        font-weight: bold;
+        margin-top: 15px;
+        margin-bottom: 5px;
+    }
+    
+    .partido-vivo {
+        font-size: 19px !important;
+        color: #dc2626;
+        font-weight: 600;
+        margin-bottom: 6px;
+    }
+    
+    .partido-proximo {
+        font-size: 19px !important;
+        color: #1f2937;
+        margin-bottom: 6px;
+    }
+    
+    .partido-terminado {
+        font-size: 19px !important;
+        color: #4b5563;
+        font-style: italic;
+        margin-bottom: 6px;
     }
     </style>
     """,
@@ -110,7 +131,6 @@ def cargar_excel():
 
 @st.cache_data(ttl=60)
 def obtener_resultados_api():
-    """Devuelve un diccionario estructurado de la API y una lista separada de partidos actualmente en vivo"""
     dict_resultados = {}
     lista_en_vivo_cruda = []
     headers = {"X-Auth-Token": API_KEY}
@@ -131,7 +151,6 @@ def obtener_resultados_api():
                 
                 clave_partido = normalizar_texto(f"{local} vs {visitante}")
                 
-                # Guardar el estado en vivo de forma independiente
                 if estado in ["IN_PLAY", "PAUSED"] and goles_local is not None and goles_visitante is not None:
                     dict_resultados[clave_partido] = f"LIVE:{goles_local}-{goles_visitante}"
                     lista_en_vivo_cruda.append({
@@ -314,18 +333,21 @@ if pagina == "🏆 Ranking":
 
     total_partidos = 0
     partidos_jugados = 0
-    partidos_hoy = []
+    
+    # Listas independientes para el diseño limpio de los partidos de hoy
+    vivos_hoy = []
+    proximos_hoy = []
+    terminados_hoy = []
+    
     hoy = datetime.now(ZoneInfo("America/Mexico_City")).date()
 
-    # 1. PASO CLAVE: Consumir la API de manera directa para partidos en vivo
+    # 1. Cargar directamente los juegos vivos desde la API
     resultados_api, juegos_en_vivo = obtener_resultados_api()
-    
-    # Inyectar inmediatamente los partidos en vivo reportados por la API
     for juego in juegos_en_vivo:
-        texto_en_vivo = f"🔴 **EN JUEGO:** {juego['local']} **{juego['marcador']}** {juego['visitante']}"
-        partidos_hoy.append(texto_en_vivo)
+        texto = f"🔴 **{juego['local']} {juego['marcador']} {juego['visitante']}** &nbsp;&nbsp;*(Jugándose ahora)*"
+        vivos_hoy.append(texto)
 
-    # 2. Leer el calendario de Excel para el resto de los partidos del día (programados o terminados)
+    # 2. Filtrar el calendario del Excel para distribuir los demás juegos de hoy de forma limpia
     if calendario_datos:
         for c_partido in calendario_datos:
             partido = c_partido["partido"]
@@ -338,7 +360,7 @@ if pagina == "🏆 Ranking":
             total_partidos += 1
 
             try:
-                # Comprobar si este partido ya se listó como vivo para no duplicarlo
+                # Si el partido ya está en la lista de vivos de la API, no lo duplicamos abajo
                 clave_busqueda = normalizar_texto(partido)
                 if clave_busqueda in resultados_api and str(resultados_api[clave_busqueda]).startswith("LIVE:"):
                     continue
@@ -356,19 +378,19 @@ if pagina == "🏆 Ranking":
                             pass
                 
                 if fecha_partido == hoy:
+                    # Si ya tiene un resultado asignado en Excel, va a Finalizados
                     if resultado not in [None, ""]:
                         if " vs " in str(partido).lower():
                             col_eq = str(partido).split(re.search(r'\s+vs\s+', str(partido), re.IGNORECASE).group(0))
-                            texto = f"⚽ {col_eq[0].strip()} {resultado} {col_eq[1].strip()}"
+                            texto_t = f"⚫ **{col_eq[0].strip()} {resultado} {col_eq[1].strip()}**"
                         else:
-                            texto = f"⚽ {partido} ({resultado})"
+                            texto_t = f"⚫ **{partido}** ({resultado})"
+                        terminados_hoy.append(texto_t)
                     else:
-                        texto = (
-                            f"🕒 {hora.strftime('%H:%M')} - {partido}"
-                            if hasattr(hora, "strftime")
-                            else f"{hora} - {partido}"
-                        )
-                    partidos_hoy.append(texto)
+                        # Si no ha empezado, va a Próximos Encuentros
+                        str_hora = hora.strftime('%H:%M') if hasattr(hora, "strftime") else str(hora)
+                        texto_p = f"🕒 **{str_hora}** &nbsp;|&nbsp; {partido}"
+                        proximos_hoy.append(texto_p)
             except Exception as e:
                 pass
 
@@ -400,12 +422,26 @@ if pagina == "🏆 Ranking":
         st.metric(label=etiqueta_lider, value=texto_lideres)
 
     st.divider()
-    st.subheader("📅 Partidos para hoy")
-    if len(partidos_hoy) == 0:
+    st.subheader("📅 Partidos de Hoy")
+    
+    # Renderizado categorizado y estético de las listas de hoy
+    if not vivos_hoy and not proximos_hoy and not terminados_hoy:
         st.info("No hay partidos programados para hoy.")
     else:
-        for p in partidos_hoy:
-            st.markdown(f'<p class="partido-hoy">{p}</p>', unsafe_allow_html=True)
+        if vivos_hoy:
+            st.markdown('<p class="seccion-partidos">🚨 En Vivo</p>', unsafe_allow_html=True)
+            for v in vivos_hoy:
+                st.markdown(f'<p class="partido-vivo">{v}</p>', unsafe_allow_html=True)
+                
+        if proximos_hoy:
+            st.markdown('<p class="seccion-partidos">🕒 Próximos Encuentros</p>', unsafe_allow_html=True)
+            for p in proximos_hoy:
+                st.markdown(f'<p class="partido-proximo">{p}</p>', unsafe_allow_html=True)
+                
+        if terminados_hoy:
+            st.markdown('<p class="seccion-partidos">✅ Finalizados</p>', unsafe_allow_html=True)
+            for t in terminados_hoy:
+                st.markdown(f'<p class="partido-terminado">{t}</p>', unsafe_allow_html=True)
 
     st.divider()
     st.subheader("Tabla General")
@@ -436,7 +472,7 @@ if pagina == "🏆 Ranking":
     with st.chat_message("assistant", avatar="👷‍♂️"):
         st.markdown("**¡Hola! Se aceptan ideas o sugerencias para mejorar la página.**")
 
-# Las demás páginas (Participantes, Partidos, Calendario, etc.) se quedan exactamente igual...
+# Las demás subpáginas quedan idénticas...
 elif pagina == "👤 Participantes":
     jugador = st.selectbox("Selecciona participante", list(participantes.keys()))
     st.subheader(f"Pronósticos de {jugador}")
