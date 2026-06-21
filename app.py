@@ -22,7 +22,7 @@ st.set_page_config(
 
 st.title("⚽ Quiniela Mundial 2026")
 
-# CSS limpio para aumentar tamaño de letra en tablas y textos de partidos
+# CSS limpio para el tamaño de letra de las tablas
 st.markdown(
     """
     <style>
@@ -31,12 +31,6 @@ st.markdown(
     div[data-testid="stDataFrameVisualizer"] [role="gridcell"],
     div[data-testid="stDataFrameVisualizer"] [role="columnheader"] {
         font-size: 19px !important;
-    }
-    
-    .partido-hoy {
-        font-size: 20px !important;
-        font-weight: 500;
-        margin-bottom: 8px;
     }
     </style>
     """,
@@ -135,8 +129,7 @@ def obtener_resultados_api():
                     lista_en_vivo_cruda.append({
                         "local": local,
                         "visitante": visitante,
-                        "marcador": f"{goles_local} - {goles_visitante}",
-                        "clave": clave_partido
+                        "marcador": f"{goles_local} - {goles_visitante}"
                     })
                 elif estado == "FINISHED" and goles_local is not None and goles_visitante is not None:
                     if goles_local > goles_visitante:
@@ -313,19 +306,9 @@ if pagina == "🏆 Ranking":
 
     total_partidos = 0
     partidos_jugados = 0
-    partidos_hoy = []
+    partidos_hoy_render = []
     hoy = datetime.now(ZoneInfo("America/Mexico_City")).date()
 
-    # 1. Traer datos frescos de la API y meter primero el partido en vivo
-    resultados_api, juegos_en_vivo = obtener_resultados_api()
-    
-    claves_en_vivo = []
-    for juego in juegos_en_vivo:
-        texto_vivo = f"🔴 **EN JUEGO:** {juego['local']} **{juego['marcador']}** {juego['visitante']}"
-        partidos_hoy.append(texto_vivo)
-        claves_en_vivo.append(juego['clave'])
-
-    # 2. Agregar los partidos del Excel controlando estrictamente que NO se duplique el juego vivo
     if calendario_datos:
         for c_partido in calendario_datos:
             partido = c_partido["partido"]
@@ -338,11 +321,6 @@ if pagina == "🏆 Ranking":
             total_partidos += 1
 
             try:
-                # Si el partido coincide con el que está en vivo en la API, NO lo metemos de nuevo
-                clave_busqueda = normalizar_texto(partido)
-                if clave_busqueda in claves_en_vivo:
-                    continue
-
                 fecha_partido = None
                 if hasattr(fecha, "date"):
                     fecha_partido = fecha.date()
@@ -356,19 +334,23 @@ if pagina == "🏆 Ranking":
                             pass
                 
                 if fecha_partido == hoy:
-                    if resultado not in [None, ""]:
-                        # Partido Terminado
+                    try:
+                        hora_str = hora.strftime("%H:%M") if hasattr(hora, "strftime") else str(hora)[:5]
+                    except:
+                        hora_str = str(hora)
+
+                    # Si ya terminó y tiene resultado, muestra marcador original
+                    if resultado not in [None, ""] and "LIVE:" not in str(resultado):
                         if " vs " in str(partido).lower():
                             col_eq = str(partido).split(re.search(r'\s+vs\s+', str(partido), re.IGNORECASE).group(0))
-                            texto = f"⚽ **{col_eq[0].strip()} {resultado} {col_eq[1].strip()}**"
+                            texto_render = f"⚽ **{col_eq[0].strip()} vs. {col_eq[1].strip()}** ({resultado})"
                         else:
-                            texto = f"⚽ **{partido}** ({resultado})"
+                            texto_render = f"⚽ **{partido}** ({resultado})"
                     else:
-                        # Partido Programado
-                        str_hora = hora.strftime('%H:%M') if hasattr(hora, "strftime") else str(hora)
-                        texto = f"🕒 **{str_hora}** - {partido}"
-                        
-                    partidos_hoy.append(texto)
+                        # Si no ha empezado (o ignora estado en juego provisional), mantiene hora
+                        texto_render = f"🕒 **{hora_str}** - {partido}"
+                    
+                    partidos_hoy_render.append(texto_render)
             except Exception as e:
                 pass
 
@@ -400,12 +382,14 @@ if pagina == "🏆 Ranking":
         st.metric(label=etiqueta_lider, value=texto_lideres)
 
     st.divider()
+    
+    # NUEVO DISEÑO COMPACTO ORIGINAL PARA HOY
     st.subheader("📅 Partidos para hoy")
-    if len(partidos_hoy) == 0:
+    if not partidos_hoy_render:
         st.info("No hay partidos programados para hoy.")
     else:
-        for p in partidos_hoy:
-            st.markdown(f'<p class="partido-hoy">{p}</p>', unsafe_allow_html=True)
+        for p_linea in partidos_hoy_render:
+            st.markdown(p_linea)
 
     st.divider()
     st.subheader("Tabla General")
@@ -466,14 +450,12 @@ elif pagina == "⚽ Partidos":
     for nombre, datos in participantes.items():
         for p in datos["pronosticos"]:
             if p["Partido"] == partido_seleccionado:
-                datos_partido.append(
-                    {
-                        "Participante": nombre,
-                        "Pronóstico": p["Pronóstico"],
-                        "Resultado Oficial": p["Resultado Oficial"],
-                        "¿Acertó?": "✅ SÍ" if p["Acierto"] else ("🔴 EN JUEGO" if "LIVE:" in str(p["Resultado Oficial"]) else "❌ NO"),
-                    }
-                )
+                datos_partido.append({
+                    "Participante": nombre,
+                    "Pronóstico": p["Pronóstico"],
+                    "Resultado Oficial": p["Resultado Oficial"],
+                    "¿Acertó?": "✅ SÍ" if p["Acierto"] else ("🔴 EN JUEGO" if "LIVE:" in str(p["Resultado Oficial"]) else "❌ NO")
+                })
 
     st.dataframe(pd.DataFrame(datos_partido).reset_index(drop=True), use_container_width=True, hide_index=True)
 
@@ -498,14 +480,12 @@ elif pagina == "🗓️ Calendario":
             except:
                 pass
 
-            calendario_tabla.append(
-                {
-                    "Partido": partido,
-                    "Fecha": fecha,
-                    "Hora (CDMX)": hora,
-                    "Resultado Final": resultado_final,
-                }
-            )
+            calendario_tabla.append({
+                "Partido": partido,
+                "Fecha": fecha,
+                "Hora (CDMX)": hora,
+                "Resultado Final": resultado_final
+            })
 
         st.subheader("Calendario de partidos")
         st.dataframe(pd.DataFrame(calendario_tabla).reset_index(drop=True), use_container_width=True, hide_index=True)
