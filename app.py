@@ -1,4 +1,5 @@
 import time
+import re
 from datetime import datetime
 from io import BytesIO
 from zoneinfo import ZoneInfo
@@ -82,6 +83,19 @@ TRADUCCION_EQUIPOS = {
     "Croatia": "Croacia", "Ghana": "Ghana", "Panama": "Panamá", "Uzbekistan": "Uzbekistán", "Colombia": "Colombia"
 }
 
+# Función para remover acentos y dejar caracteres planos para búsquedas seguras
+def normalizar_texto(texto):
+    if not texto:
+        return ""
+    t = str(texto).lower().strip()
+    t = re.sub(r'[áàäâ]', 'a', t)
+    t = re.sub(r'[éèëê]', 'e', t)
+    t = re.sub(r'[íìïî]', 'i', t)
+    t = re.sub(r'[óòöô]', 'o', t)
+    t = re.sub(r'[úùüû]', 'u', t)
+    t = re.sub(r'\s+', ' ', t)  # Eliminar dobles espacios intercalados
+    return t
+
 @st.cache_data(ttl=60)
 def cargar_excel():
     try:
@@ -115,7 +129,8 @@ def obtener_resultados_api():
                 goles_local = partido["score"]["fullTime"]["home"]
                 goles_visitante = partido["score"]["fullTime"]["away"]
                 
-                clave_partido = f"{str(local).strip().lower()} vs {str(visitante).strip().lower()}"
+                # Normalización total de la clave
+                clave_partido = normalizar_texto(f"{local} vs {visitante}")
                 
                 if estado in ["IN_PLAY", "PAUSED"] and goles_local is not None and goles_visitante is not None:
                     dict_resultados[clave_partido] = f"LIVE:{goles_local}-{goles_visitante}"
@@ -167,7 +182,7 @@ def procesar_todo_el_excel(contenido_excel):
         if local is None or visitante is None:
             continue
             
-        clave_busqueda = f"{str(local).strip().lower()} vs {str(visitante).strip().lower()}"
+        clave_busqueda = normalizar_texto(f"{local} vs {visitante}")
         
         if clave_busqueda in resultados_automatizados:
             resultados_oficiales[fila_idx] = resultados_automatizados[clave_busqueda]
@@ -310,50 +325,53 @@ if pagina == "🏆 Ranking":
             total_partidos += 1
 
             try:
-                clave_busqueda = f"{str(partido).strip().lower()}"
+                clave_busqueda = normalizar_texto(partido)
                 api_status = resultados_api.get(clave_busqueda, "")
                 
-                # 🔥 CORRECCIÓN INCONDICIONAL: Si la API reporta el partido vivo, ignoramos la validación de fecha del Excel. ¡Se muestra porque se muestra!
+                # CONTROL ABSOLUTO DE EN JUEGO (Prioridad Máxima)
                 if str(api_status).startswith("LIVE:"):
                     marcador_vivo = api_status.split(":")[1]
                     g_local, g_vis = marcador_vivo.split("-")
                     if " vs " in str(partido).lower():
-                        equipos = str(partido).split(" vs ")
-                        texto = f"🔴 **EN JUEGO:** {equipos[0]} **{g_local} - {g_vis}** {equipos[1]}"
+                        # Usar el texto exacto del excel para mantener consistencia visual
+                        equipos = str(partido).split(re.search(r'\s+vs\s+', str(partido), re.IGNORECASE).group(0))
+                        texto = f"🔴 **EN JUEGO:** {equipos[0].strip()} **{g_local} - {g_vis}** {equipos[1].strip()}"
                     else:
                         texto = f"🔴 **EN JUEGO:** {partido} ({marcador_vivo})"
-                    partidos_hoy.append(texto)
-                    continue  # Saltamos al siguiente partido para evitar duplicados
-
-                # Para partidos pautados o ya terminados, usamos la fecha limpia del excel
-                if hasattr(fecha, "date"):
-                    fecha_partido = fecha.date()
-                elif isinstance(fecha, str):
-                    # Intento de parsear si viene como texto simple "YYYY-MM-DD" o "DD/MM/YYYY"
-                    try:
-                        fecha_partido = datetime.strptime(fecha.split()[0], "%Y-%m-%d").date()
-                    except:
-                        try:
-                            fecha_partido = datetime.strptime(fecha.split()[0], "%d/%m/%Y").date()
-                        except:
-                            continue
+                    
+                    if texto not in partidos_hoy:
+                        partidos_hoy.append(texto)
+                    # Ojo: Quitamos el 'continue' dañino para que el flujo siga evaluando de manera limpia sin romper el ciclo del render.
+                
                 else:
-                    continue
-
-                if fecha_partido == hoy:
-                    if resultado not in [None, ""]:
-                        if " vs " in str(partido).lower():
-                            equipos = str(partido).split(" vs ")
-                            texto = f"⚽ {equipos[0]} {resultado} {equipos[1]}"
+                    # Lógica de fechas estándar para programados o terminados
+                    fecha_partido = None
+                    if hasattr(fecha, "date"):
+                        fecha_partido = fecha.date()
+                    elif isinstance(fecha, str):
+                        try:
+                            fecha_partido = datetime.strptime(fecha.split()[0], "%Y-%m-%d").date()
+                        except:
+                            try:
+                                fecha_partido = datetime.strptime(fecha.split()[0], "%d/%m/%Y").date()
+                            except:
+                                pass
+                    
+                    if fecha_partido == hoy:
+                        if resultado not in [None, ""]:
+                            if " vs " in str(partido).lower():
+                                col_eq = str(partido).split(re.search(r'\s+vs\s+', str(partido), re.IGNORECASE).group(0))
+                                texto = f"⚽ {col_eq[0].strip()} {resultado} {col_eq[1].strip()}"
+                            else:
+                                texto = f"⚽ {partido} ({resultado})"
                         else:
-                            texto = f"⚽ {partido} ({resultado})"
-                    else:
-                        texto = (
-                            f"🕒 {hora.strftime('%H:%M')} - {partido}"
-                            if hasattr(hora, "strftime")
-                            else f"{hora} - {partido}"
-                        )
-                    partidos_hoy.append(texto)
+                            texto = (
+                                f"🕒 {hora.strftime('%H:%M')} - {partido}"
+                                if hasattr(hora, "strftime")
+                                else f"{hora} - {partido}"
+                            )
+                        if texto not in partidos_hoy:
+                            partidos_hoy.append(texto)
             except Exception as e:
                 pass
 
