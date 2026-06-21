@@ -557,3 +557,59 @@ elif pagina == "🔧 API TEST":
         st.error(
             f"Error: {e}"
         )
+elif pagina == "🤖 Resultados API":
+
+    st.subheader("Resultados desde API")
+
+    API_KEY = "TU_API_KEY"
+
+    headers = {
+        "X-Auth-Token": API_KEY
+    }
+
+    respuesta = requests.get(
+        "https://api.football-data.org/v4/matches",
+        headers=headers
+    )
+
+    datos = respuesta.json()
+
+    resultados = []
+
+    for partido in datos["matches"]:
+
+        local_api = partido["homeTeam"]["name"]
+        visitante_api = partido["awayTeam"]["name"]
+
+        local = TRADUCCION_EQUIPOS.get(
+            local_api,
+            local_api
+        )
+
+        visitante = TRADUCCION_EQUIPOS.get(
+            visitante_api,
+            visitante_api
+        )
+
+        estado = partido["status"]
+
+        goles_local = partido["score"]["fullTime"]["home"]
+        goles_visitante = partido["score"]["fullTime"]["away"]
+
+        resultados.append(
+            {
+                "Partido": f"{local} vs. {visitante}",
+                "Estado": estado,
+                "Marcador": (
+                    f"{goles_local}-{goles_visitante}"
+                    if goles_local is not None
+                    else ""
+                )
+            }
+        )
+
+    st.dataframe(
+        pd.DataFrame(resultados),
+        use_container_width=True,
+        hide_index=True
+    )
