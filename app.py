@@ -67,7 +67,7 @@ FILE_ID = "1svfBlcw4oOEltibwpv1c8I4h6sHmeq7z"
 URL_DRIVE = f"https://docs.google.com/uc?export=download&id={FILE_ID}"
 API_KEY = "b0ddb5d580614b7ba76872163c286ed1"
 
-# Diccionario expandido de traducción para asegurar compatibilidad estricta
+# Diccionario de traducción estricto
 TRADUCCION_EQUIPOS = {
     "Mexico": "México", "South Africa": "Sudáfrica", "South Korea": "Corea del Sur", "Czechia": "República Checa",
     "Canada": "Canadá", "Bosnia and Herzegovina": "Bosnia y Herzegovina", "United States": "Estados Unidos",
@@ -98,7 +98,6 @@ def cargar_excel():
 
 @st.cache_data(ttl=60)
 def obtener_resultados_api():
-    """Consulta la API y devuelve un diccionario mapeado con clave 'local vs visitante' en minúsculas y traducido"""
     dict_resultados = {}
     headers = {"X-Auth-Token": API_KEY}
     try:
@@ -109,7 +108,6 @@ def obtener_resultados_api():
                 local_api = partido["homeTeam"]["name"]
                 visitante_api = partido["awayTeam"]["name"]
                 
-                # CORRECCIÓN CRÍTICA: Traducir correctamente antes de armar la clave de búsqueda
                 local = TRADUCCION_EQUIPOS.get(local_api, local_api)
                 visitante = TRADUCCION_EQUIPOS.get(visitante_api, visitante_api)
                 
@@ -119,11 +117,8 @@ def obtener_resultados_api():
                 
                 clave_partido = f"{str(local).strip().lower()} vs {str(visitante).strip().lower()}"
                 
-                # Si el partido está corriendo (IN_PLAY o PAUSED/HALFTIME)
                 if estado in ["IN_PLAY", "PAUSED"] and goles_local is not None and goles_visitante is not None:
                     dict_resultados[clave_partido] = f"LIVE:{goles_local}-{goles_visitante}"
-                
-                # Si ya terminó
                 elif estado == "FINISHED" and goles_local is not None and goles_visitante is not None:
                     if goles_local > goles_visitante:
                         dict_resultados[clave_partido] = "Local"
@@ -162,7 +157,6 @@ def procesar_todo_el_excel(contenido_excel):
 
     resultados_automatizados = obtener_resultados_api()
 
-    # 1. Mapear resultados oficiales
     ws_resultados = wb_local["RESULTADOS"]
     resultados_oficiales = {}
     
@@ -180,7 +174,6 @@ def procesar_todo_el_excel(contenido_excel):
         else:
             resultados_oficiales[fila_idx] = determinar_resultado_celdas(c, d, e)
 
-    # 2. Procesar participantes y Calendario
     participantes_local = {}
     calendario_local = []
 
@@ -317,25 +310,38 @@ if pagina == "🏆 Ranking":
             total_partidos += 1
 
             try:
+                clave_busqueda = f"{str(partido).strip().lower()}"
+                api_status = resultados_api.get(clave_busqueda, "")
+                
+                # 🔥 CORRECCIÓN INCONDICIONAL: Si la API reporta el partido vivo, ignoramos la validación de fecha del Excel. ¡Se muestra porque se muestra!
+                if str(api_status).startswith("LIVE:"):
+                    marcador_vivo = api_status.split(":")[1]
+                    g_local, g_vis = marcador_vivo.split("-")
+                    if " vs " in str(partido).lower():
+                        equipos = str(partido).split(" vs ")
+                        texto = f"🔴 **EN JUEGO:** {equipos[0]} **{g_local} - {g_vis}** {equipos[1]}"
+                    else:
+                        texto = f"🔴 **EN JUEGO:** {partido} ({marcador_vivo})"
+                    partidos_hoy.append(texto)
+                    continue  # Saltamos al siguiente partido para evitar duplicados
+
+                # Para partidos pautados o ya terminados, usamos la fecha limpia del excel
                 if hasattr(fecha, "date"):
                     fecha_partido = fecha.date()
+                elif isinstance(fecha, str):
+                    # Intento de parsear si viene como texto simple "YYYY-MM-DD" o "DD/MM/YYYY"
+                    try:
+                        fecha_partido = datetime.strptime(fecha.split()[0], "%Y-%m-%d").date()
+                    except:
+                        try:
+                            fecha_partido = datetime.strptime(fecha.split()[0], "%d/%m/%Y").date()
+                        except:
+                            continue
                 else:
                     continue
 
                 if fecha_partido == hoy:
-                    clave_busqueda = f"{str(partido).strip().lower()}"
-                    api_status = resultados_api.get(clave_busqueda, "")
-                
-                    # CORRECCIÓN EN RENDER: Si la API lo reporta vivo, extraer goles y formatear de inmediato
-                    if str(api_status).startswith("LIVE:"):
-                        marcador_vivo = api_status.split(":")[1]
-                        g_local, g_vis = marcador_vivo.split("-")
-                        if " vs " in str(partido).lower():
-                            equipos = str(partido).split(" vs ")
-                            texto = f"🔴 **EN JUEGO:** {equipos[0]} **{g_local} - {g_vis}** {equipos[1]}"
-                        else:
-                            texto = f"🔴 **EN JUEGO:** {partido} ({marcador_vivo})"
-                    elif resultado not in [None, ""]:
+                    if resultado not in [None, ""]:
                         if " vs " in str(partido).lower():
                             equipos = str(partido).split(" vs ")
                             texto = f"⚽ {equipos[0]} {resultado} {equipos[1]}"
