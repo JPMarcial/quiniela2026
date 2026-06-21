@@ -51,9 +51,16 @@ st.info(
 )
 st.caption(f"Página actualizada: {ultima_actualizacion} (hora CDMX)")
 
-pagina = st.sidebar.radio(
-    "Menú", ["🏆 Ranking", "👤 Participantes", "⚽ Partidos", "🗓️ Calendario", "🔧 API TEST", "🤖 Resultados API"]
-)
+# Revisar si en la URL se incluyó el parámetro ?admin=true
+es_admin = st.query_params.get("admin") == "true"
+
+# Si eres admin ves todo el menú; si no, solo las secciones del público
+if es_admin:
+    opciones_menu = ["🏆 Ranking", "👤 Participantes", "⚽ Partidos", "🗓️ Calendario", "🔧 API TEST", "🤖 Resultados API"]
+else:
+    opciones_menu = ["🏆 Ranking", "👤 Participantes", "⚽ Partidos", "🗓️ Calendario"]
+
+pagina = st.sidebar.radio("Menú", opciones_menu)
 
 # ==========================================
 # CONFIGURACIÓN DE FUENTES DE DATOS
