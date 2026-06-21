@@ -62,6 +62,79 @@ pagina = st.sidebar.radio(
 FILE_ID = "1svfBlcw4oOEltibwpv1c8I4h6sHmeq7z"
 URL_DRIVE = f"https://docs.google.com/uc?export=download&id={FILE_ID}"
 
+TRADUCCION_EQUIPOS = {
+
+    "Mexico": "México",
+    "South Africa": "Sudáfrica",
+    "South Korea": "Corea del Sur",
+    "Czechia": "República Checa",
+
+    "Canada": "Canadá",
+    "Bosnia and Herzegovina": "Bosnia y Herzegovina",
+
+    "United States": "Estados Unidos",
+    "Paraguay": "Paraguay",
+
+    "Qatar": "Catar",
+    "Switzerland": "Suiza",
+
+    "Brazil": "Brasil",
+    "Morocco": "Marruecos",
+    "Haiti": "Haití",
+    "Scotland": "Escocia",
+
+    "Australia": "Australia",
+    "Turkey": "Turquía",
+
+    "Germany": "Alemania",
+    "Curacao": "Curazao",
+
+    "Netherlands": "Países Bajos",
+    "Japan": "Japón",
+
+    "Ivory Coast": "Costa de Marfil",
+    "Ecuador": "Ecuador",
+
+    "Sweden": "Suecia",
+    "Tunisia": "Túnez",
+
+    "Spain": "España",
+    "Cape Verde": "Cabo Verde",
+    "Cape Verde Islands": "Cabo Verde",
+
+    "Belgium": "Bélgica",
+    "Egypt": "Egipto",
+
+    "Saudi Arabia": "Arabia Saudita",
+    "Uruguay": "Uruguay",
+
+    "Iran": "Irán",
+    "New Zealand": "Nueva Zelanda",
+
+    "France": "Francia",
+    "Senegal": "Senegal",
+
+    "Iraq": "Irak",
+    "Norway": "Noruega",
+
+    "Argentina": "Argentina",
+    "Algeria": "Argelia",
+
+    "Austria": "Austria",
+    "Jordan": "Jordania",
+
+    "Portugal": "Portugal",
+    "DR Congo": "RD Congo",
+
+    "England": "Inglaterra",
+    "Croatia": "Croacia",
+
+    "Ghana": "Ghana",
+    "Panama": "Panamá",
+
+    "Uzbekistan": "Uzbekistán",
+    "Colombia": "Colombia"
+}
 
 @st.cache_data(ttl=60)
 def cargar_excel():
@@ -432,50 +505,6 @@ elif pagina == "🗓️ Calendario":
 # API TEST
 # ==========================================
     
-    TRADUCCION_EQUIPOS = {
-    
-        "Mexico": "México",
-        "South Africa": "Sudáfrica",
-        "South Korea": "Corea del Sur",
-        "Czechia": "República Checa",
-        "Canada": "Canadá",
-        "Bosnia and Herzegovina": "Bosnia y Herzegovina",
-        "United States": "Estados Unidos",
-        "Qatar": "Catar",
-        "Switzerland": "Suiza",
-        "Brazil": "Brasil",
-        "Morocco": "Marruecos",
-        "Haiti": "Haití",
-        "Scotland": "Escocia",
-        "Turkey": "Turquía",
-        "Germany": "Alemania",
-        "Curacao": "Curazao",
-        "Netherlands": "Países Bajos",
-        "Japan": "Japón",
-        "Ivory Coast": "Costa de Marfil",
-        "Sweden": "Suecia",
-        "Tunisia": "Túnez",
-        "Spain": "España",
-        "Cape Verde": "Cabo Verde",
-        "Cape Verde Islands": "Cabo Verde",
-        "Belgium": "Bélgica",
-        "Egypt": "Egipto",
-        "Saudi Arabia": "Arabia Saudita",
-        "Iran": "Irán",
-        "New Zealand": "Nueva Zelanda",
-        "France": "Francia",
-        "Senegal": "Senegal",
-        "Iraq": "Irak",
-        "Norway": "Noruega",
-        "Algeria": "Argelia",
-        "Jordan": "Jordania",
-        "England": "Inglaterra",
-        "Croatia": "Croacia",
-        "Panama": "Panamá",
-        "Uzbekistan": "Uzbekistán",
-        "DR Congo": "RD Congo"
-    }
-
 elif pagina == "🔧 API TEST":
 
     st.subheader("Prueba de API Mundial")
