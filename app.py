@@ -455,7 +455,19 @@ elif pagina == "🔧 API TEST":
 
         datos = respuesta.json()
 
-        st.json(datos)
+        for partido in datos["matches"]:
+
+            local = partido["homeTeam"]["name"]
+            visitante = partido["awayTeam"]["name"]
+        
+            estado = partido["status"]
+        
+            goles_local = partido["score"]["fullTime"]["home"]
+            goles_visitante = partido["score"]["fullTime"]["away"]
+        
+            st.write(
+                f"{local} vs {visitante} | {estado} | {goles_local}-{goles_visitante}"
+            )
 
     except Exception as e:
 
