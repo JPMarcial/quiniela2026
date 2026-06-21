@@ -432,6 +432,50 @@ elif pagina == "🗓️ Calendario":
 # API TEST
 # ==========================================
 
+TRADUCCION_EQUIPOS = {
+
+    "Mexico": "México",
+    "South Africa": "Sudáfrica",
+    "South Korea": "Corea del Sur",
+    "Czechia": "República Checa",
+    "Canada": "Canadá",
+    "Bosnia and Herzegovina": "Bosnia y Herzegovina",
+    "United States": "Estados Unidos",
+    "Qatar": "Catar",
+    "Switzerland": "Suiza",
+    "Brazil": "Brasil",
+    "Morocco": "Marruecos",
+    "Haiti": "Haití",
+    "Scotland": "Escocia",
+    "Turkey": "Turquía",
+    "Germany": "Alemania",
+    "Curacao": "Curazao",
+    "Netherlands": "Países Bajos",
+    "Japan": "Japón",
+    "Ivory Coast": "Costa de Marfil",
+    "Sweden": "Suecia",
+    "Tunisia": "Túnez",
+    "Spain": "España",
+    "Cape Verde": "Cabo Verde",
+    "Cape Verde Islands": "Cabo Verde",
+    "Belgium": "Bélgica",
+    "Egypt": "Egipto",
+    "Saudi Arabia": "Arabia Saudita",
+    "Iran": "Irán",
+    "New Zealand": "Nueva Zelanda",
+    "France": "Francia",
+    "Senegal": "Senegal",
+    "Iraq": "Irak",
+    "Norway": "Noruega",
+    "Algeria": "Argelia",
+    "Jordan": "Jordania",
+    "England": "Inglaterra",
+    "Croatia": "Croacia",
+    "Panama": "Panamá",
+    "Uzbekistan": "Uzbekistán",
+    "DR Congo": "RD Congo"
+}
+
 elif pagina == "🔧 API TEST":
 
     st.subheader("Prueba de API Mundial")
@@ -457,8 +501,18 @@ elif pagina == "🔧 API TEST":
 
         for partido in datos["matches"]:
 
-            local = partido["homeTeam"]["name"]
-            visitante = partido["awayTeam"]["name"]
+            local_api = partido["homeTeam"]["name"]
+            visitante_api = partido["awayTeam"]["name"]
+            
+            local = TRADUCCION_EQUIPOS.get(
+                local_api,
+                local_api
+            )
+            
+            visitante = TRADUCCION_EQUIPOS.get(
+                visitante_api,
+                visitante_api
+            )
         
             estado = partido["status"]
         
