@@ -561,7 +561,7 @@ elif pagina == "🤖 Resultados API":
 
     st.subheader("Resultados desde API")
 
-    API_KEY = "TU_API_KEY"
+    API_KEY = "b0ddb5d580614b7ba76872163c286ed1"
 
     headers = {
         "X-Auth-Token": API_KEY
