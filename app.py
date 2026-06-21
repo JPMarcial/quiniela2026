@@ -574,8 +574,20 @@ elif pagina == "🤖 Resultados API":
 
     datos = respuesta.json()
 
+    st.write("Status:", respuesta.status_code)
+    
+    if "matches" not in datos:
+    
+        st.error(
+            "La API no devolvió partidos"
+        )
+    
+        st.write(datos)
+    
+        st.stop()
+    
     resultados = []
-
+    
     for partido in datos["matches"]:
 
         local_api = partido["homeTeam"]["name"]
