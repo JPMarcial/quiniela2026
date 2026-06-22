@@ -1,5 +1,4 @@
 import time
-import re
 from datetime import datetime
 from io import BytesIO
 from zoneinfo import ZoneInfo
@@ -22,15 +21,23 @@ st.set_page_config(
 
 st.title("⚽ Quiniela Mundial 2026")
 
-# CSS limpio para el tamaño de letra de las tablas
+# ✨ CSS para aumentar tamaño de letra en tablas y textos de partidos
 st.markdown(
     """
     <style>
+    /* Agranda el texto de las tablas de Streamlit (DataFrames) */
     .stDataFrame div[data-testid="stTable"] td, 
     .stDataFrame div[data-testid="stTable"] th,
     div[data-testid="stDataFrameVisualizer"] [role="gridcell"],
     div[data-testid="stDataFrameVisualizer"] [role="columnheader"] {
         font-size: 19px !important;
+    }
+    
+    /* Agranda el texto de los partidos del día */
+    .partido-hoy {
+        font-size: 20px !important;
+        font-weight: 500;
+        margin-bottom: 8px;
     }
     </style>
     """,
@@ -40,53 +47,20 @@ st.markdown(
 inicio = time.time()
 
 st.info(
-    "⚽ La información se actualiza desde Google Drive y la API de fútbol en tiempo real."
+    "⚽ La información se actualiza desde Google Drive. La carga inicial puede tardar algunos segundos."
 )
 st.caption(f"Página actualizada: {ultima_actualizacion} (hora CDMX)")
 
-es_admin = st.query_params.get("admin") == "true"
-
-if es_admin:
-    opciones_menu = ["🏆 Ranking", "👤 Participantes", "⚽ Partidos", "🗓️ Calendario", "🔧 API TEST", "🤖 Resultados API"]
-else:
-    opciones_menu = ["🏆 Ranking", "👤 Participantes", "⚽ Partidos", "🗓️ Calendario"]
-
-pagina = st.sidebar.radio("Menú", opciones_menu)
+pagina = st.sidebar.radio(
+    "Menú", ["🏆 Ranking", "👤 Participantes", "⚽ Partidos", "🗓️ Calendario"]
+)
 
 # ==========================================
-# CONFIGURACIÓN DE FUENTES DE DATOS
+# GOOGLE DRIVE 
 # ==========================================
 
 FILE_ID = "1svfBlcw4oOEltibwpv1c8I4h6sHmeq7z"
 URL_DRIVE = f"https://docs.google.com/uc?export=download&id={FILE_ID}"
-API_KEY = "b0ddb5d580614b7ba76872163c286ed1"
-
-# Diccionario de traducción estricto
-TRADUCCION_EQUIPOS = {
-    "Mexico": "México", "South Africa": "Sudáfrica", "South Korea": "Corea del Sur", "Czechia": "República Checa",
-    "Canada": "Canadá", "Bosnia and Herzegovina": "Bosnia y Herzegovina", "United States": "Estados Unidos",
-    "Paraguay": "Paraguay", "Qatar": "Catar", "Switzerland": "Suiza", "Brazil": "Brasil", "Morocco": "Marruecos",
-    "Haiti": "Haití", "Scotland": "Escocia", "Australia": "Australia", "Turkey": "Turquía", "Germany": "Alemania",
-    "Curacao": "Curazao", "Netherlands": "Países Bajos", "Japan": "Japón", "Ivory Coast": "Costa de Marfil",
-    "Ecuador": "Ecuador", "Sweden": "Suecia", "Tunisia": "Túnez", "Spain": "España", "Cape Verde": "Cabo Verde",
-    "Cape Verde Islands": "Cabo Verde", "Belgium": "Bélgica", "Egypt": "Egipto", "Saudi Arabia": "Arabia Saudita",
-    "Uruguay": "Uruguay", "Iran": "Irán", "New Zealand": "Nueva Zelanda", "France": "Francia", "Senegal": "Senegal",
-    "Iraq": "Irak", "Norway": "Noruega", "Argentina": "Argentina", "Algeria": "Argelia", "Austria": "Austria",
-    "Jordan": "Jordania", "Portugal": "Portugal", "DR Congo": "RD Congo", "England": "Inglaterra",
-    "Croatia": "Croacia", "Ghana": "Ghana", "Panama": "Panamá", "Uzbekistan": "Uzbekistán", "Colombia": "Colombia"
-}
-
-def normalizar_texto(texto):
-    if not texto:
-        return ""
-    t = str(texto).lower().strip()
-    t = re.sub(r'[áàäâ]', 'a', t)
-    t = re.sub(r'[éèëê]', 'e', t)
-    t = re.sub(r'[íìïî]', 'i', t)
-    t = re.sub(r'[óòöô]', 'o', t)
-    t = re.sub(r'[úùüû]', 'u', t)
-    t = re.sub(r'\s+', ' ', t)
-    return t
 
 @st.cache_data(ttl=60)
 def cargar_excel():
@@ -98,52 +72,9 @@ def cargar_excel():
         st.error(f"Error al descargar Excel de Drive: {e}")
     return None
 
-# ==========================================
-# CONSUMO DE AUTOMATIZACIÓN (API)
-# ==========================================
-
-@st.cache_data(ttl=60)
-def obtener_resultados_api():
-    dict_resultados = {}
-    lista_en_vivo_cruda = []
-    headers = {"X-Auth-Token": API_KEY}
-    try:
-        respuesta = requests.get("https://api.football-data.org/v4/competitions/WC/matches", headers=headers, timeout=10)
-        if respuesta.status_code == 200:
-            datos = respuesta.json()
-            for partido in datos.get("matches", []):
-                local_api = partido["homeTeam"]["name"]
-                visitante_api = partido["awayTeam"]["name"]
-                
-                local = TRADUCCION_EQUIPOS.get(local_api, local_api)
-                visitante = TRADUCCION_EQUIPOS.get(visitante_api, visitante_api)
-                
-                estado = partido["status"]
-                goles_local = partido["score"]["fullTime"]["home"]
-                goles_visitante = partido["score"]["fullTime"]["away"]
-                
-                clave_partido = normalizar_texto(f"{local} vs {visitante}")
-                
-                if estado in ["IN_PLAY", "PAUSED"] and goles_local is not None and goles_visitante is not None:
-                    dict_resultados[clave_partido] = f"LIVE:{goles_local}-{goles_visitante}"
-                    lista_en_vivo_cruda.append({
-                        "local": local,
-                        "visitante": visitante,
-                        "marcador": f"{goles_local} - {goles_visitante}"
-                    })
-                elif estado == "FINISHED" and goles_local is not None and goles_visitante is not None:
-                    if goles_local > goles_visitante:
-                        dict_resultados[clave_partido] = "Local"
-                    elif goles_local < goles_visitante:
-                        dict_resultados[clave_partido] = "Visitante"
-                    else:
-                        dict_resultados[clave_partido] = "Empate"
-    except Exception as e:
-        pass
-    return dict_resultados, lista_en_vivo_cruda
 
 # ==========================================
-# FUNCIONES AUXILIARES
+# FUNCIÓN AUXILIAR PARA DETERMINAR PRONÓSTICO
 # ==========================================
 
 def determinar_resultado_celdas(c, d, e):
@@ -167,25 +98,20 @@ def procesar_todo_el_excel(contenido_excel):
     if "RESULTADOS" not in wb_local.sheetnames:
         return None, None
 
-    resultados_automatizados, _ = obtener_resultados_api()
-
+    # 1. Mapear resultados oficiales de forma instantánea
     ws_resultados = wb_local["RESULTADOS"]
     resultados_oficiales = {}
     
+    # max_row a 500 para leer todos los partidos oficiales
     for fila_idx, row in enumerate(ws_resultados.iter_rows(min_row=6, max_row=500, min_col=2, max_col=6, values_only=True), start=6):
         if len(row) < 5:
             continue
         local, c, d, e, visitante = row[0], row[1], row[2], row[3], row[4]
         if local is None or visitante is None:
             continue
-            
-        clave_busqueda = normalizar_texto(f"{local} vs {visitante}")
-        
-        if clave_busqueda in resultados_automatizados:
-            resultados_oficiales[fila_idx] = resultados_automatizados[clave_busqueda]
-        else:
-            resultados_oficiales[fila_idx] = determinar_resultado_celdas(c, d, e)
+        resultados_oficiales[fila_idx] = determinar_resultado_celdas(c, d, e)
 
+    # 2. Procesar participantes y extraer datos del Calendario en estructuras simples
     participantes_local = {}
     calendario_local = []
 
@@ -211,6 +137,7 @@ def procesar_todo_el_excel(contenido_excel):
         desempate_local = "-"
         desempate_visitante = "-"
         
+        # Leer metadatos del usuario
         for r_idx, row in enumerate(ws.iter_rows(min_row=2, max_row=15, min_col=3, max_col=12, values_only=True), start=2):
             if r_idx == 2 and len(row) > 0:
                 nombre = row[0] or hoja
@@ -219,6 +146,7 @@ def procesar_todo_el_excel(contenido_excel):
                 desempate_visitante = row[9]   
 
         pronosticos = []
+        # max_row a 500 para capturar los pronósticos completos de cada jugador
         for fila_idx, row in enumerate(ws.iter_rows(min_row=6, max_row=500, min_col=2, max_col=6, values_only=True), start=6):
             if len(row) < 5:
                 continue
@@ -231,16 +159,12 @@ def procesar_todo_el_excel(contenido_excel):
 
             es_acierto = (
                 resultado_oficial is not None
-                and not str(resultado_oficial).startswith("LIVE:")
                 and pronostico_jugador == resultado_oficial
             )
 
             estatus_visual = "⌛ Pautado"
             if resultado_oficial is not None:
-                if str(resultado_oficial).startswith("LIVE:"):
-                    estatus_visual = "🔴 En Juego"
-                else:
-                    estatus_visual = "✅ ¡Acertó!" if es_acierto else "❌ Falló"
+                estatus_visual = "✅ ¡Acertó!" if es_acierto else "❌ Falló"
 
             pronosticos.append(
                 {
@@ -263,7 +187,7 @@ def procesar_todo_el_excel(contenido_excel):
 
 
 # ==========================================
-# RENDERS DE PÁGINAS
+# EJECUCIÓN PRINCIPAL
 # ==========================================
 
 contenido_excel = cargar_excel()
@@ -278,8 +202,12 @@ if participantes is None:
     st.error("No existe la hoja RESULTADOS en el archivo.")
     st.stop()
 
+# Calcular puntos
 puntos = {nombre: sum(1 for p in datos["pronosticos"] if p["Acierto"]) for nombre, datos in participantes.items()}
 
+# ==========================================
+# RANKING
+# ==========================================
 st.write(f"Tiempo de carga: {round(time.time() - inicio, 2)} segundos")
 
 if pagina == "🏆 Ranking":
@@ -304,9 +232,10 @@ if pagina == "🏆 Ranking":
     ranking = pd.DataFrame(ranking_datos)
     ranking = ranking.sort_values(by="Puntos", ascending=False).reset_index(drop=True)
 
+    # Procesar métricas de avance
     total_partidos = 0
     partidos_jugados = 0
-    partidos_hoy_render = []
+    partidos_hoy = []
     hoy = datetime.now(ZoneInfo("America/Mexico_City")).date()
 
     if calendario_datos:
@@ -316,49 +245,40 @@ if pagina == "🏆 Ranking":
             hora = c_partido["hora"]
             resultado = c_partido["resultado"]
 
+            total_partidos += 1
             if resultado not in [None, ""]:
                 partidos_jugados += 1
-            total_partidos += 1
 
             try:
-                fecha_partido = None
                 if hasattr(fecha, "date"):
                     fecha_partido = fecha.date()
-                elif isinstance(fecha, str):
-                    try:
-                        fecha_partido = datetime.strptime(fecha.split()[0], "%Y-%m-%d").date()
-                    except:
-                        try:
-                            fecha_partido = datetime.strptime(fecha.split()[0], "%d/%m/%Y").date()
-                        except:
-                            pass
-                
-                if fecha_partido == hoy:
-                    try:
-                        hora_str = hora.strftime("%H:%M") if hasattr(hora, "strftime") else str(hora)[:5]
-                    except:
-                        hora_str = str(hora)
+                else:
+                    continue
 
-                    # Si ya terminó y tiene resultado, muestra marcador original
-                    if resultado not in [None, ""] and "LIVE:" not in str(resultado):
-                        if " vs " in str(partido).lower():
-                            col_eq = str(partido).split(re.search(r'\s+vs\s+', str(partido), re.IGNORECASE).group(0))
-                            texto_render = f"⚽ **{col_eq[0].strip()} vs. {col_eq[1].strip()}** ({resultado})"
+                if fecha_partido == hoy:
+                    if resultado not in [None, ""]:
+                        equipos = partido.split(" vs ")
+                        if len(equipos) == 2:
+                            texto = f"⚽ {equipos[0]} {resultado} {equipos[1]}"
                         else:
-                            texto_render = f"⚽ **{partido}** ({resultado})"
+                            texto = f"⚽ {partido} ({resultado})"
                     else:
-                        # Si no ha empezado (o ignora estado en juego provisional), mantiene hora
-                        texto_render = f"🕒 **{hora_str}** - {partido}"
-                    
-                    partidos_hoy_render.append(texto_render)
-            except Exception as e:
+                        texto = (
+                            f"🕒 {hora.strftime('%H:%M')} - {partido}"
+                            if hasattr(hora, "strftime")
+                            else f"{hora} - {partido}"
+                        )
+                    partidos_hoy.append(texto)
+            except:
                 pass
 
     porcentaje = round(partidos_jugados * 100 / total_partidos, 1) if total_partidos > 0 else 0
 
+    # Obtener puntajes extremos antes de modificar los nombres
     puntaje_maximo = ranking["Puntos"].max() if not ranking.empty else -1
     puntaje_minimo = ranking["Puntos"].min() if not ranking.empty else -1
     
+    # Cálculo de Líderes
     if puntaje_maximo != -1:
         filtro_lideres = ranking[ranking["Puntos"] == puntaje_maximo]["Participante"].tolist()
         primeros_nombres_lideres = [str(n).strip().split()[0] for n in filtro_lideres]
@@ -373,6 +293,7 @@ if pagina == "🏆 Ranking":
         texto_lideres = "-"
         etiqueta_lider = "🔥 Líder Actual"
 
+    # Tarjetas de Métricas
     col1, col2, col3 = st.columns(3)
     with col1:
         st.metric(label="⚽ Partidos Jugados", value=f"{partidos_jugados} / {total_partidos}")
@@ -382,22 +303,23 @@ if pagina == "🏆 Ranking":
         st.metric(label=etiqueta_lider, value=texto_lideres)
 
     st.divider()
-    
-    # NUEVO DISEÑO COMPACTO ORIGINAL PARA HOY
+
     st.subheader("📅 Partidos para hoy")
-    if not partidos_hoy_render:
+    if len(partidos_hoy) == 0:
         st.info("No hay partidos programados para hoy.")
     else:
-        for p_linea in partidos_hoy_render:
-            st.markdown(p_linea)
+        for p in partidos_hoy:
+            st.markdown(f'<p class="partido-hoy">{p}</p>', unsafe_allow_html=True)
 
     st.divider()
     st.subheader("Tabla General")
 
+    # Asignación de emojis (Corona arriba, Caracol abajo y Caracol exclusivo para Cristian o Víctor según corresponda)
     if puntaje_maximo != -1:
         def agregar_emoji(r):
             if str(r["Participante"]).strip() == "Victor Vazquez":
                 return f"🐌 {r['Participante']}"
+            
             if r["Puntos"] == puntaje_maximo:
                 return f"👑 {r['Participante']}"
             elif r["Puntos"] == puntaje_minimo and puntaje_minimo != puntaje_maximo:
@@ -406,6 +328,7 @@ if pagina == "🏆 Ranking":
 
         ranking["Participante"] = ranking.apply(agregar_emoji, axis=1)
 
+    # Estilo premium para resaltar filas (Solo primero y último lugar)
     def resaltar_estilo_premium(row):
         if puntaje_maximo != -1 and row["Puntos"] == puntaje_maximo:
             return ['background-color: #fffbeb; color: #b45309; font-weight: bold;'] * len(row)
@@ -417,8 +340,13 @@ if pagina == "🏆 Ranking":
     st.dataframe(ranking_estilizado, use_container_width=True, hide_index=True)
 
     st.divider()
+    
     with st.chat_message("assistant", avatar="👷‍♂️"):
         st.markdown("**¡Hola! Se aceptan ideas o sugerencias para mejorar la página.**")
+
+# ==========================================
+# PARTICIPANTES
+# ==========================================
 
 elif pagina == "👤 Participantes":
     jugador = st.selectbox("Selecciona participante", list(participantes.keys()))
@@ -433,12 +361,14 @@ elif pagina == "👤 Participantes":
             return 'background-color: #d4edda; color: #155724; font-weight: bold;'
         elif "❌" in str(val):
             return 'background-color: #f8d7da; color: #721c24;'
-        elif "🔴" in str(val):
-            return 'background-color: #fff3cd; color: #856404; font-weight: bold;'
         return ''
 
     df_estilizado = df.style.map(color_estatus, subset=["Estatus"])
     st.dataframe(df_estilizado, use_container_width=True, hide_index=True)
+
+# ==========================================
+# PARTIDOS
+# ==========================================
 
 elif pagina == "⚽ Partidos":
     primer_jugador = list(participantes.keys())[0]
@@ -450,14 +380,20 @@ elif pagina == "⚽ Partidos":
     for nombre, datos in participantes.items():
         for p in datos["pronosticos"]:
             if p["Partido"] == partido_seleccionado:
-                datos_partido.append({
-                    "Participante": nombre,
-                    "Pronóstico": p["Pronóstico"],
-                    "Resultado Oficial": p["Resultado Oficial"],
-                    "¿Acertó?": "✅ SÍ" if p["Acierto"] else ("🔴 EN JUEGO" if "LIVE:" in str(p["Resultado Oficial"]) else "❌ NO")
-                })
+                datos_partido.append(
+                    {
+                        "Participante": nombre,
+                        "Pronóstico": p["Pronóstico"],
+                        "Resultado Oficial": p["Resultado Oficial"],
+                        "¿Acertó?": "✅ SÍ" if p["Acierto"] else "❌ NO",
+                    }
+                )
 
     st.dataframe(pd.DataFrame(datos_partido).reset_index(drop=True), use_container_width=True, hide_index=True)
+
+# ==========================================
+# CALENDARIO
+# ==========================================
 
 elif pagina == "🗓️ Calendario":
     if not calendario_datos:
@@ -480,78 +416,14 @@ elif pagina == "🗓️ Calendario":
             except:
                 pass
 
-            calendario_tabla.append({
-                "Partido": partido,
-                "Fecha": fecha,
-                "Hora (CDMX)": hora,
-                "Resultado Final": resultado_final
-            })
+            calendario_tabla.append(
+                {
+                    "Partido": partido,
+                    "Fecha": fecha,
+                    "Hora (CDMX)": hora,
+                    "Resultado Final": resultado_final,
+                }
+            )
 
         st.subheader("Calendario de partidos")
         st.dataframe(pd.DataFrame(calendario_tabla).reset_index(drop=True), use_container_width=True, hide_index=True)
-
-elif pagina == "🔧 API TEST":
-    st.subheader("Prueba de API Mundial")
-    headers = {"X-Auth-Token": API_KEY}
-    try:
-        respuesta = requests.get("https://api.football-data.org/v4/matches", headers=headers)
-        st.write(f"Status: {respuesta.status_code}")
-        datos = respuesta.json()
-
-        for partido in datos.get("matches", []):
-            local_api = partido["homeTeam"]["name"]
-            visitante_api = partido["awayTeam"]["name"]
-            
-            local = TRADUCCION_EQUIPOS.get(local_api, local_api)
-            visitante = TRADUCCION_EQUIPOS.get(visitante_api, visitante_api)
-            estado = partido["status"]
-            goles_local = partido["score"]["fullTime"]["home"]
-            goles_visitante = partido["score"]["fullTime"]["away"]
-        
-            st.write(f"{local} vs {visitante} | {estado} | {goles_local}-{goles_visitante}")
-    except Exception as e:
-        st.error(f"Error: {e}")
-
-elif pagina == "🤖 Resultados API":
-    st.subheader("Resultados desde API")
-    headers = {"X-Auth-Token": API_KEY}
-    respuesta = requests.get("https://api.football-data.org/v4/competitions/WC/matches", headers=headers)
-    datos = respuesta.json()
-
-    st.write("Status:", respuesta.status_code)
-    
-    if "matches" not in datos:
-        st.error("La API no devolvió partidos")
-        st.write(datos)
-        st.stop()
-    
-    resultados = []
-    for partido in datos["matches"]:
-        local_api = partido["homeTeam"]["name"]
-        visitante_api = partido["awayTeam"]["name"]
-
-        local = TRADUCCION_EQUIPOS.get(local_api, local_api)
-        visitante = TRADUCCION_EQUIPOS.get(visitante_api, visitante_api)
-        estado = partido["status"]
-        goles_local = partido["score"]["fullTime"]["home"]
-        goles_visitante = partido["score"]["fullTime"]["away"]
-
-        resultado_quiniela = ""
-        if estado == "FINISHED":
-            if goles_local > goles_visitante:
-                resultado_quiniela = "Local"
-            elif goles_local < goles_visitante:
-                resultado_quiniela = "Visitante"
-            else:
-                resultado_quiniela = "Empate"
-        elif estado in ["IN_PLAY", "PAUSED"]:
-            resultado_quiniela = "EN JUEGO"
-        
-        resultados.append({
-            "Partido": f"{local} vs {visitante}",
-            "Estado": estado,
-            "Marcador": f"{goles_local}-{goles_visitante}" if goles_local is not None else "",
-            "Resultado Quiniela": resultado_quiniela
-        })
-
-    st.dataframe(pd.DataFrame(resultados), use_container_width=True, hide_index=True)
