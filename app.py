@@ -49,17 +49,16 @@ st.caption(f"Página actualizada: {ultima_actualizacion} (hora CDMX)")
 
 
 # ==========================================
-# 🔐 FILTRO OCULTO (MODO DESARROLLADOR)
+# 🔐 FILTRO DE PESTAÑAS Y MODOS
 # ==========================================
-menu_opciones = ["🏆 Ranking", "👤 Participantes", "⚽ Partidos", "🗓️ Calendario"]
+# El Versus se libera al público con un distintivo llamativo.
+menu_opciones = ["🏆 Ranking", "👤 Participantes", "⚽ Partidos", "🔥 Comparativa VS", "🗓️ Calendario"]
 
-# Si estás en modo admin, activamos el Versus corregido y el Muro de pruebas
 es_admin = st.query_params.get("modo") == "admin"
 
 if es_admin:
-    menu_opciones.insert(3, "🥊 Comparativa VS")
+    # El Muro se mantiene en pruebas privadas para el administrador
     menu_opciones.insert(4, "💬 Muro (Prueba)")
-    # Nota: El "¿Aún puedo ganar?" queda congelado temporalmente por la complejidad de múltiples líderes
 
 pagina = st.sidebar.radio("Menú", menu_opciones)
 
@@ -117,7 +116,6 @@ def procesar_todo_el_excel(contenido_excel):
     calendario_local = []
     comentarios_local = []
 
-    # Procesar hoja por hoja
     for hoja in wb_local.sheetnames:
         if hoja.upper() == "RESULTADOS":
             continue
@@ -135,7 +133,6 @@ def procesar_todo_el_excel(contenido_excel):
                 })
             continue
 
-        # Lectura de la pestaña MURO para comentarios si existe
         if hoja.upper() == "MURO":
             ws_muro = wb_local[hoja]
             for row in ws_muro.iter_rows(min_row=2, max_row=200, min_col=1, max_col=2, values_only=True):
@@ -351,11 +348,11 @@ elif pagina == "⚽ Partidos":
     st.dataframe(pd.DataFrame(datos_partido), use_container_width=True, hide_index=True)
 
 # ==========================================
-# 🥊 CORREGIDO: COMPARATIVA VS ORDENADA POR CALENDARIO
+# 🔥 PÚBLICA Y ORDENADA: COMPARATIVA VS
 # ==========================================
-elif pagina == "🥊 Comparativa VS":
-    st.subheader("🥊 Cara a Cara entre Participantes (Modo de Prueba)")
-    st.markdown("Compara las predicciones de tus rivales para ver dónde difieren.")
+elif pagina == "🔥 Comparativa VS":
+    st.subheader("🥊 Cara a Cara entre Participantes")
+    st.markdown("Compara las predicciones en tiempo real para ver las diferencias exactas de cara a los próximos partidos.")
     
     seleccionados = st.multiselect(
         "Selecciona de 2 a 3 participantes para el Versus:",
@@ -364,17 +361,17 @@ elif pagina == "🥊 Comparativa VS":
     )
     
     if len(seleccionados) < 2:
-        st.info("💡 Por favor selecciona al menos 2 participantes.")
+        st.info("💡 Selecciona al menos 2 participantes en el cuadro de arriba para generar el frente a frente.")
     else:
         primer_p = seleccionados[0]
         
-        # 1. Creamos un diccionario para mapear cada partido con el orden exacto del calendario
+        # 1. Mapear la estructura y secuencia real desde la pestaña CALENDARIO
         orden_calendario = {}
         if calendario_datos:
             for idx, c_partido in enumerate(calendario_datos):
                 orden_calendario[c_partido["partido"]] = idx
 
-        # 2. Construimos la lista de datos para el VS
+        # 2. Recomponer la matriz cruzada de datos
         datos_vs = []
         partidos_lista = [p["Partido"] for p in participantes[primer_p]["pronosticos"]]
         
@@ -386,15 +383,13 @@ elif pagina == "🥊 Comparativa VS":
             for jug in seleccionados:
                 fila_vs[f"Pred. {jug}"] = participantes[jug]["pronosticos"][i]["Pronóstico"]
             
-            # Asignamos un índice de ordenamiento (si no se encuentra en calendario, va al final)
             fila_vs["_orden"] = orden_calendario.get(p_nombre, 999)
             datos_vs.append(fila_vs)
             
-        # 3. Convertimos a DataFrame y ordenamos cronológicamente
+        # 3. Ordenar cronológicamente y limpiar la columna auxiliar
         df_vs = pd.DataFrame(datos_vs)
         df_vs = df_vs.sort_values(by="_orden").drop(columns=["_orden"]).reset_index(drop=True)
         
-        # Estilo corregido: Texto limpio y uso de .map() compatible con Pandas moderno
         def estilar_celdas_vs(val):
             if val in ["Local", "Empate", "Visitante"]: 
                 return 'font-weight: bold;'
@@ -403,33 +398,28 @@ elif pagina == "🥊 Comparativa VS":
             return ''
             
         st.dataframe(df_vs.style.map(estilar_celdas_vs), use_container_width=True, hide_index=True)
+
 # ==========================================
-# 💬 NUEVA PESTAÑA DE PRUEBA: MURO DE COMENTARIOS
+# 💬 EN REVISIÓN ADMIN: MURO DE COMENTARIOS
 # ==========================================
 elif pagina == "💬 Muro (Prueba)":
-    st.subheader("💬 El Muro de la Quiniela")
-    st.markdown("Un espacio para tirar carro, celebrar aciertos o llorar las derrotas.")
+    st.subheader("💬 El Muro de la Quiniela (Fase de Pruebas)")
+    st.markdown("Revisión de diseño y renderizado de mensajes directos desde el Excel de Drive.")
     
-    # Simulación de cómo escribirían
-    with st.expander("🛠️ ¿Cómo funciona este Muro en modo Pruebas?"):
+    with st.expander("🛠️ Notas del Desarrollador"):
         st.write("""
-        Para que esto funcione sin bases de datos externas, puedes crear una pestaña en tu Excel llamada **`MURO`**.
-        El script leerá automáticamente las columnas **A (Usuario)** y **B (Mensaje)**.
-        
-        *Tip premium:* Puedes crear un Google Form sencillo para que los participantes escriban su comentario, configurarlo para que mande las respuestas a la hoja `MURO` de tu Excel, y listo. ¡Aparecerán aquí de inmediato al actualizar la página!
+        Esta sección lee la pestaña **`MURO`** de tu Excel (Columnas A: Usuario y B: Mensaje).
+        Para habilitarlo al público posteriormente, solo debemos mover el disparador del menú fuera del bloque condicional `es_admin`.
         """)
 
     st.divider()
 
-    # Si la hoja existe y tiene datos, los pinta de forma estética tipo chat
     if comentarios_datos:
         for c in comentarios_datos:
             with st.chat_message("user", avatar="💬"):
                 st.markdown(f"**{c['usuario']}:** {c['mensaje']}")
     else:
-        # Mensajes muestra por si tu Excel aún no tiene la pestaña "MURO" creada
-        st.info("Aún no tienes mensajes en tu documento de Drive. Aquí tienes una muestra de cómo se verá:")
-        
+        st.info("No se detectó la estructura de la hoja 'MURO' en Drive o está vacía. Mostrando bloques muestra:")
         muestras = [
             {"usuario": "Juan Preciado", "mensaje": "¡Qué partidazo el de hoy! Ya escalé tres posiciones 🔥"},
             {"usuario": "Victor Vazquez", "mensaje": "Alguien detenga al líder, trae hack jajaja 🐌"},
