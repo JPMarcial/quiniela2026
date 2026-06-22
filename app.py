@@ -51,14 +51,15 @@ st.caption(f"Página actualizada: {ultima_actualizacion} (hora CDMX)")
 # ==========================================
 # 🔐 FILTRO OCULTO (MODO DESARROLLADOR)
 # ==========================================
-# Definimos el menú base que ve todo el público
 menu_opciones = ["🏆 Ranking", "👤 Participantes", "⚽ Partidos", "🗓️ Calendario"]
 
-# Si en la URL pones ?modo=admin, se activan las pestañas en desarrollo
-if st.query_params.get("modo") == "admin":
-    # Las insertamos en la posición que prefieras del menú
+# Si estás en modo admin, activamos el Versus corregido y el Muro de pruebas
+es_admin = st.query_params.get("modo") == "admin"
+
+if es_admin:
     menu_opciones.insert(3, "🥊 Comparativa VS")
-    menu_opciones.insert(4, "🔮 ¿Aún puedo ganar?")
+    menu_opciones.insert(4, "💬 Muro (Prueba)")
+    # Nota: El "¿Aún puedo ganar?" queda congelado temporalmente por la complejidad de múltiples líderes
 
 pagina = st.sidebar.radio("Menú", menu_opciones)
 
@@ -99,7 +100,7 @@ def procesar_todo_el_excel(contenido_excel):
     wb_local = load_workbook(BytesIO(contenido_excel), data_only=True, read_only=True)
 
     if "RESULTADOS" not in wb_local.sheetnames:
-        return None, None
+        return None, None, None
 
     ws_resultados = wb_local["RESULTADOS"]
     resultados_oficiales = {}
@@ -114,7 +115,9 @@ def procesar_todo_el_excel(contenido_excel):
 
     participantes_local = {}
     calendario_local = []
+    comentarios_local = []
 
+    # Procesar hoja por hoja
     for hoja in wb_local.sheetnames:
         if hoja.upper() == "RESULTADOS":
             continue
@@ -130,6 +133,17 @@ def procesar_todo_el_excel(contenido_excel):
                     "hora": row[2],
                     "resultado": row[3]
                 })
+            continue
+
+        # Lectura de la pestaña MURO para comentarios si existe
+        if hoja.upper() == "MURO":
+            ws_muro = wb_local[hoja]
+            for row in ws_muro.iter_rows(min_row=2, max_row=200, min_col=1, max_col=2, values_only=True):
+                if row[0] is not None and row[1] is not None:
+                    comentarios_local.append({
+                        "usuario": str(row[0]),
+                        "mensaje": str(row[1])
+                    })
             continue
 
         ws = wb_local[hoja]
@@ -181,7 +195,7 @@ def procesar_todo_el_excel(contenido_excel):
             "desempate_visitante": desempate_visitante,
         }
 
-    return participantes_local, calendario_local
+    return participantes_local, calendario_local, comentarios_local
 
 # ==========================================
 # EJECUCIÓN PRINCIPAL
@@ -192,17 +206,13 @@ if contenido_excel is None:
     st.error("No se pudo descargar el archivo desde Google Drive.")
     st.stop()
 
-participantes, calendario_datos = procesar_todo_el_excel(contenido_excel)
+participantes, calendario_datos, comentarios_datos = procesar_todo_el_excel(contenido_excel)
 if participantes is None:
     st.error("No existe la hoja RESULTADOS en el archivo.")
     st.stop()
 
 puntos = {nombre: sum(1 for p in datos["pronosticos"] if p["Acierto"]) for nombre, datos in participantes.items()}
 st.write(f"Tiempo de carga: {round(time.time() - inicio, 2)} segundos")
-
-lista_ranking_previa = sorted(puntos.items(), key=lambda x: x[1], reverse=True)
-lider_actual_nombre = lista_ranking_previa[0][0] if lista_ranking_previa else ""
-puntos_lider_actual = lista_ranking_previa[0][1] if lista_ranking_previa else 0
 
 # ==========================================
 # PÁGINA: RANKING
@@ -341,7 +351,7 @@ elif pagina == "⚽ Partidos":
     st.dataframe(pd.DataFrame(datos_partido), use_container_width=True, hide_index=True)
 
 # ==========================================
-# COMPARATIVA VS (SOLO JUGADORES VISIBLE EN MODO ADMIN)
+# 🥊 CORREGIDO: COMPARATIVA VS (SIN FONDO BLANCO RÍGIDO)
 # ==========================================
 elif pagina == "🥊 Comparativa VS":
     st.subheader("🥊 Cara a Cara entre Participantes (Modo de Prueba)")
@@ -371,58 +381,52 @@ elif pagina == "🥊 Comparativa VS":
             datos_vs.append(fila_vs)
             
         df_vs = pd.DataFrame(datos_vs)
+        
+        # Estilo corregido: ya no fuerza un background-color blanco que tape el texto. Usamos negritas limpias.
         def estilar_celdas_vs(val):
-            if val in ["Local", "Empate", "Visitante"]: return 'font-weight: bold; background-color: #f8fafc;'
-            if "⌛" in str(val): return 'color: #64748b; font-style: italic;'
+            if val in ["Local", "Empate", "Visitante"]: 
+                return 'font-weight: bold;'
+            if "⌛" in str(val): 
+                return 'color: #888888; font-style: italic;'
             return ''
-        st.dataframe(df_vs.style.map(estilar_celdas_vs), use_container_width=True, hide_index=True)
+            
+        st.dataframe(df_vs.style.applymap(estilar_celdas_vs), use_container_width=True, hide_index=True)
 
 # ==========================================
-# CALCULADORA DE ESPERANZA REAL (SOLO VISIBLE EN MODO ADMIN)
+# 💬 NUEVA PESTAÑA DE PRUEBA: MURO DE COMENTARIOS
 # ==========================================
-elif pagina == "🔮 ¿Aún puedo ganar?":
-    st.subheader("🔮 Calculadora de Esperanza Real Matemática (Modo de Prueba)")
+elif pagina == "💬 Muro (Prueba)":
+    st.subheader("💬 El Muro de la Quiniela")
+    st.markdown("Un espacio para tirar carro, celebrar aciertos o llorar las derrotas.")
     
-    usuario_test = st.selectbox("Selecciona tu nombre para evaluar tus posibilidades:", list(participantes.keys()))
-    
-    if usuario_test == lider_actual_nombre:
-        st.success(f"👑 ¡Tú eres el líder actual (**{lider_actual_nombre}**) con **{puntos_lider_actual} pts**!")
+    # Simulación de cómo escribirían
+    with st.expander("🛠️ ¿Cómo funciona este Muro en modo Pruebas?"):
+        st.write("""
+        Para que esto funcione sin bases de datos externas, puedes crear una pestaña en tu Excel llamada **`MURO`**.
+        El script leerá automáticamente las columnas **A (Usuario)** y **B (Mensaje)**.
+        
+        *Tip premium:* Puedes crear un Google Form sencillo para que los participantes escriban su comentario, configurarlo para que mande las respuestas a la hoja `MURO` de tu Excel, y listo. ¡Aparecerán aquí de inmediato al actualizar la página!
+        """)
+
+    st.divider()
+
+    # Si la hoja existe y tiene datos, los pinta de forma estética tipo chat
+    if comentarios_datos:
+        for c in comentarios_datos:
+            with st.chat_message("user", avatar="💬"):
+                st.markdown(f"**{c['usuario']}:** {c['mensaje']}")
     else:
-        pronos_usuario = participantes[usuario_test]["pronosticos"]
-        pronos_lider = participantes[lider_actual_nombre]["pronosticos"]
-        pts_usuario = puntos[usuario_test]
-        diferencia_inicial = puntos_lider_actual - pts_usuario
+        # Mensajes muestra por si tu Excel aún no tiene la pestaña "MURO" creada
+        st.info("Aún no tienes mensajes en tu documento de Drive. Aquí tienes una muestra de cómo se verá:")
         
-        juegos_recorte_utiles = 0
-        lista_juegos_clave = []
-        
-        for i in range(len(pronos_usuario)):
-            res_oficial = pronos_usuario[i]["Resultado Oficial"]
-            if res_oficial is None or res_oficial == "":
-                p_partido = pronos_usuario[i]["Partido"]
-                p_user = pronos_usuario[i]["Pronóstico"]
-                p_lid = pronos_lider[i]["Pronóstico"]
-                
-                if p_user != p_lid:
-                    juegos_recorte_utiles += 1
-                    lista_juegos_clave.append({
-                        "Partido": p_partido, "Tu Predicción": p_user, "Predicción Líder": p_lid
-                    })
-                    
-        maximo_posible_real = pts_usuario + juegos_recorte_utiles
-        
-        c1, c2, c3 = st.columns(3)
-        c1.metric("Tus Puntos", f"{pts_usuario} pts")
-        c2.metric(f"Distancia vs {lider_actual_nombre}", f"-{diferencia_inicial} pts")
-        c3.metric("Juegos con Diferencia (Útiles)", f"{juegos_recorte_utiles}")
-        st.divider()
-        
-        if maximo_posible_real >= puntos_lider_actual:
-            st.markdown(f"### 🟢 **¡Matemáticamente SÍ puedes ganar!**")
-            if lista_juegos_clave:
-                st.dataframe(pd.DataFrame(lista_juegos_clave), use_container_width=True, hide_index=True)
-        else:
-            st.markdown(f"### 💀 **Fuera de la carrera por el 1° lugar**")
+        muestras = [
+            {"usuario": "Juan Preciado", "mensaje": "¡Qué partidazo el de hoy! Ya escalé tres posiciones 🔥"},
+            {"usuario": "Victor Vazquez", "mensaje": "Alguien detenga al líder, trae hack jajaja 🐌"},
+            {"usuario": "Cristian", "mensaje": "Puse empate en el juego de mañana, voy por el todo o nada 🤞"}
+        ]
+        for m in muestras:
+            with st.chat_message("user", avatar="⚽"):
+                st.markdown(f"**{m['usuario']}:** {m['mensaje']}")
 
 # ==========================================
 # CALENDARIO
