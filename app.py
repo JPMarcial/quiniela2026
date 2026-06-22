@@ -351,7 +351,7 @@ elif pagina == "⚽ Partidos":
     st.dataframe(pd.DataFrame(datos_partido), use_container_width=True, hide_index=True)
 
 # ==========================================
-# 🥊 COMPARATIVA VS (SIN FONDO BLANCO RÍGIDO Y SIN ERRÓNEO APPLYMAP)
+# 🥊 CORREGIDO: COMPARATIVA VS ORDENADA POR CALENDARIO
 # ==========================================
 elif pagina == "🥊 Comparativa VS":
     st.subheader("🥊 Cara a Cara entre Participantes (Modo de Prueba)")
@@ -367,9 +367,17 @@ elif pagina == "🥊 Comparativa VS":
         st.info("💡 Por favor selecciona al menos 2 participantes.")
     else:
         primer_p = seleccionados[0]
+        
+        # 1. Creamos un diccionario para mapear cada partido con el orden exacto del calendario
+        orden_calendario = {}
+        if calendario_datos:
+            for idx, c_partido in enumerate(calendario_datos):
+                orden_calendario[c_partido["partido"]] = idx
+
+        # 2. Construimos la lista de datos para el VS
+        datos_vs = []
         partidos_lista = [p["Partido"] for p in participantes[primer_p]["pronosticos"]]
         
-        datos_vs = []
         for i, p_nombre in enumerate(partidos_lista):
             fila_vs = {"Partido": p_nombre}
             resultado_real = participantes[primer_p]["pronosticos"][i]["Resultado Oficial"]
@@ -377,10 +385,14 @@ elif pagina == "🥊 Comparativa VS":
             
             for jug in seleccionados:
                 fila_vs[f"Pred. {jug}"] = participantes[jug]["pronosticos"][i]["Pronóstico"]
-                
+            
+            # Asignamos un índice de ordenamiento (si no se encuentra en calendario, va al final)
+            fila_vs["_orden"] = orden_calendario.get(p_nombre, 999)
             datos_vs.append(fila_vs)
             
+        # 3. Convertimos a DataFrame y ordenamos cronológicamente
         df_vs = pd.DataFrame(datos_vs)
+        df_vs = df_vs.sort_values(by="_orden").drop(columns=["_orden"]).reset_index(drop=True)
         
         # Estilo corregido: Texto limpio y uso de .map() compatible con Pandas moderno
         def estilar_celdas_vs(val):
