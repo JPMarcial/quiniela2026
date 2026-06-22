@@ -351,7 +351,7 @@ elif pagina == "⚽ Partidos":
     st.dataframe(pd.DataFrame(datos_partido), use_container_width=True, hide_index=True)
 
 # ==========================================
-# 🥊 CORREGIDO: COMPARATIVA VS (SIN FONDO BLANCO RÍGIDO)
+# 🥊 COMPARATIVA VS (SIN FONDO BLANCO RÍGIDO Y SIN ERRÓNEO APPLYMAP)
 # ==========================================
 elif pagina == "🥊 Comparativa VS":
     st.subheader("🥊 Cara a Cara entre Participantes (Modo de Prueba)")
@@ -382,7 +382,7 @@ elif pagina == "🥊 Comparativa VS":
             
         df_vs = pd.DataFrame(datos_vs)
         
-        # Estilo corregido: ya no fuerza un background-color blanco que tape el texto. Usamos negritas limpias.
+        # Estilo corregido: Texto limpio y uso de .map() compatible con Pandas moderno
         def estilar_celdas_vs(val):
             if val in ["Local", "Empate", "Visitante"]: 
                 return 'font-weight: bold;'
@@ -390,8 +390,7 @@ elif pagina == "🥊 Comparativa VS":
                 return 'color: #888888; font-style: italic;'
             return ''
             
-        st.dataframe(df_vs.style.applymap(estilar_celdas_vs), use_container_width=True, hide_index=True)
-
+        st.dataframe(df_vs.style.map(estilar_celdas_vs), use_container_width=True, hide_index=True)
 # ==========================================
 # 💬 NUEVA PESTAÑA DE PRUEBA: MURO DE COMENTARIOS
 # ==========================================
