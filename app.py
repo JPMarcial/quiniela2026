@@ -108,20 +108,8 @@ def procesar_todo_el_excel(contenido_excel):
     calendario_local = []
 
     for hoja in wb_local.sheetnames:
-        if hoja.upper() == "RESULTADOS":
-            continue
-            
-        if hoja.upper() == "CALENDARIO":
-            ws_cal = wb_local[hoja]
-            for row in ws_cal.iter_rows(min_row=2, max_row=500, min_col=1, max_col=4, values_only=True):
-                if len(row) < 4 or row[0] is None:
-                    continue
-                calendario_local.append({
-                    "partido": row[0],
-                    "fecha": row[1],
-                    "hora": row[2],
-                    "resultado": row[3]
-                })
+        # 🌟 EXCLUSIÓN FILTRADA: Ignoramos hojas de control y explícitamente el Muro
+        if hoja.upper() in ["RESULTADOS", "CALENDARIO", "MURO"]:
             continue
 
         ws = wb_local[hoja]
@@ -172,6 +160,19 @@ def procesar_todo_el_excel(contenido_excel):
             "desempate_local": desempate_local,
             "desempate_visitante": desempate_visitante,
         }
+
+    # Procesamos la hoja calendario por separado al final
+    if "CALENDARIO" in wb_local.sheetnames:
+        ws_cal = wb_local["CALENDARIO"]
+        for row in ws_cal.iter_rows(min_row=2, max_row=500, min_col=1, max_col=4, values_only=True):
+            if len(row) < 4 or row[0] is None:
+                continue
+            calendario_local.append({
+                "partido": row[0],
+                "fecha": row[1],
+                "hora": row[2],
+                "resultado": row[3]
+            })
 
     return participantes_local, calendario_local
 
@@ -307,7 +308,7 @@ if pagina == "🏆 Ranking":
     st.dataframe(ranking.style.apply(resaltar_estilo_premium, axis=1), use_container_width=True, hide_index=True)
 
 # ==========================================
-# 👤 PARTICIPANTES - FORZADO POR CALENDARIO
+# 👤 PARTICIPANTES
 # ==========================================
 elif pagina == "👤 Participantes":
     jugador = st.selectbox("Selecciona participante", list(participantes.keys()))
@@ -315,10 +316,7 @@ elif pagina == "👤 Participantes":
     
     df = pd.DataFrame(participantes[jugador]["pronosticos"])
     
-    # Asignamos el índice numérico explícito del calendario
     df["_orden"] = df["Partido"].map(lambda x: orden_calendario.get(normalizar_texto_partido(x), 999))
-    
-    # FORZAMOS el sort_values por esa columna numérica y eliminamos los índices viejos
     df = df.sort_values(by="_orden", ascending=True).reset_index(drop=True)
     df = df[["Partido", "Pronóstico", "Resultado Oficial", "Estatus"]]
 
@@ -329,10 +327,9 @@ elif pagina == "👤 Participantes":
     st.dataframe(df.style.map(color_estatus, subset=["Estatus"]), use_container_width=True, hide_index=True)
 
 # ==========================================
-# ⚽ PARTIDOS - FORZADO POR CALENDARIO
+# ⚽ PARTIDOS
 # ==========================================
 elif pagina == "⚽ Partidos":
-    # Extraemos todos los partidos del calendario real para garantizar el orden de la lista
     if calendario_datos:
         lista_partidos = [c_partido["partido"] for c_partido in calendario_datos]
     else:
@@ -345,7 +342,6 @@ elif pagina == "⚽ Partidos":
 
     for nombre, datos in participantes.items():
         for p in datos["pronosticos"]:
-            # Normalizamos ambos lados para asegurar la coincidencia exacta
             if normalizar_texto_partido(p["Partido"]) == normalizar_texto_partido(partido_seleccionado):
                 datos_partido.append({
                     "Participante": nombre,
@@ -356,7 +352,7 @@ elif pagina == "⚽ Partidos":
     st.dataframe(pd.DataFrame(datos_partido), use_container_width=True, hide_index=True)
 
 # ==========================================
-# 🔥 COMPARATIVA VS - FORZADO POR CALENDARIO
+# 🔥 COMPARATIVA VS
 # ==========================================
 elif pagina == "🔥 Comparativa VS":
     st.subheader("🥊 Cara a Cara entre Participantes")
@@ -387,7 +383,6 @@ elif pagina == "🔥 Comparativa VS":
             datos_vs.append(fila_vs)
             
         df_vs = pd.DataFrame(datos_vs)
-        # FORZAMOS la ordenación por la columna temporal del calendario
         df_vs = df_vs.sort_values(by="_orden", ascending=True).drop(columns=["_orden"]).reset_index(drop=True)
         
         def estilar_celdas_vs(val):
@@ -421,5 +416,4 @@ elif pagina == "🗓️ Calendario":
             calendario_tabla.append({
                 "Partido": partido, "Fecha": fecha, "Hora (CDMX)": hora, "Resultado Final": resultado_final
             })
-        st.subheader("Calendario de partidos")
-        st.dataframe(pd.DataFrame(calendario_tabla), use_container_width=True, hide_index=True)
+        st.
