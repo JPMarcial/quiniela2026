@@ -537,33 +537,14 @@ elif pagina == "🗓️ Calendario":
 # ==========================================
 elif pagina == "🗓️ Llave Fase Final (Prueba)":
     
-    # Función optimizada para construir las cajas visuales sin dependencias de participantes
     def render_match_html(id_partido, meta_text=""):
-        return f"""
-        <div>
-            <div class="match-meta">{meta_text}</div>
-            <div class="match-box">
-                <div class="team-row"><span>🏳️ Por clasificar</span></div>
-                <div class="team-row"><span>🏳️ Por clasificar</span></div>
-            </div>
-        </div>
-        """
+        return f"""<div><div class="match-meta">{meta_text}</div><div class="match-box"><div class="team-row"><span>🏳️ Por clasificar</span></div><div class="team-row"><span>🏳️ Por clasificar</span></div></div></div>"""
 
-    st.markdown('<div class="bracket-wrapper">', unsafe_allow_html=True)
-    st.markdown(
-        """
-        <div class="bracket-header">
-            <h1>FLUJO OFICIAL FASE FINAL</h1>
-            <p>Estructura de llaves y sedes del torneo desde Dieciseisavos hasta la Gran Final</p>
-        </div>
-        """, 
-        unsafe_allow_html=True
-    )
+    st.markdown("""<div class="bracket-header"><h1>FLUJO OFICIAL FASE FINAL</h1><p>Estructura de llaves y sedes del torneo desde Dieciseisavos hasta la Gran Final</p></div>""", unsafe_allow_html=True)
 
     html_llave = f"""
+<div class="bracket-wrapper">
     <div class="bracket-container">
-        
-        <!-- === BLOQUE IZQUIERDO === -->
         <div class="bracket-column">
             {render_match_html("D16_1", "28/06 Los Ángeles")}
             {render_match_html("D16_2", "29/06 Boston")}
@@ -574,24 +555,19 @@ elif pagina == "🗓️ Llave Fase Final (Prueba)":
             {render_match_html("D16_7", "30/06 CDMX")}
             {render_match_html("D16_8", "01/07 Atlanta")}
         </div>
-        
         <div class="bracket-column">
             {render_match_html("OCT_1", "04/07 Filadelfia")}
             {render_match_html("OCT_2", "04/07 Houston")}
             {render_match_html("OCT_3", "06/07 Dallas")}
             {render_match_html("OCT_4", "06/07 CDMX")}
         </div>
-        
         <div class="bracket-column">
             {render_match_html("CRT_1", "09/07 Boston")}
             {render_match_html("CRT_2", "10/07 Los Ángeles")}
         </div>
-        
         <div class="bracket-column">
             {render_match_html("SEM_1", "14/07 Dallas")}
         </div>
-        
-        <!-- === CENTRO COPA === -->
         <div class="center-trophy">
             <div class="trophy-title">19/07 Nueva York</div>
             <div>
@@ -606,24 +582,19 @@ elif pagina == "🗓️ Llave Fase Final (Prueba)":
                 <div>🏆 ⌛</div>
             </div>
         </div>
-        
-        <!-- === BLOQUE DERECHO === -->
         <div class="bracket-column">
             {render_match_html("SEM_2", "15/07 Atlanta")}
         </div>
-        
         <div class="bracket-column">
             {render_match_html("CRT_3", "11/07 Miami")}
             {render_match_html("CRT_4", "11/07 Kansas City")}
         </div>
-        
         <div class="bracket-column">
             {render_match_html("OCT_5", "05/07 CDMX")}
             {render_match_html("OCT_6", "05/07 Nueva York")}
             {render_match_html("OCT_7", "07/07 Atlanta")}
             {render_match_html("OCT_8", "07/07 Vancouver")}
         </div>
-        
         <div class="bracket-column">
             {render_match_html("D16_9", "01/07 S. Francisco")}
             {render_match_html("D16_10", "01/07 Seattle")}
@@ -634,8 +605,8 @@ elif pagina == "🗓️ Llave Fase Final (Prueba)":
             {render_match_html("D16_15", "03/07 Kansas City")}
             {render_match_html("D16_16", "03/07 Dallas")}
         </div>
-
     </div>
-    """
-    st.markdown(html_llave, unsafe_allow_html=True)
-    st.markdown('</div>', unsafe_allow_html=True)
+</div>
+"""
+    # Forzamos a Streamlit a interpretarlo puramente como HTML sin pasar por Markdown
+    st.html(html_llave)
