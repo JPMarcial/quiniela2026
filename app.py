@@ -533,71 +533,33 @@ elif pagina == "🗓️ Calendario":
 
 
 # ==========================================
-# 🆕 PESTAÑA EXCLUSIVA: LLAVE VISUAL FASE FINAL (VISTA PREVIA DE DESARROLLO)
+# 🆕 PESTAÑA EXCLUSIVA: LLAVE VISUAL FASE FINAL (ESTRUCTURA DE TORNEO LIMPIA)
 # ==========================================
 elif pagina == "🗓️ Llave Fase Final (Prueba)":
     
-    # 📝 Datos semilla temporales idénticos a tu imagen para simular el comportamiento real
-    llave_demo = {
-        "D16_1": {"local": "Corea del Sur", "visitante": "Canadá", "ganador": "Corea del Sur"},
-        "D16_2": {"local": "Alemania", "visitante": "Brasil", "ganador": "Alemania"},
-        "D16_3": {"local": "Suecia", "visitante": "Marruecos", "ganador": "Suecia"},
-        "D16_4": {"local": "Escocia", "visitante": "Japón", "ganador": "Japón"},
-        "D16_5": {"local": "Noruega", "visitante": "Países Bajos", "ganador": "Países Bajos"},
-        "D16_6": {"local": "Costa de Marfil", "visitante": "Francia", "ganador": "Francia"},
-        "D16_7": {"local": "México", "visitante": "España", "ganador": "México"},
-        "D16_8": {"local": "Inglaterra", "visitante": "Portugal", "ganador": "Inglaterra"},
-        "D16_9": {"local": "Estados Unidos", "visitante": "Bosnia y Herz.", "ganador": "Estados Unidos"},
-        "D16_10": {"local": "Nueva Zelanda", "visitante": "Chequia", "ganador": "Chequia"},
-        "D16_11": {"local": "R. D. Congo", "visitante": "Ghana", "ganador": "Ghana"},
-        "D16_12": {"local": "Uruguay", "visitante": "Austria", "ganador": "Uruguay"},
-        "D16_13": {"local": "Suiza", "visitante": "Bélgica", "ganador": "Bélgica"},
-        "D16_14": {"local": "Argentina", "visitante": "Arabia Saudita", "ganador": "Argentina"},
-        "D16_15": {"local": "Colombia", "visitante": "Ecuador", "ganador": "Colombia"},
-        "D16_16": {"local": "Australia", "visitante": "Irán", "ganador": "Australia"},
-    }
-    
-    # Rellenar fases avanzadas con datos vacíos para probar la estructura en pantalla
-    for i in range(1, 9): llave_demo[f"OCT_{i}"] = {"local": "⌛ Pending", "visitante": "⌛ Pending", "ganador": "⌛"}
-    for i in range(1, 5): llave_demo[f"CRT_{i}"] = {"local": "⌛ Pending", "visitante": "⌛ Pending", "ganador": "⌛"}
-    for i in range(1, 3): llave_demo[f"SEM_{i}"] = {"local": "⌛ Pending", "visitante": "⌛ Pending", "ganador": "⌛"}
-    llave_demo["FIN"] = {"local": "⌛ Pending", "visitante": "⌛ Pending", "ganador": "⌛"}
-
-    # Filtro selector oculto o integrado lateralmente usando los datos reales existentes
-    jugador_mock = st.sidebar.selectbox("👤 Simular Jugador:", list(participantes.keys()), key="sb_mock")
-
-    # Función local para construir cada caja HTML de los partidos de forma limpia
+    # Función optimizada para construir las cajas visuales sin dependencias de participantes
     def render_match_html(id_partido, meta_text=""):
-        p = llave_demo.get(id_partido, {"local": "⌛ Pending", "visitante": "⌛ Pending", "ganador": "⌛"})
-        loc, vis, gan = p["local"], p["visitante"], p["ganador"]
-        
-        c_loc = "winner-highlight" if gan == loc and loc != "⌛ Pending" else ""
-        c_vis = "winner-highlight" if gan == vis and vis != "⌛ Pending" else ""
-        
         return f"""
         <div>
             <div class="match-meta">{meta_text}</div>
             <div class="match-box">
-                <div class="team-row {c_loc}"><span>{loc}</span></div>
-                <div class="team-row {c_vis}"><span>{vis}</span></div>
+                <div class="team-row"><span>🏳️ Por clasificar</span></div>
+                <div class="team-row"><span>🏳️ Por clasificar</span></div>
             </div>
         </div>
         """
 
-    campeon_final = llave_demo.get("FIN", {}).get("ganador", "⌛")
-
     st.markdown('<div class="bracket-wrapper">', unsafe_allow_html=True)
     st.markdown(
-        f"""
+        """
         <div class="bracket-header">
-            <h1>DIECISEISAVOS AL MOMENTO (VISTA PREVIA)</h1>
-            <p>Estructura de llave de 32 equipos basada en el flujo oficial del torneo para <b>{jugador_mock}</b></p>
+            <h1>FLUJO OFICIAL FASE FINAL</h1>
+            <p>Estructura de llaves y sedes del torneo desde Dieciseisavos hasta la Gran Final</p>
         </div>
         """, 
         unsafe_allow_html=True
     )
 
-    # El bloque con las columnas de los equipos concatenadas
     html_llave = f"""
     <div class="bracket-container">
         
@@ -632,10 +594,16 @@ elif pagina == "🗓️ Llave Fase Final (Prueba)":
         <!-- === CENTRO COPA === -->
         <div class="center-trophy">
             <div class="trophy-title">19/07 Nueva York</div>
-            {render_match_html("FIN", "GRAN FINAL")}
+            <div>
+                <div class="match-meta">GRAN FINAL</div>
+                <div class="match-box">
+                    <div class="team-row"><span>🏳️ Finalista A</span></div>
+                    <div class="team-row"><span>🏳️ Finalista B</span></div>
+                </div>
+            </div>
             <div class="champion-display">
                 <div style="font-size: 10px; font-weight: bold; opacity: 0.9; letter-spacing: 1px;">CAMPEÓN MUNDIAL</div>
-                <div>🏆 {campeon_final}</div>
+                <div>🏆 ⌛</div>
             </div>
         </div>
         
@@ -669,7 +637,5 @@ elif pagina == "🗓️ Llave Fase Final (Prueba)":
 
     </div>
     """
-    
-    # 🌟 AQUÍ ESTÁ LA CORRECCIÓN: Esto procesa e inyecta el árbol visual ocultando las etiquetas de texto crudo
     st.markdown(html_llave, unsafe_allow_html=True)
     st.markdown('</div>', unsafe_allow_html=True)
