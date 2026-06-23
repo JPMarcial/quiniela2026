@@ -559,10 +559,10 @@ elif pagina == "🗓️ Llave Fase Final (Prueba)":
     for i in range(1, 3): llave_demo[f"SEM_{i}"] = {"local": "⌛ Pending", "visitante": "⌛ Pending", "ganador": "⌛"}
     llave_demo["FIN"] = {"local": "⌛ Pending", "visitante": "⌛ Pending", "ganador": "⌛"}
 
-    # Simulamos el filtro de jugadores usando la lista de participantes real que ya tienes activa
+    # Filtro selector oculto o integrado lateralmente usando los datos reales existentes
     jugador_mock = st.sidebar.selectbox("👤 Simular Jugador:", list(participantes.keys()), key="sb_mock")
 
-    # Función local para construir cada caja HTML de los partidos
+    # Función local para construir cada caja HTML de los partidos de forma limpia
     def render_match_html(id_partido, meta_text=""):
         p = llave_demo.get(id_partido, {"local": "⌛ Pending", "visitante": "⌛ Pending", "ganador": "⌛"})
         loc, vis, gan = p["local"], p["visitante"], p["ganador"]
@@ -593,9 +593,11 @@ elif pagina == "🗓️ Llave Fase Final (Prueba)":
         unsafe_allow_html=True
     )
 
+    # El bloque con las columnas de los equipos concatenadas
     html_llave = f"""
     <div class="bracket-container">
         
+        <!-- === BLOQUE IZQUIERDO === -->
         <div class="bracket-column">
             {render_match_html("D16_1", "28/06 Los Ángeles")}
             {render_match_html("D16_2", "29/06 Boston")}
@@ -623,6 +625,7 @@ elif pagina == "🗓️ Llave Fase Final (Prueba)":
             {render_match_html("SEM_1", "14/07 Dallas")}
         </div>
         
+        <!-- === CENTRO COPA === -->
         <div class="center-trophy">
             <div class="trophy-title">19/07 Nueva York</div>
             {render_match_html("FIN", "GRAN FINAL")}
@@ -632,6 +635,7 @@ elif pagina == "🗓️ Llave Fase Final (Prueba)":
             </div>
         </div>
         
+        <!-- === BLOQUE DERECHO === -->
         <div class="bracket-column">
             {render_match_html("SEM_2", "15/07 Atlanta")}
         </div>
@@ -661,5 +665,7 @@ elif pagina == "🗓️ Llave Fase Final (Prueba)":
 
     </div>
     """
+    
+    # 🌟 AQUÍ ESTÁ LA CORRECCIÓN: Esto procesa e inyecta el árbol visual ocultando las etiquetas de texto crudo
     st.markdown(html_llave, unsafe_allow_html=True)
     st.markdown('</div>', unsafe_allow_html=True)
