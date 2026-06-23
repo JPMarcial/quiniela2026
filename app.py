@@ -155,18 +155,22 @@ st.caption(f"Página actualizada: {ultima_actualizacion} (hora CDMX)")
 
 
 # ==========================================
-# 🔐 FILTRO DE PESTAÑAS (Añadida pestaña de prueba)
+# 🔐 FILTRO DE PESTAÑAS (Modo Oculto / Desarrollador)
 # ==========================================
 menu_opciones = [
     "🏆 Ranking", 
     "👤 Participantes", 
     "⚽ Partidos", 
     "🔥 Comparativa VS", 
-    "🗓️ Calendario",
-    "🗓️ Llave Fase Final (Prueba)"  # Pestaña exclusiva para que evalúes el diseño
+    "🗓️ Calendario"
 ]
-pagina = st.sidebar.radio("Menú", menu_opciones)
 
+# Si agregas ?dev=true en tu URL, se activa la pestaña oculta solo para ti
+query_params = st.query_params
+if query_params.get("dev") == "true":
+    menu_opciones.append("🗓️ Llave Fase Final (Prueba)")
+
+pagina = st.sidebar.radio("Menú", menu_opciones)
 
 # ==========================================
 # GOOGLE DRIVE
