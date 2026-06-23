@@ -258,7 +258,7 @@ def procesar_todo_el_excel(contenido_excel):
     return participantes_local, calendario_local
 
 # ==========================================
-# EJECUCIÓN LOGICA DE CONTROL
+# EJECUCIÓN LÓGICA DE CONTROL
 # ==========================================
 contenido_excel = cargar_excel()
 if contenido_excel is None:
@@ -271,8 +271,9 @@ if participantes is None:
     st.stop()
 
 def normalizar_texto_partido(texto):
-    if not text := texto: return ""
-    return " ".join(str(text).split()).lower()
+    if not texto: 
+        return ""
+    return " ".join(str(texto).split()).lower()
 
 orden_calendario = {}
 if calendario_datos:
