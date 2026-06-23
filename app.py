@@ -154,12 +154,20 @@ menu_opciones = [
     "🗓️ Calendario"
 ]
 
-# Si agregas ?dev=true en la URL, se activa la pestaña solo para ti
 query_params = st.query_params
 if query_params.get("dev") == "true":
     menu_opciones.append("🗓️ Llave Fase Final (Prueba)")
 
-pagina = st.sidebar.radio("Menú", menu_opciones)
+seleccion_menu = st.sidebar.radio("Menú", menu_opciones)
+
+# Normalizamos la selección eliminando emojis para evitar fallos de renderizado
+if "Ranking" in seleccion_menu: pagina = "Ranking"
+elif "Participantes" in seleccion_menu: pagina = "Participantes"
+elif "Partidos" in seleccion_menu: pagina = "Partidos"
+elif "Comparativa" in seleccion_menu: pagina = "Comparativa VS"
+elif "Calendario" in seleccion_menu: pagina = "Calendario"
+elif "Llave" in seleccion_menu: pagina = "Llave Fase Final"
+else: pagina = "Ranking"
 
 # ==========================================
 # CONEXIÓN Y PROCESAMIENTO DE GOOGLE DRIVE
@@ -286,7 +294,7 @@ st.write(f"Tiempo de carga: {round(time.time() - inicio, 2)} segundos")
 # ==========================================
 # RENDERIZADO DE LAS PÁGINAS ORIGINALES
 # ==========================================
-if pagina == "🏆 Ranking":
+if pagina == "Ranking":
     ranking_datos = []
     for nombre in participantes:
         dl = participantes[nombre]['desempate_local']
@@ -363,7 +371,7 @@ if pagina == "🏆 Ranking":
 
     st.dataframe(ranking.style.apply(resaltar_estilo_premium, axis=1), use_container_width=True, hide_index=True)
 
-elif pagina == "👤 Participantes":
+elif pagina == "Participantes":
     jugador = st.selectbox("Selecciona participante", list(participantes.keys()))
     st.subheader(f"Pronósticos de {jugador}")
     df = pd.DataFrame(participantes[jugador]["pronosticos"])
@@ -376,7 +384,7 @@ elif pagina == "👤 Participantes":
         return ''
     st.dataframe(df.style.map(color_estatus, subset=["Estatus"]), use_container_width=True, hide_index=True)
 
-elif pagina == "⚽ Partidos":
+elif pagina == "Partidos":
     st.subheader("⚽ Análisis por Partido")
     if calendario_datos:
         lista_partidos = [c_partido["partido"] for c_partido in calendario_datos]
@@ -399,7 +407,7 @@ elif pagina == "⚽ Partidos":
                 })
     st.dataframe(pd.DataFrame(datos_partido), use_container_width=True, hide_index=True)
 
-elif pagina == "🔥 Comparativa VS":
+elif pagina == "Comparativa VS":
     st.subheader("🥊 Cara a Cara entre Participantes")
     seleccionados = st.multiselect("Selecciona de 2 a 3 participantes para el Versus:", options=list(participantes.keys()), max_selections=3)
     if len(seleccionados) < 2:
@@ -419,7 +427,7 @@ elif pagina == "🔥 Comparativa VS":
         df_vs = pd.DataFrame(datos_vs).sort_values(by="_orden", ascending=True).drop(columns=["_orden"]).reset_index(drop=True)
         st.dataframe(df_vs.style.map(lambda v: 'font-weight: bold;' if v in ["Local", "Empate", "Visitante"] else ('color: #888888; font-style: italic;' if "⌛" in str(v) else '')), use_container_width=True, hide_index=True)
 
-elif pagina == "🗓️ Calendario":
+elif pagina == "Calendario":
     if not calendario_datos: st.warning("No existe o está vacía la hoja CALENDARIO")
     else:
         calendario_tabla = []
@@ -436,7 +444,7 @@ elif pagina == "🗓️ Calendario":
 # ==========================================
 # 🆕 PESTAÑA OCULTA: LLAVE FASE FINAL (ESTRUCTURA PURA)
 # ==========================================
-elif pagina == "🗓️ Llave Fase Final (Prueba)":
+elif pagina == "Llave Fase Final":
     def render_match_html(id_partido, meta_text=""):
         return f"""<div><div class="match-meta">{meta_text}</div><div class="match-box"><div class="team-row"><span>🏳️ Por clasificar</span></div><div class="team-row"><span>🏳️ Por clasificar</span></div></div></div>"""
 
@@ -445,6 +453,7 @@ elif pagina == "🗓️ Llave Fase Final (Prueba)":
     html_llave = f"""
 <div class="bracket-wrapper">
     <div class="bracket-container">
+        <!-- === BLOQUE IZQUIERDO === -->
         <div class="bracket-column">
             {render_match_html("D16_1", "28/06 Los Ángeles")}
             {render_match_html("D16_2", "29/06 Boston")}
@@ -468,6 +477,7 @@ elif pagina == "🗓️ Llave Fase Final (Prueba)":
         <div class="bracket-column">
             {render_match_html("SEM_1", "14/07 Dallas")}
         </div>
+        <!-- === CENTRO COPA === -->
         <div class="center-trophy">
             <div class="trophy-title">19/07 Nueva York</div>
             <div>
@@ -482,6 +492,7 @@ elif pagina == "🗓️ Llave Fase Final (Prueba)":
                 <div>🏆 ⌛</div>
             </div>
         </div>
+        <!-- === BLOQUE DERECHO === -->
         <div class="bracket-column">
             {render_match_html("SEM_2", "15/07 Atlanta")}
         </div>
