@@ -49,22 +49,14 @@ st.caption(f"Página actualizada: {ultima_actualizacion} (hora CDMX)")
 
 
 # ==========================================
-# 🔐 FILTRO DE PESTAÑAS Y MODOS
+# 🔐 FILTRO DE PESTAÑAS
 # ==========================================
-# El Versus se libera al público con un distintivo llamativo.
 menu_opciones = ["🏆 Ranking", "👤 Participantes", "⚽ Partidos", "🔥 Comparativa VS", "🗓️ Calendario"]
-
-es_admin = st.query_params.get("modo") == "admin"
-
-if es_admin:
-    # El Muro se mantiene en pruebas privadas para el administrador
-    menu_opciones.insert(4, "💬 Muro (Prueba)")
-
 pagina = st.sidebar.radio("Menú", menu_opciones)
 
 
 # ==========================================
-# GOOGLE DRIVE 
+# GOOGLE DRIVE
 # ==========================================
 
 FILE_ID = "1svfBlcw4oOEltibwpv1c8I4h6sHmeq7z"
@@ -99,7 +91,7 @@ def procesar_todo_el_excel(contenido_excel):
     wb_local = load_workbook(BytesIO(contenido_excel), data_only=True, read_only=True)
 
     if "RESULTADOS" not in wb_local.sheetnames:
-        return None, None, None
+        return None, None
 
     ws_resultados = wb_local["RESULTADOS"]
     resultados_oficiales = {}
@@ -114,7 +106,6 @@ def procesar_todo_el_excel(contenido_excel):
 
     participantes_local = {}
     calendario_local = []
-    comentarios_local = []
 
     for hoja in wb_local.sheetnames:
         if hoja.upper() == "RESULTADOS":
@@ -131,16 +122,6 @@ def procesar_todo_el_excel(contenido_excel):
                     "hora": row[2],
                     "resultado": row[3]
                 })
-            continue
-
-        if hoja.upper() == "MURO":
-            ws_muro = wb_local[hoja]
-            for row in ws_muro.iter_rows(min_row=2, max_row=200, min_col=1, max_col=2, values_only=True):
-                if row[0] is not None and row[1] is not None:
-                    comentarios_local.append({
-                        "usuario": str(row[0]),
-                        "mensaje": str(row[1])
-                    })
             continue
 
         ws = wb_local[hoja]
@@ -192,7 +173,7 @@ def procesar_todo_el_excel(contenido_excel):
             "desempate_visitante": desempate_visitante,
         }
 
-    return participantes_local, calendario_local, comentarios_local
+    return participantes_local, calendario_local
 
 # ==========================================
 # EJECUCIÓN PRINCIPAL
@@ -203,10 +184,16 @@ if contenido_excel is None:
     st.error("No se pudo descargar el archivo desde Google Drive.")
     st.stop()
 
-participantes, calendario_datos, comentarios_datos = procesar_todo_el_excel(contenido_excel)
+participantes, calendario_datos = procesar_todo_el_excel(contenido_excel)
 if participantes is None:
     st.error("No existe la hoja RESULTADOS en el archivo.")
     st.stop()
+
+# Diccionario global para saber el índice de orden de cada partido según el calendario
+orden_calendario = {}
+if calendario_datos:
+    for idx, c_partido in enumerate(calendario_datos):
+        orden_calendario[c_partido["partido"]] = idx
 
 puntos = {nombre: sum(1 for p in datos["pronosticos"] if p["Acierto"]) for nombre, datos in participantes.items()}
 st.write(f"Tiempo de carga: {round(time.time() - inicio, 2)} segundos")
@@ -313,12 +300,17 @@ if pagina == "🏆 Ranking":
     st.dataframe(ranking.style.apply(resaltar_estilo_premium, axis=1), use_container_width=True, hide_index=True)
 
 # ==========================================
-# PARTICIPANTES
+# ORDENADO: PARTICIPANTES
 # ==========================================
 elif pagina == "👤 Participantes":
     jugador = st.selectbox("Selecciona participante", list(participantes.keys()))
     st.subheader(f"Pronósticos de {jugador}")
-    df = pd.DataFrame(participantes[jugador]["pronosticos"]).drop(columns=["fila", "Acierto"], errors="ignore").reset_index(drop=True)
+    
+    df = pd.DataFrame(participantes[jugador]["pronosticos"])
+    
+    # Inyectamos el orden del calendario y ordenamos
+    df["_orden"] = df["Partido"].map(lambda x: orden_calendario.get(x, 999))
+    df = df.sort_values(by="_orden").drop(columns=["fila", "Acierto", "_orden"], errors="ignore").reset_index(drop=True)
     df = df[["Partido", "Pronóstico", "Resultado Oficial", "Estatus"]]
 
     def color_estatus(val):
@@ -328,11 +320,14 @@ elif pagina == "👤 Participantes":
     st.dataframe(df.style.map(color_estatus, subset=["Estatus"]), use_container_width=True, hide_index=True)
 
 # ==========================================
-# PARTIDOS
+# ORDENADO: PARTIDOS (Lista desplegable ordenada)
 # ==========================================
 elif pagina == "⚽ Partidos":
+    # Extraemos la lista única de partidos y la ordenamos explícitamente según el calendario
     primer_jugador = list(participantes.keys())[0]
-    lista_partidos = [p["Partido"] for p in participantes[primer_jugador]["pronosticos"]]
+    lista_partidos_cruda = [p["Partido"] for p in participantes[primer_jugador]["pronosticos"]]
+    lista_partidos = sorted(lista_partidos_cruda, key=lambda x: orden_calendario.get(x, 999))
+    
     partido_seleccionado = st.selectbox("Selecciona partido", lista_partidos)
     datos_partido = []
 
@@ -348,7 +343,7 @@ elif pagina == "⚽ Partidos":
     st.dataframe(pd.DataFrame(datos_partido), use_container_width=True, hide_index=True)
 
 # ==========================================
-# 🔥 PÚBLICA Y ORDENADA: COMPARATIVA VS
+# ORDENADO: COMPARATIVA VS
 # ==========================================
 elif pagina == "🔥 Comparativa VS":
     st.subheader("🥊 Cara a Cara entre Participantes")
@@ -364,14 +359,6 @@ elif pagina == "🔥 Comparativa VS":
         st.info("💡 Selecciona al menos 2 participantes en el cuadro de arriba para generar el frente a frente.")
     else:
         primer_p = seleccionados[0]
-        
-        # 1. Mapear la estructura y secuencia real desde la pestaña CALENDARIO
-        orden_calendario = {}
-        if calendario_datos:
-            for idx, c_partido in enumerate(calendario_datos):
-                orden_calendario[c_partido["partido"]] = idx
-
-        # 2. Recomponer la matriz cruzada de datos
         datos_vs = []
         partidos_lista = [p["Partido"] for p in participantes[primer_p]["pronosticos"]]
         
@@ -386,7 +373,6 @@ elif pagina == "🔥 Comparativa VS":
             fila_vs["_orden"] = orden_calendario.get(p_nombre, 999)
             datos_vs.append(fila_vs)
             
-        # 3. Ordenar cronológicamente y limpiar la columna auxiliar
         df_vs = pd.DataFrame(datos_vs)
         df_vs = df_vs.sort_values(by="_orden").drop(columns=["_orden"]).reset_index(drop=True)
         
@@ -398,36 +384,6 @@ elif pagina == "🔥 Comparativa VS":
             return ''
             
         st.dataframe(df_vs.style.map(estilar_celdas_vs), use_container_width=True, hide_index=True)
-
-# ==========================================
-# 💬 EN REVISIÓN ADMIN: MURO DE COMENTARIOS
-# ==========================================
-elif pagina == "💬 Muro (Prueba)":
-    st.subheader("💬 El Muro de la Quiniela (Fase de Pruebas)")
-    st.markdown("Revisión de diseño y renderizado de mensajes directos desde el Excel de Drive.")
-    
-    with st.expander("🛠️ Notas del Desarrollador"):
-        st.write("""
-        Esta sección lee la pestaña **`MURO`** de tu Excel (Columnas A: Usuario y B: Mensaje).
-        Para habilitarlo al público posteriormente, solo debemos mover el disparador del menú fuera del bloque condicional `es_admin`.
-        """)
-
-    st.divider()
-
-    if comentarios_datos:
-        for c in comentarios_datos:
-            with st.chat_message("user", avatar="💬"):
-                st.markdown(f"**{c['usuario']}:** {c['mensaje']}")
-    else:
-        st.info("No se detectó la estructura de la hoja 'MURO' en Drive o está vacía. Mostrando bloques muestra:")
-        muestras = [
-            {"usuario": "Juan Preciado", "mensaje": "¡Qué partidazo el de hoy! Ya escalé tres posiciones 🔥"},
-            {"usuario": "Victor Vazquez", "mensaje": "Alguien detenga al líder, trae hack jajaja 🐌"},
-            {"usuario": "Cristian", "mensaje": "Puse empate en el juego de mañana, voy por el todo o nada 🤞"}
-        ]
-        for m in muestras:
-            with st.chat_message("user", avatar="⚽"):
-                st.markdown(f"**{m['usuario']}:** {m['mensaje']}")
 
 # ==========================================
 # CALENDARIO
