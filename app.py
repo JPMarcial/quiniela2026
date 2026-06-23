@@ -108,7 +108,7 @@ def procesar_todo_el_excel(contenido_excel):
     calendario_local = []
 
     for hoja in wb_local.sheetnames:
-        # 🌟 EXCLUSIÓN FILTRADA: Ignoramos hojas de control y explícitamente el Muro
+        # Exclusión filtrada: Evitamos que lea hojas administrativas o de chat como participantes
         if hoja.upper() in ["RESULTADOS", "CALENDARIO", "MURO"]:
             continue
 
@@ -161,7 +161,7 @@ def procesar_todo_el_excel(contenido_excel):
             "desempate_visitante": desempate_visitante,
         }
 
-    # Procesamos la hoja calendario por separado al final
+    # Procesamos la hoja calendario de forma independiente
     if "CALENDARIO" in wb_local.sheetnames:
         ws_cal = wb_local["CALENDARIO"]
         for row in ws_cal.iter_rows(min_row=2, max_row=500, min_col=1, max_col=4, values_only=True):
@@ -308,7 +308,7 @@ if pagina == "🏆 Ranking":
     st.dataframe(ranking.style.apply(resaltar_estilo_premium, axis=1), use_container_width=True, hide_index=True)
 
 # ==========================================
-# 👤 PARTICIPANTES
+# 👤 PARTICIPANTES - ORDEN CRONOLÓGICO
 # ==========================================
 elif pagina == "👤 Participantes":
     jugador = st.selectbox("Selecciona participante", list(participantes.keys()))
@@ -327,7 +327,7 @@ elif pagina == "👤 Participantes":
     st.dataframe(df.style.map(color_estatus, subset=["Estatus"]), use_container_width=True, hide_index=True)
 
 # ==========================================
-# ⚽ PARTIDOS
+# ⚽ PARTIDOS - ORDEN CRONOLÓGICO
 # ==========================================
 elif pagina == "⚽ Partidos":
     if calendario_datos:
@@ -352,7 +352,7 @@ elif pagina == "⚽ Partidos":
     st.dataframe(pd.DataFrame(datos_partido), use_container_width=True, hide_index=True)
 
 # ==========================================
-# 🔥 COMPARATIVA VS
+# 🔥 COMPARATIVA VS - ORDEN CRONOLÓGICO
 # ==========================================
 elif pagina == "🔥 Comparativa VS":
     st.subheader("🥊 Cara a Cara entre Participantes")
@@ -416,4 +416,5 @@ elif pagina == "🗓️ Calendario":
             calendario_tabla.append({
                 "Partido": partido, "Fecha": fecha, "Hora (CDMX)": hora, "Resultado Final": resultado_final
             })
-        st.
+        st.subheader("Calendario de partidos")
+        st.dataframe(pd.DataFrame(calendario_tabla), use_container_width=True, hide_index=True)
