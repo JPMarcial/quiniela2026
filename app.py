@@ -94,7 +94,6 @@ def procesar_todo_el_excel(contenido_excel):
         return None, None
 
     ws_resultados = wb_local["RESULTADOS"]
-    resultados_of ऑफिशियल्स = {}
     resultados_oficiales = {}
     
     for fila_idx, row in enumerate(ws_resultados.iter_rows(min_row=6, max_row=500, min_col=2, max_col=6, values_only=True), start=6):
@@ -190,11 +189,10 @@ if participantes is None:
     st.error("No existe la hoja RESULTADOS en el archivo.")
     st.stop()
 
-# 🛠️ Normalización de texto para asegurar emparejamiento por fecha sin fallas por espacios
+# Normalización de texto para asegurar emparejamiento por fecha sin fallas por espacios
 def normalizar_texto_partido(texto):
     if not texto:
         return ""
-    # Reemplaza múltiples espacios por uno solo, pasa a minúsculas y quita extremos
     return " ".join(str(texto).split()).lower()
 
 orden_calendario = {}
@@ -308,7 +306,7 @@ if pagina == "🏆 Ranking":
     st.dataframe(ranking.style.apply(resaltar_estilo_premium, axis=1), use_container_width=True, hide_index=True)
 
 # ==========================================
-# 👤 PARTICIPANTES (ORDENADO CRONOLÓGICO)
+# 👤 PARTICIPANTES
 # ==========================================
 elif pagina == "👤 Participantes":
     jugador = st.selectbox("Selecciona participante", list(participantes.keys()))
@@ -316,7 +314,6 @@ elif pagina == "👤 Participantes":
     
     df = pd.DataFrame(participantes[jugador]["pronosticos"])
     
-    # Mapeo usando la función de normalización de cadenas de texto
     df["_orden"] = df["Partido"].map(lambda x: orden_calendario.get(normalizar_texto_partido(x), 999))
     df = df.sort_values(by="_orden").drop(columns=["fila", "Acierto", "_orden"], errors="ignore").reset_index(drop=True)
     df = df[["Partido", "Pronóstico", "Resultado Oficial", "Estatus"]]
@@ -328,13 +325,12 @@ elif pagina == "👤 Participantes":
     st.dataframe(df.style.map(color_estatus, subset=["Estatus"]), use_container_width=True, hide_index=True)
 
 # ==========================================
-# ⚽ PARTIDOS (DESPLEGABLE ORDENADO CRONOLÓGICO)
+# ⚽ PARTIDOS
 # ==========================================
 elif pagina == "⚽ Partidos":
     primer_jugador = list(participantes.keys())[0]
     lista_partidos_cruda = [p["Partido"] for p in participantes[primer_jugador]["pronosticos"]]
     
-    # Ordenamos el propio menú desplegable con el índice del calendario normalizado
     lista_partidos = sorted(lista_partidos_cruda, key=lambda x: orden_calendario.get(normalizar_texto_partido(x), 999))
     
     partido_seleccionado = st.selectbox("Selecciona partido", lista_partidos)
@@ -352,7 +348,7 @@ elif pagina == "⚽ Partidos":
     st.dataframe(pd.DataFrame(datos_partido), use_container_width=True, hide_index=True)
 
 # ==========================================
-# 🔥 COMPARATIVA VS (ORDENADO CRONOLÓGICO)
+# 🔥 COMPARATIVA VS
 # ==========================================
 elif pagina == "🔥 Comparativa VS":
     st.subheader("🥊 Cara a Cara entre Participantes")
@@ -379,7 +375,6 @@ elif pagina == "🔥 Comparativa VS":
             for jug in seleccionados:
                 fila_vs[f"Pred. {jug}"] = participantes[jug]["pronosticos"][i]["Pronóstico"]
             
-            # Se aplica también aquí el orden robusto normalizado
             fila_vs["_orden"] = orden_calendario.get(normalizar_texto_partido(p_nombre), 999)
             datos_vs.append(fila_vs)
             
