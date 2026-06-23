@@ -108,7 +108,8 @@ def procesar_todo_el_excel(contenido_excel):
     calendario_local = []
 
     for hoja in wb_local.sheetnames:
-        if hoja.upper() == "RESULTADOS":
+        # ❌ AQUÍ SE IGNORAN LAS PESTAÑAS ADMINISTRATIVAS O DE TEXTO COMO "MURO"
+        if hoja.upper() in ["RESULTADOS", "MURO"]:
             continue
             
         if hoja.upper() == "CALENDARIO":
