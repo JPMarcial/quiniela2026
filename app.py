@@ -189,12 +189,13 @@ if participantes is None:
     st.error("No existe la hoja RESULTADOS en el archivo.")
     st.stop()
 
-# Normalización de texto para asegurar emparejamiento por fecha sin fallas por espacios
+# Función de normalización robusta
 def normalizar_texto_partido(texto):
     if not texto:
         return ""
     return " ".join(str(texto).split()).lower()
 
+# Construimos el mapeo de ordenación basado en el calendario
 orden_calendario = {}
 if calendario_datos:
     for idx, c_partido in enumerate(calendario_datos):
@@ -306,7 +307,7 @@ if pagina == "🏆 Ranking":
     st.dataframe(ranking.style.apply(resaltar_estilo_premium, axis=1), use_container_width=True, hide_index=True)
 
 # ==========================================
-# 👤 PARTICIPANTES
+# 👤 PARTICIPANTES - FORZADO POR CALENDARIO
 # ==========================================
 elif pagina == "👤 Participantes":
     jugador = st.selectbox("Selecciona participante", list(participantes.keys()))
@@ -314,8 +315,11 @@ elif pagina == "👤 Participantes":
     
     df = pd.DataFrame(participantes[jugador]["pronosticos"])
     
+    # Asignamos el índice numérico explícito del calendario
     df["_orden"] = df["Partido"].map(lambda x: orden_calendario.get(normalizar_texto_partido(x), 999))
-    df = df.sort_values(by="_orden").drop(columns=["fila", "Acierto", "_orden"], errors="ignore").reset_index(drop=True)
+    
+    # FORZAMOS el sort_values por esa columna numérica y eliminamos los índices viejos
+    df = df.sort_values(by="_orden", ascending=True).reset_index(drop=True)
     df = df[["Partido", "Pronóstico", "Resultado Oficial", "Estatus"]]
 
     def color_estatus(val):
@@ -325,20 +329,24 @@ elif pagina == "👤 Participantes":
     st.dataframe(df.style.map(color_estatus, subset=["Estatus"]), use_container_width=True, hide_index=True)
 
 # ==========================================
-# ⚽ PARTIDOS
+# ⚽ PARTIDOS - FORZADO POR CALENDARIO
 # ==========================================
 elif pagina == "⚽ Partidos":
-    primer_jugador = list(participantes.keys())[0]
-    lista_partidos_cruda = [p["Partido"] for p in participantes[primer_jugador]["pronosticos"]]
-    
-    lista_partidos = sorted(lista_partidos_cruda, key=lambda x: orden_calendario.get(normalizar_texto_partido(x), 999))
+    # Extraemos todos los partidos del calendario real para garantizar el orden de la lista
+    if calendario_datos:
+        lista_partidos = [c_partido["partido"] for c_partido in calendario_datos]
+    else:
+        primer_jugador = list(participantes.keys())[0]
+        lista_partidos_cruda = [p["Partido"] for p in participantes[primer_jugador]["pronosticos"]]
+        lista_partidos = sorted(lista_partidos_cruda, key=lambda x: orden_calendario.get(normalizar_texto_partido(x), 999))
     
     partido_seleccionado = st.selectbox("Selecciona partido", lista_partidos)
     datos_partido = []
 
     for nombre, datos in participantes.items():
         for p in datos["pronosticos"]:
-            if p["Partido"] == partido_seleccionado:
+            # Normalizamos ambos lados para asegurar la coincidencia exacta
+            if normalizar_texto_partido(p["Partido"]) == normalizar_texto_partido(partido_seleccionado):
                 datos_partido.append({
                     "Participante": nombre,
                     "Pronóstico": p["Pronóstico"],
@@ -348,7 +356,7 @@ elif pagina == "⚽ Partidos":
     st.dataframe(pd.DataFrame(datos_partido), use_container_width=True, hide_index=True)
 
 # ==========================================
-# 🔥 COMPARATIVA VS
+# 🔥 COMPARATIVA VS - FORZADO POR CALENDARIO
 # ==========================================
 elif pagina == "🔥 Comparativa VS":
     st.subheader("🥊 Cara a Cara entre Participantes")
@@ -379,7 +387,8 @@ elif pagina == "🔥 Comparativa VS":
             datos_vs.append(fila_vs)
             
         df_vs = pd.DataFrame(datos_vs)
-        df_vs = df_vs.sort_values(by="_orden").drop(columns=["_orden"]).reset_index(drop=True)
+        # FORZAMOS la ordenación por la columna temporal del calendario
+        df_vs = df_vs.sort_values(by="_orden", ascending=True).drop(columns=["_orden"]).reset_index(drop=True)
         
         def estilar_celdas_vs(val):
             if val in ["Local", "Empate", "Visitante"]: 
