@@ -19,11 +19,11 @@ st.set_page_config(
     page_title="Quiniela Mundial 2026", page_icon="⚽", layout="wide"
 )
 
-st.title("⚽ Quiniela Mundial 2026")
-
+# 🎨 INYECCIÓN DE ESTILOS: Combinación de Fase de Grupos + Estilos de la Nueva Llave Visual
 st.markdown(
     """
     <style>
+    /* Estilos Fase de Grupos */
     .stDataFrame div[data-testid="stTable"] td, 
     .stDataFrame div[data-testid="stTable"] th,
     div[data-testid="stDataFrameVisualizer"] [role="gridcell"],
@@ -35,12 +35,118 @@ st.markdown(
         font-weight: 500;
         margin-bottom: 8px;
     }
+
+    /* Estilos Premium Nueva Llave Fase Final */
+    .bracket-wrapper {
+        background-color: #050b14;
+        padding: 30px 20px;
+        border-radius: 16px;
+        color: #ffffff;
+        font-family: 'Arial', sans-serif;
+        box-shadow: 0 20px 40px rgba(0,0,0,0.5);
+    }
+    .bracket-header {
+        text-align: center;
+        margin-bottom: 30px;
+    }
+    .bracket-header h1 {
+        color: #edd37f;
+        font-size: 34px;
+        font-weight: 800;
+        text-transform: uppercase;
+        letter-spacing: 2px;
+        margin: 0;
+    }
+    .bracket-header p {
+        color: #94a3b8;
+        font-size: 15px;
+        margin-top: 5px;
+    }
+    .bracket-container {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 10px;
+        overflow-x: auto;
+        padding-bottom: 15px;
+    }
+    .bracket-column {
+        display: flex;
+        flex-direction: column;
+        justify-content: space-around;
+        height: 850px;
+        min-width: 150px;
+    }
+    .match-box {
+        display: flex;
+        flex-direction: column;
+        background: rgba(15, 23, 42, 0.8);
+        border: 1px solid #1e293b;
+        border-radius: 6px;
+        padding: 2px 0;
+        box-shadow: 0 4px 6px rgba(0,0,0,0.3);
+    }
+    .match-meta {
+        font-size: 11px;
+        color: #94a3b8;
+        margin-bottom: 2px;
+        padding-left: 4px;
+        font-style: italic;
+    }
+    .team-row {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 6px 10px;
+        font-size: 13px;
+        font-weight: 600;
+        letter-spacing: 0.5px;
+        color: #cbd5e1;
+        border-bottom: 1px solid rgba(51, 65, 85, 0.4);
+    }
+    .team-row:last-child {
+        border-bottom: none;
+    }
+    .winner-highlight {
+        color: #38bdf8 !important;
+        background: rgba(56, 189, 248, 0.12);
+        font-weight: bold;
+    }
+    .center-trophy {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        min-width: 200px;
+        text-align: center;
+    }
+    .trophy-title {
+        color: #edd37f;
+        font-size: 18px;
+        font-weight: bold;
+        letter-spacing: 1px;
+        margin-bottom: 12px;
+    }
+    .champion-display {
+        background: linear-gradient(135deg, #dfb743 0%, #b8860b 100%);
+        color: #050b14;
+        padding: 15px 22px;
+        border-radius: 8px;
+        font-weight: 800;
+        font-size: 17px;
+        box-shadow: 0 0 25px rgba(223, 183, 67, 0.4);
+        border: 1px solid #fef08a;
+        margin-top: 15px;
+        text-transform: uppercase;
+    }
     </style>
     """,
     unsafe_allow_html=True
 )
 
 inicio = time.time()
+
+st.title("⚽ Quiniela Mundial 2026")
 
 st.info(
     "⚽ La información se actualiza desde Google Drive. La carga inicial puede tardar algunos segundos."
@@ -49,9 +155,16 @@ st.caption(f"Página actualizada: {ultima_actualizacion} (hora CDMX)")
 
 
 # ==========================================
-# 🔐 FILTRO DE PESTAÑAS
+# 🔐 FILTRO DE PESTAÑAS (Añadida pestaña de prueba)
 # ==========================================
-menu_opciones = ["🏆 Ranking", "👤 Participantes", "⚽ Partidos", "🔥 Comparativa VS", "🗓️ Calendario"]
+menu_opciones = [
+    "🏆 Ranking", 
+    "👤 Participantes", 
+    "⚽ Partidos", 
+    "🔥 Comparativa VS", 
+    "🗓️ Calendario",
+    "🗓️ Llave Fase Final (Prueba)"  # Pestaña exclusiva para que evalúes el diseño
+]
 pagina = st.sidebar.radio("Menú", menu_opciones)
 
 
@@ -108,7 +221,6 @@ def procesar_todo_el_excel(contenido_excel):
     calendario_local = []
 
     for hoja in wb_local.sheetnames:
-        # Exclusión filtrada: Evitamos que lea hojas administrativas o de chat como participantes
         if hoja.upper() in ["RESULTADOS", "CALENDARIO", "MURO"]:
             continue
 
@@ -161,7 +273,6 @@ def procesar_todo_el_excel(contenido_excel):
             "desempate_visitante": desempate_visitante,
         }
 
-    # Procesamos la hoja calendario de forma independiente
     if "CALENDARIO" in wb_local.sheetnames:
         ws_cal = wb_local["CALENDARIO"]
         for row in ws_cal.iter_rows(min_row=2, max_row=500, min_col=1, max_col=4, values_only=True):
@@ -190,13 +301,11 @@ if participantes is None:
     st.error("No existe la hoja RESULTADOS en el archivo.")
     st.stop()
 
-# Función de normalización robusta
 def normalizar_texto_partido(texto):
     if not texto:
         return ""
     return " ".join(str(texto).split()).lower()
 
-# Construimos el mapeo de ordenación basado en el calendario
 orden_calendario = {}
 if calendario_datos:
     for idx, c_partido in enumerate(calendario_datos):
@@ -308,14 +417,13 @@ if pagina == "🏆 Ranking":
     st.dataframe(ranking.style.apply(resaltar_estilo_premium, axis=1), use_container_width=True, hide_index=True)
 
 # ==========================================
-# 👤 PARTICIPANTES - ORDEN CRONOLÓGICO
+# 👤 PARTICIPANTES
 # ==========================================
 elif pagina == "👤 Participantes":
     jugador = st.selectbox("Selecciona participante", list(participantes.keys()))
     st.subheader(f"Pronósticos de {jugador}")
     
     df = pd.DataFrame(participantes[jugador]["pronosticos"])
-    
     df["_orden"] = df["Partido"].map(lambda x: orden_calendario.get(normalizar_texto_partido(x), 999))
     df = df.sort_values(by="_orden", ascending=True).reset_index(drop=True)
     df = df[["Partido", "Pronóstico", "Resultado Oficial", "Estatus"]]
@@ -327,7 +435,7 @@ elif pagina == "👤 Participantes":
     st.dataframe(df.style.map(color_estatus, subset=["Estatus"]), use_container_width=True, hide_index=True)
 
 # ==========================================
-# ⚽ PARTIDOS - ORDEN CRONOLÓGICO
+# ⚽ PARTIDOS
 # ==========================================
 elif pagina == "⚽ Partidos":
     if calendario_datos:
@@ -352,7 +460,7 @@ elif pagina == "⚽ Partidos":
     st.dataframe(pd.DataFrame(datos_partido), use_container_width=True, hide_index=True)
 
 # ==========================================
-# 🔥 COMPARATIVA VS - ORDEN CRONOLÓGICO
+# 🔥 COMPARATIVA VS
 # ==========================================
 elif pagina == "🔥 Comparativa VS":
     st.subheader("🥊 Cara a Cara entre Participantes")
@@ -418,3 +526,140 @@ elif pagina == "🗓️ Calendario":
             })
         st.subheader("Calendario de partidos")
         st.dataframe(pd.DataFrame(calendario_tabla), use_container_width=True, hide_index=True)
+
+
+# ==========================================
+# 🆕 PESTAÑA EXCLUSIVA: LLAVE VISUAL FASE FINAL (VISTA PREVIA DE DESARROLLO)
+# ==========================================
+elif pagina == "🗓️ Llave Fase Final (Prueba)":
+    
+    # 📝 Datos semilla temporales idénticos a tu imagen para simular el comportamiento real
+    llave_demo = {
+        "D16_1": {"local": "Corea del Sur", "visitante": "Canadá", "ganador": "Corea del Sur"},
+        "D16_2": {"local": "Alemania", "visitante": "Brasil", "ganador": "Alemania"},
+        "D16_3": {"local": "Suecia", "visitante": "Marruecos", "ganador": "Suecia"},
+        "D16_4": {"local": "Escocia", "visitante": "Japón", "ganador": "Japón"},
+        "D16_5": {"local": "Noruega", "visitante": "Países Bajos", "ganador": "Países Bajos"},
+        "D16_6": {"local": "Costa de Marfil", "visitante": "Francia", "ganador": "Francia"},
+        "D16_7": {"local": "México", "visitante": "España", "ganador": "México"},
+        "D16_8": {"local": "Inglaterra", "visitante": "Portugal", "ganador": "Inglaterra"},
+        "D16_9": {"local": "Estados Unidos", "visitante": "Bosnia y Herz.", "ganador": "Estados Unidos"},
+        "D16_10": {"local": "Nueva Zelanda", "visitante": "Chequia", "ganador": "Chequia"},
+        "D16_11": {"local": "R. D. Congo", "visitante": "Ghana", "ganador": "Ghana"},
+        "D16_12": {"local": "Uruguay", "visitante": "Austria", "ganador": "Uruguay"},
+        "D16_13": {"local": "Suiza", "visitante": "Bélgica", "ganador": "Bélgica"},
+        "D16_14": {"local": "Argentina", "visitante": "Arabia Saudita", "ganador": "Argentina"},
+        "D16_15": {"local": "Colombia", "visitante": "Ecuador", "ganador": "Colombia"},
+        "D16_16": {"local": "Australia", "visitante": "Irán", "ganador": "Australia"},
+    }
+    
+    # Rellenar fases avanzadas con datos vacíos para probar la estructura en pantalla
+    for i in range(1, 9): llave_demo[f"OCT_{i}"] = {"local": "⌛ Pending", "visitante": "⌛ Pending", "ganador": "⌛"}
+    for i in range(1, 5): llave_demo[f"CRT_{i}"] = {"local": "⌛ Pending", "visitante": "⌛ Pending", "ganador": "⌛"}
+    for i in range(1, 3): llave_demo[f"SEM_{i}"] = {"local": "⌛ Pending", "visitante": "⌛ Pending", "ganador": "⌛"}
+    llave_demo["FIN"] = {"local": "⌛ Pending", "visitante": "⌛ Pending", "ganador": "⌛"}
+
+    # Simulamos el filtro de jugadores usando la lista de participantes real que ya tienes activa
+    jugador_mock = st.sidebar.selectbox("👤 Simular Jugador:", list(participantes.keys()), key="sb_mock")
+
+    # Función local para construir cada caja HTML de los partidos
+    def render_match_html(id_partido, meta_text=""):
+        p = llave_demo.get(id_partido, {"local": "⌛ Pending", "visitante": "⌛ Pending", "ganador": "⌛"})
+        loc, vis, gan = p["local"], p["visitante"], p["ganador"]
+        
+        c_loc = "winner-highlight" if gan == loc and loc != "⌛ Pending" else ""
+        c_vis = "winner-highlight" if gan == vis and vis != "⌛ Pending" else ""
+        
+        return f"""
+        <div>
+            <div class="match-meta">{meta_text}</div>
+            <div class="match-box">
+                <div class="team-row {c_loc}"><span>{loc}</span></div>
+                <div class="team-row {c_vis}"><span>{vis}</span></div>
+            </div>
+        </div>
+        """
+
+    campeon_final = llave_demo.get("FIN", {}).get("ganador", "⌛")
+
+    st.markdown('<div class="bracket-wrapper">', unsafe_allow_html=True)
+    st.markdown(
+        f"""
+        <div class="bracket-header">
+            <h1>DIECISEISAVOS AL MOMENTO (VISTA PREVIA)</h1>
+            <p>Estructura de llave de 32 equipos basada en el flujo oficial del torneo para <b>{jugador_mock}</b></p>
+        </div>
+        """, 
+        unsafe_allow_html=True
+    )
+
+    html_llave = f"""
+    <div class="bracket-container">
+        
+        <div class="bracket-column">
+            {render_match_html("D16_1", "28/06 Los Ángeles")}
+            {render_match_html("D16_2", "29/06 Boston")}
+            {render_match_html("D16_3", "29/06 Monterrey")}
+            {render_match_html("D16_4", "29/06 Houston")}
+            {render_match_html("D16_5", "30/06 NY/NJ")}
+            {render_match_html("D16_6", "30/06 Dallas")}
+            {render_match_html("D16_7", "30/06 CDMX")}
+            {render_match_html("D16_8", "01/07 Atlanta")}
+        </div>
+        
+        <div class="bracket-column">
+            {render_match_html("OCT_1", "04/07 Filadelfia")}
+            {render_match_html("OCT_2", "04/07 Houston")}
+            {render_match_html("OCT_3", "06/07 Dallas")}
+            {render_match_html("OCT_4", "06/07 CDMX")}
+        </div>
+        
+        <div class="bracket-column">
+            {render_match_html("CRT_1", "09/07 Boston")}
+            {render_match_html("CRT_2", "10/07 Los Ángeles")}
+        </div>
+        
+        <div class="bracket-column">
+            {render_match_html("SEM_1", "14/07 Dallas")}
+        </div>
+        
+        <div class="center-trophy">
+            <div class="trophy-title">19/07 Nueva York</div>
+            {render_match_html("FIN", "GRAN FINAL")}
+            <div class="champion-display">
+                <div style="font-size: 10px; font-weight: bold; opacity: 0.9; letter-spacing: 1px;">CAMPEÓN MUNDIAL</div>
+                <div>🏆 {campeon_final}</div>
+            </div>
+        </div>
+        
+        <div class="bracket-column">
+            {render_match_html("SEM_2", "15/07 Atlanta")}
+        </div>
+        
+        <div class="bracket-column">
+            {render_match_html("CRT_3", "11/07 Miami")}
+            {render_match_html("CRT_4", "11/07 Kansas City")}
+        </div>
+        
+        <div class="bracket-column">
+            {render_match_html("OCT_5", "05/07 CDMX")}
+            {render_match_html("OCT_6", "05/07 Nueva York")}
+            {render_match_html("OCT_7", "07/07 Atlanta")}
+            {render_match_html("OCT_8", "07/07 Vancouver")}
+        </div>
+        
+        <div class="bracket-column">
+            {render_match_html("D16_9", "01/07 S. Francisco")}
+            {render_match_html("D16_10", "01/07 Seattle")}
+            {render_match_html("D16_11", "02/07 Toronto")}
+            {render_match_html("D16_12", "02/07 Los Ángeles")}
+            {render_match_html("D16_13", "02/07 Vancouver")}
+            {render_match_html("D16_14", "03/07 Miami")}
+            {render_match_html("D16_15", "03/07 Kansas City")}
+            {render_match_html("D16_16", "03/07 Dallas")}
+        </div>
+
+    </div>
+    """
+    st.markdown(html_llave, unsafe_allow_html=True)
+    st.markdown('</div>', unsafe_allow_html=True)
