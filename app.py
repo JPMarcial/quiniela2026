@@ -296,25 +296,22 @@ if pagina == "🏆 Ranking":
     st.divider()
     st.subheader("Tabla General")
 
-    puntaje_minimo = ranking["Puntos"].min() if not ranking.empty else -1
+    # Agregar únicamente el emoji de corona al líder, los demás permanecen limpios
     if len(lideres_globales) > 0:
         def agregar_emoji(r):
-            if str(r["Participante"]).strip() == "Victor Vazquez": return f"🐌 {r['Participante']}"
-            if r["Puntos"] == max_puntos_global: return f"👑 {r['Participante']}"
-            elif r["Puntos"] == puntaje_minimo and puntaje_minimo != max_puntos_global: return f"🐌 {r['Participante']}"
+            if r["Puntos"] == max_puntos_global: 
+                return f"👑 {r['Participante']}"
             return r["Participante"]
         ranking["Participante"] = ranking.apply(agregar_emoji, axis=1)
 
     def resaltar_estilo_premium(row):
-        nombre_limpio = str(row["Participante"]).replace("👑 ", "").replace("🐌 ", "").strip()
+        nombre_limpio = str(row["Participante"]).replace("👑 ", "").strip()
         
         if len(lideres_globales) > 0 and row["Puntos"] == max_puntos_global:
             return ['background-color: #fffbeb; color: #b45309; font-weight: bold;'] * len(row)
         elif nombre_limpio in eliminados_lista:
-            # 💡 Estilo premium aplicado: Tachado elegante y tono grisáceo opaco
-            return ['color: #9ca3af; text-decoration: line-through; font-style: italic; background-color: #fafafa;'] * len(row)
-        elif puntaje_minimo != -1 and row["Puntos"] == puntaje_minimo and puntaje_minimo != max_puntos_global:
-            return ['background-color: #fdf2f8; color: #9d174d; font-style: italic;'] * len(row)
+            # Tachado elegante sobre fondo estándar transparente para evitar que parezca seleccionado
+            return ['color: #9ca3af; text-decoration: line-through; font-style: italic; background-color: transparent;'] * len(row)
         return [''] * len(row)
 
     st.dataframe(ranking.style.apply(resaltar_estilo_premium, axis=1), use_container_width=True, hide_index=True)
