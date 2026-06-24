@@ -299,6 +299,7 @@ if pagina == "🏆 Ranking":
     puntaje_minimo = ranking["Puntos"].min() if not ranking.empty else -1
     if len(lideres_globales) > 0:
         def agregar_emoji(r):
+            if str(r["Participante"]).strip() == "Victor Vazquez": return f"🐌 {r['Participante']}"
             if r["Puntos"] == max_puntos_global: return f"👑 {r['Participante']}"
             elif r["Puntos"] == puntaje_minimo and puntaje_minimo != max_puntos_global: return f"🐌 {r['Participante']}"
             return r["Participante"]
