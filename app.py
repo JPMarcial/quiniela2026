@@ -196,6 +196,25 @@ st.write(f"Tiempo de carga: {round(time.time() - inicio, 2)} segundos")
 max_puntos_global = max(puntos.values()) if puntos else 0
 lideres_globales = [nom for nom, pts in puntos.items() if pts == max_puntos_global]
 
+# Determinar quiénes están eliminados matemáticamente (para aplicar el tachado)
+eliminados_lista = []
+if len(lideres_globales) <= 2 and len(lideres_globales) > 0:
+    lider_referencia = lideres_globales[0]
+    pronosticos_lider_ref = participantes[lider_referencia]["pronosticos"]
+    for jugador, datos in participantes.items():
+        if jugador in lideres_globales:
+            continue
+        diferencia = max_puntos_global - puntos[jugador]
+        partidos_utiles = 0
+        for idx, p_jugador in enumerate(datos["pronosticos"]):
+            p_lider = pronosticos_lider_ref[idx]
+            if p_lider["Resultado Oficial"] is None:
+                if p_jugador["Pronóstico"] is not None and p_lider["Pronóstico"] is not None:
+                    if p_jugador["Pronóstico"] != p_lider["Pronóstico"]:
+                        partidos_utiles += 1
+        if partidos_utiles < diferencia:
+            eliminados_lista.append(jugador)
+
 # ==========================================
 # PÁGINA: RANKING
 # ==========================================
@@ -280,15 +299,19 @@ if pagina == "🏆 Ranking":
     puntaje_minimo = ranking["Puntos"].min() if not ranking.empty else -1
     if len(lideres_globales) > 0:
         def agregar_emoji(r):
-            if str(r["Participante"]).strip() == "Victor Vazquez": return f"🐌 {r['Participante']}"
             if r["Puntos"] == max_puntos_global: return f"👑 {r['Participante']}"
             elif r["Puntos"] == puntaje_minimo and puntaje_minimo != max_puntos_global: return f"🐌 {r['Participante']}"
             return r["Participante"]
         ranking["Participante"] = ranking.apply(agregar_emoji, axis=1)
 
     def resaltar_estilo_premium(row):
+        nombre_limpio = str(row["Participante"]).replace("👑 ", "").replace("🐌 ", "").strip()
+        
         if len(lideres_globales) > 0 and row["Puntos"] == max_puntos_global:
             return ['background-color: #fffbeb; color: #b45309; font-weight: bold;'] * len(row)
+        elif nombre_limpio in eliminados_lista:
+            # 💡 Estilo premium aplicado: Tachado elegante y tono grisáceo opaco
+            return ['color: #9ca3af; text-decoration: line-through; font-style: italic; background-color: #fafafa;'] * len(row)
         elif puntaje_minimo != -1 and row["Puntos"] == puntaje_minimo and puntaje_minimo != max_puntos_global:
             return ['background-color: #fdf2f8; color: #9d174d; font-style: italic;'] * len(row)
         return [''] * len(row)
@@ -348,7 +371,6 @@ elif pagina == "🔥 Comparativa VS":
     else:
         primer_p = seleccionados[0]
         
-        # Mapear orden cronológico real desde el calendario
         orden_calendario = {}
         if calendario_datos:
             for idx, c_partido in enumerate(calendario_datos):
@@ -381,7 +403,7 @@ elif pagina == "🔥 Comparativa VS":
         st.dataframe(df_vs.style.map(estilar_celdas_vs), use_container_width=True, hide_index=True)
 
 # ==========================================
-# ☠️ ¿SIGO VIVO? (NUEVA PESTAÑA MATEMÁTICA)
+# ☠️ ¿SIGO VIVO? (PESTAÑA MATEMÁTICA DETALLADA)
 # ==========================================
 elif pagina == "☠️ ¿Sigo Vivo?":
     st.subheader("☠️ Análisis de Probabilidades: ¿Aún puedes remontar?")
@@ -390,7 +412,6 @@ elif pagina == "☠️ ¿Sigo Vivo?":
     if len(lideres_globales) > 2:
         st.error("🤖 *'Esto es demasiado trabajo, no puedo...'* \n\n⚠️ **Demasiadas combinaciones**, vuelva cuando haya menos líderes en la cima.")
     else:
-        # Ejecutamos el análisis para cada líder (soporta 1 o 2 líderes)
         for lider in lideres_globales:
             st.write(f"### 👑 Analizando con respecto al líder: **{lider}** ({max_puntos_global} pts)")
             
@@ -404,20 +425,15 @@ elif pagina == "☠️ ¿Sigo Vivo?":
                 pts_jugador = puntos[jugador]
                 diferencia = max_puntos_global - pts_jugador
                 
-                # Contar partidos donde aún puede recortar distancia
                 partidos_utiles_para_remontar = 0
-                
                 for idx, p_jugador in enumerate(datos["pronosticos"]):
                     p_lider = pronosticos_lider[idx]
                     
-                    # El partido debe estar pendiente (sin resultado oficial)
                     if p_lider["Resultado Oficial"] is None: 
-                        # Asegurar que ambos tengan un pronóstico registrado antes de comparar
                         if p_jugador["Pronóstico"] is not None and p_lider["Pronóstico"] is not None:
                             if p_jugador["Pronóstico"] != p_lider["Pronóstico"]:
                                 partidos_utiles_para_remontar += 1
 
-                # Veredicto matemático
                 if partidos_utiles_para_remontar >= diferencia:
                     estatus_vida = "🔥 Sigue Vivo"
                 else:
