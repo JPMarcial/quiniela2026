@@ -51,7 +51,7 @@ st.caption(f"Página actualizada: {ultima_actualizacion} (hora CDMX)")
 # ==========================================
 # 🔐 FILTRO DE PESTAÑAS
 # ==========================================
-menu_opciones = ["🏆 Ranking", "👤 Participantes", "⚽ Partidos", "🔥 Comparativa VS", "🗓️ Calendario"]
+menu_opciones = ["🏆 Ranking", "👤 Participantes", "⚽ Partidos", "🔥 Comparativa VS", "☠️ ¿Sigo Vivo?", "🗓️ Calendario"]
 pagina = st.sidebar.radio("Menú", menu_opciones)
 
 
@@ -108,7 +108,6 @@ def procesar_todo_el_excel(contenido_excel):
     calendario_local = []
 
     for hoja in wb_local.sheetnames:
-        # ❌ AQUÍ SE IGNORAN LAS PESTAÑAS ADMINISTRATIVAS O DE TEXTO COMO "MURO"
         if hoja.upper() in ["RESULTADOS", "MURO"]:
             continue
             
@@ -193,6 +192,10 @@ if participantes is None:
 puntos = {nombre: sum(1 for p in datos["pronosticos"] if p["Acierto"]) for nombre, datos in participantes.items()}
 st.write(f"Tiempo de carga: {round(time.time() - inicio, 2)} segundos")
 
+# Obtener Líderes globales para cálculos recurrentes
+max_puntos_global = max(puntos.values()) if puntos else 0
+lideres_globales = [nom for nom, pts in puntos.items() if pts == max_puntos_global]
+
 # ==========================================
 # PÁGINA: RANKING
 # ==========================================
@@ -250,12 +253,9 @@ if pagina == "🏆 Ranking":
                 pass
 
     porcentaje = round(partidos_jugados * 100 / total_partidos, 1) if total_partidos > 0 else 0
-    puntaje_maximo = ranking["Puntos"].max() if not ranking.empty else -1
-    puntaje_minimo = ranking["Puntos"].min() if not ranking.empty else -1
     
-    if puntaje_maximo != -1:
-        filtro_lideres = ranking[ranking["Puntos"] == puntaje_maximo]["Participante"].tolist()
-        primeros_nombres_lideres = [str(n).strip().split()[0] for n in filtro_lideres]
+    if len(lideres_globales) > 0:
+        primeros_nombres_lideres = [str(n).strip().split()[0] for n in lideres_globales]
         texto_lideres = ", ".join(primeros_nombres_lideres[:-1]) + " y " + primeros_nombres_lideres[-1] if len(primeros_nombres_lideres) > 1 else primeros_nombres_lideres[0]
         etiqueta_lider = "🔥 Líderes Actuales" if len(primeros_nombres_lideres) > 1 else "🔥 Líder Actual"
     else:
@@ -277,18 +277,19 @@ if pagina == "🏆 Ranking":
     st.divider()
     st.subheader("Tabla General")
 
-    if puntaje_maximo != -1:
+    puntaje_minimo = ranking["Puntos"].min() if not ranking.empty else -1
+    if len(lideres_globales) > 0:
         def agregar_emoji(r):
             if str(r["Participante"]).strip() == "Victor Vazquez": return f"🐌 {r['Participante']}"
-            if r["Puntos"] == puntaje_maximo: return f"👑 {r['Participante']}"
-            elif r["Puntos"] == puntaje_minimo and puntaje_minimo != puntaje_maximo: return f"🐌 {r['Participante']}"
+            if r["Puntos"] == max_puntos_global: return f"👑 {r['Participante']}"
+            elif r["Puntos"] == puntaje_minimo and puntaje_minimo != max_puntos_global: return f"🐌 {r['Participante']}"
             return r["Participante"]
         ranking["Participante"] = ranking.apply(agregar_emoji, axis=1)
 
     def resaltar_estilo_premium(row):
-        if puntaje_maximo != -1 and row["Puntos"] == puntaje_maximo:
+        if len(lideres_globales) > 0 and row["Puntos"] == max_puntos_global:
             return ['background-color: #fffbeb; color: #b45309; font-weight: bold;'] * len(row)
-        elif puntaje_minimo != -1 and row["Puntos"] == puntaje_minimo and puntaje_minimo != puntaje_maximo:
+        elif puntaje_minimo != -1 and row["Puntos"] == puntaje_minimo and puntaje_minimo != max_puntos_global:
             return ['background-color: #fdf2f8; color: #9d174d; font-style: italic;'] * len(row)
         return [''] * len(row)
 
@@ -379,6 +380,63 @@ elif pagina == "🔥 Comparativa VS":
             
         st.dataframe(df_vs.style.map(estilar_celdas_vs), use_container_width=True, hide_index=True)
 
+# ==========================================
+# ☠️ ¿SIGO VIVO? (NUEVA PESTAÑA MATEMÁTICA)
+# ==========================================
+elif pagina == "☠️ ¿Sigo Vivo?":
+    st.subheader("☠️ Análisis de Probabilidades: ¿Aún puedes remontar?")
+    st.markdown("Esta sección evalúa matemáticamente si tienes posibilidades reales de alcanzar al primer lugar basándose en los partidos restantes y las diferencias en tus pronósticos.")
+
+    if len(lideres_globales) > 2:
+        st.error("🤖 *'Esto es demasiado trabajo, no puedo...'* \n\n⚠️ **Demasiadas combinaciones**, vuelva cuando haya menos líderes en la cima.")
+    else:
+        # Ejecutamos el análisis para cada líder (soporta 1 o 2 líderes)
+        for lider in lideres_globales:
+            st.write(f"### 👑 Analizando con respecto al líder: **{lider}** ({max_puntos_global} pts)")
+            
+            vivos_datos = []
+            pronosticos_lider = participantes[lider]["pronosticos"]
+
+            for jugador, datos in participantes.items():
+                if jugador == lider:
+                    continue
+                
+                pts_jugador = puntos[jugador]
+                diferencia = max_puntos_global - pts_jugador
+                
+                # Contar partidos donde aún puede recortar distancia
+                partidos_utiles_para_remontar = 0
+                
+                for idx, p_jugador in enumerate(datos["pronosticos"]):
+                    p_lider = pronosticos_lider[idx]
+                    
+                    # El partido debe estar pendiente y los pronósticos deben ser diferentes
+                    if p_lider["Resultado Oficial"] is None: 
+                        if p_jugador["Pronóstico"] != p_lider["Pronóstico"]:
+                            partidos_utiles_para_remontar += 1
+
+                # Veredicto matemático
+                if partidos_utiles_para_remontar >= diferencia:
+                    estatus_vida = "🔥 Sigue Vivo"
+                else:
+                    estatus_vida = "💀 Matemáticamente Eliminado"
+
+                vivos_datos.append({
+                    "Participante": jugador,
+                    "Mis Puntos": pts_jugador,
+                    "Distancia al Líder": f"+{diferencia} pts",
+                    "Partidos Diferentes Restantes": partidos_utiles_para_remontar,
+                    "Estatus": estatus_vida
+                })
+
+            df_vida = pd.DataFrame(vivos_datos).sort_values(by="Mis Puntos", ascending=False).reset_index(drop=True)
+            
+            def color_vida(val):
+                if "🔥" in str(val): return 'background-color: #e6f4ea; color: #137333; font-weight: bold;'
+                elif "💀" in str(val): return 'background-color: #fce8e6; color: #c5221f; font-style: italic;'
+                return ''
+                
+            st.dataframe(df_vida.style.map(color_vida, subset=["Estatus"]), use_container_width=True, hide_index=True)
 # ==========================================
 # CALENDARIO
 # ==========================================
