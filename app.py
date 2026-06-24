@@ -410,10 +410,12 @@ elif pagina == "☠️ ¿Sigo Vivo?":
                 for idx, p_jugador in enumerate(datos["pronosticos"]):
                     p_lider = pronosticos_lider[idx]
                     
-                    # El partido debe estar pendiente y los pronósticos deben ser diferentes
+                    # El partido debe estar pendiente (sin resultado oficial)
                     if p_lider["Resultado Oficial"] is None: 
-                        if p_jugador["Pronóstico"] != p_lider["Pronóstico"]:
-                            partidos_utiles_para_remontar += 1
+                        # Asegurar que ambos tengan un pronóstico registrado antes de comparar
+                        if p_jugador["Pronóstico"] is not None and p_lider["Pronóstico"] is not None:
+                            if p_jugador["Pronóstico"] != p_lider["Pronóstico"]:
+                                partidos_utiles_para_remontar += 1
 
                 # Veredicto matemático
                 if partidos_utiles_para_remontar >= diferencia:
@@ -437,6 +439,7 @@ elif pagina == "☠️ ¿Sigo Vivo?":
                 return ''
                 
             st.dataframe(df_vida.style.map(color_vida, subset=["Estatus"]), use_container_width=True, hide_index=True)
+
 # ==========================================
 # CALENDARIO
 # ==========================================
