@@ -35,6 +35,14 @@ st.markdown(
         font-weight: 500;
         margin-bottom: 8px;
     }
+    .ganador-box {
+        background-color: #fef08a;
+        border: 2px solid #eab308;
+        padding: 20px;
+        border-radius: 10px;
+        text-align: center;
+        margin-bottom: 20px;
+    }
     </style>
     """,
     unsafe_allow_html=True
@@ -49,9 +57,9 @@ st.caption(f"Página actualizada: {ultima_actualizacion} (hora CDMX)")
 
 
 # ==========================================
-# 🔐 FILTRO DE PESTAÑAS
+# 🔐 FILTRO DE PESTAÑAS (Páginas de VS y Sigo Vivo Eliminadas)
 # ==========================================
-menu_opciones = ["🏆 Ranking", "👤 Participantes", "⚽ Partidos", "🔥 Comparativa VS", "☠️ ¿Sigo Vivo?", "🗓️ Calendario"]
+menu_opciones = ["🏆 Ranking", "👤 Participantes", "⚽ Partidos", "🗓️ Calendario"]
 pagina = st.sidebar.radio("Menú", menu_opciones)
 
 
@@ -196,25 +204,6 @@ st.write(f"Tiempo de carga: {round(time.time() - inicio, 2)} segundos")
 max_puntos_global = max(puntos.values()) if puntos else 0
 lideres_globales = [nom for nom, pts in puntos.items() if pts == max_puntos_global]
 
-# Determinar quiénes están eliminados matemáticamente (para aplicar el tachado)
-eliminados_lista = []
-if len(lideres_globales) <= 2 and len(lideres_globales) > 0:
-    lider_referencia = lideres_globales[0]
-    pronosticos_lider_ref = participantes[lider_referencia]["pronosticos"]
-    for jugador, datos in participantes.items():
-        if jugador in lideres_globales:
-            continue
-        diferencia = max_puntos_global - puntos[jugador]
-        partidos_utiles = 0
-        for idx, p_jugador in enumerate(datos["pronosticos"]):
-            p_lider = pronosticos_lider_ref[idx]
-            if p_lider["Resultado Oficial"] is None:
-                if p_jugador["Pronóstico"] is not None and p_lider["Pronóstico"] is not None:
-                    if p_jugador["Pronóstico"] != p_lider["Pronóstico"]:
-                        partidos_utiles += 1
-        if partidos_utiles < diferencia:
-            eliminados_lista.append(jugador)
-
 # ==========================================
 # PÁGINA: RANKING
 # ==========================================
@@ -273,10 +262,65 @@ if pagina == "🏆 Ranking":
 
     porcentaje = round(partidos_jugados * 100 / total_partidos, 1) if total_partidos > 0 else 0
     
+    # 🏆 SECCIÓN: CUADRO DE HONOR Y GANADORES (AL FINALIZAR LA FASE)
+    if porcentaje >= 100 and not ranking.empty:
+        st.balloons()  
+        
+        # Agrupar por puntos para manejar empates reales en el top 3
+        agrupado_puntos = ranking.groupby("Puntos", as_index=False)["Participante"].apply(list).sort_values(by="Puntos", ascending=False).reset_index(drop=True)
+        
+        ganadores_oro = agrupado_puntos.loc[0, "Participante"]
+        puntos_oro = agrupado_puntos.loc[0, "Puntos"]
+        texto_ganadores = " y ".join(ganadores_oro) if len(ganadores_oro) > 1 else ganadores_oro[0]
+        
+        # Render del banner del Campeón
+        st.markdown(
+            f"""
+            <div class="ganador-box">
+                <h1 style='color: #b45309; margin: 0;'>🏆 ¡TENEMOS GANADOR DE LA FASE DE GRUPOS! 🏆</h1>
+                <p style='font-size: 24px; margin: 10px 0 5px 0; font-weight: bold; color: #1e293b;'>
+                    ¡Muchas felicidades, {texto_ganadores}! 🥳🎉
+                </p>
+                <p style='font-size: 20px; margin: 0; color: #475569;'>
+                    Se corona como el rey indiscutible de esta primera etapa con un total de <b>{puntos_oro} puntos</b>. ¡Tremenda precisión!
+                </p>
+            </div>
+            """, 
+            unsafe_allow_html=True
+        )
+        
+        # Construcción dinámica del Top 3
+        st.subheader("🏅 Podio Final de la Fase 1")
+        col_oro, col_plata, col_bronce = st.columns(3)
+        
+        with col_oro:
+            st.markdown(f"### 🥇 1er Lugar\n**{texto_ganadores}**\n`{puntos_oro} pts`")
+        
+        with col_plata:
+            if len(agrupado_puntos) > 1:
+                nombres_plata = ", ".join(agrupado_puntos.loc[1, "Participante"])
+                pts_plata = agrupado_puntos.loc[1, "Puntos"]
+                st.markdown(f"### 🥈 2do Lugar\n{nombres_plata}\n`{pts_plata} pts`")
+            else:
+                st.markdown("### 🥈 2do Lugar\n-\n`-`")
+                
+        with col_bronce:
+            if len(agrupado_puntos) > 2:
+                nombres_bronce = ", ".join(agrupado_puntos.loc[2, "Participante"])
+                pts_bronce = agrupado_puntos.loc[2, "Puntos"]
+                st.markdown(f"### 🥉 3er Lugar\n{nombres_bronce}\n`{pts_bronce} pts`")
+            else:
+                st.markdown("### 🥉 3er Lugar\n-\n`-`")
+                
+        # Alerta del Próximo Reto
+        st.warning("⚠️ **¡ATENCIÓN A TODOS LOS PARTICIPANTES!** La Fase de Grupos terminó, pero el verdadero reto está por comenzar. Estén muy atentos para el llenado de la **Fase 02 (Cruces de Eliminación Directa)**. ¡La lucha por la copa sigue viva!")
+        st.divider()
+
+    # Métricas estándar
     if len(lideres_globales) > 0:
         primeros_nombres_lideres = [str(n).strip().split()[0] for n in lideres_globales]
         texto_lideres = ", ".join(primeros_nombres_lideres[:-1]) + " y " + primeros_nombres_lideres[-1] if len(primeros_nombres_lideres) > 1 else primeros_nombres_lideres[0]
-        etiqueta_lider = "🔥 Líderes Actuales" if len(primeros_nombres_lideres) > 1 else "🔥 Líder Actual"
+        etiqueta_lider = "🔥 Líder Final" if porcentaje >= 100 else ("🔥 Líderes Actuales" if len(primeros_nombres_lideres) > 1 else "🔥 Líder Actual")
     else:
         texto_lideres, etiqueta_lider = "-", "🔥 Líder Actual"
 
@@ -285,18 +329,19 @@ if pagina == "🏆 Ranking":
     with col2: st.metric(label="📈 Avance del Torneo", value=f"{porcentaje}%")
     with col3: st.metric(label=etiqueta_lider, value=texto_lideres)
 
-    st.divider()
-    st.subheader("📅 Partidos para hoy")
-    if len(partidos_hoy) == 0:
-        st.info("No hay partidos programados para hoy.")
-    else:
-        for p in partidos_hoy:
-            st.markdown(f'<p class="partido-hoy">{p}</p>', unsafe_allow_html=True)
+    if porcentaje < 100:
+        st.divider()
+        st.subheader("📅 Partidos para hoy")
+        if len(partidos_hoy) == 0:
+            st.info("No hay partidos programados para hoy.")
+        else:
+            for p in partidos_hoy:
+                st.markdown(f'<p class="partido-hoy">{p}</p>', unsafe_allow_html=True)
 
     st.divider()
     st.subheader("Tabla General")
 
-    # Agregar únicamente el emoji de corona al líder, los demás permanecen limpios
+    # Agregar únicamente el emoji de corona al líder
     if len(lideres_globales) > 0:
         def agregar_emoji(r):
             if r["Puntos"] == max_puntos_global: 
@@ -305,19 +350,14 @@ if pagina == "🏆 Ranking":
         ranking["Participante"] = ranking.apply(agregar_emoji, axis=1)
 
     def resaltar_estilo_premium(row):
-        nombre_limpio = str(row["Participante"]).replace("👑 ", "").strip()
-        
         if len(lideres_globales) > 0 and row["Puntos"] == max_puntos_global:
             return ['background-color: #fffbeb; color: #b45309; font-weight: bold;'] * len(row)
-        elif nombre_limpio in eliminados_lista:
-            # Tachado elegante sobre fondo estándar transparente para evitar que parezca seleccionado
-            return ['color: #9ca3af; text-decoration: line-through; font-style: italic; background-color: transparent;'] * len(row)
         return [''] * len(row)
 
     st.dataframe(ranking.style.apply(resaltar_estilo_premium, axis=1), use_container_width=True, hide_index=True)
 
 # ==========================================
-# PARTICIPANTES
+# PÁGINAS RESTANTES
 # ==========================================
 elif pagina == "👤 Participantes":
     jugador = st.selectbox("Selecciona participante", list(participantes.keys()))
@@ -331,9 +371,6 @@ elif pagina == "👤 Participantes":
         return ''
     st.dataframe(df.style.map(color_estatus, subset=["Estatus"]), use_container_width=True, hide_index=True)
 
-# ==========================================
-# PARTIDOS
-# ==========================================
 elif pagina == "⚽ Partidos":
     primer_jugador = list(participantes.keys())[0]
     lista_partidos = [p["Partido"] for p in participantes[primer_jugador]["pronosticos"]]
@@ -351,112 +388,6 @@ elif pagina == "⚽ Partidos":
                 })
     st.dataframe(pd.DataFrame(datos_partido), use_container_width=True, hide_index=True)
 
-# ==========================================
-# 🔥 COMPARATIVA VS
-# ==========================================
-elif pagina == "🔥 Comparativa VS":
-    st.subheader("🥊 Cara a Cara entre Participantes")
-    st.markdown("Compara las predicciones en tiempo real para ver las diferencias exactas de cara a los próximos partidos.")
-    
-    seleccionados = st.multiselect(
-        "Selecciona de 2 a 3 participantes para el Versus:",
-        options=list(participantes.keys()),
-        max_selections=3
-    )
-    
-    if len(seleccionados) < 2:
-        st.info("💡 Selecciona al menos 2 participantes en el cuadro de arriba para generar el frente a frente.")
-    else:
-        primer_p = seleccionados[0]
-        
-        orden_calendario = {}
-        if calendario_datos:
-            for idx, c_partido in enumerate(calendario_datos):
-                orden_calendario[c_partido["partido"]] = idx
-
-        datos_vs = []
-        partidos_lista = [p["Partido"] for p in participantes[primer_p]["pronosticos"]]
-        
-        for i, p_nombre in enumerate(partidos_lista):
-            fila_vs = {"Partido": p_nombre}
-            resultado_real = participantes[primer_p]["pronosticos"][i]["Resultado Oficial"]
-            fila_vs["Resultado Real"] = resultado_real if resultado_real else "⌛ Pautado"
-            
-            for jug in seleccionados:
-                fila_vs[f"Pred. {jug}"] = participantes[jug]["pronosticos"][i]["Pronóstico"]
-            
-            fila_vs["_orden"] = orden_calendario.get(p_nombre, 999)
-            datos_vs.append(fila_vs)
-            
-        df_vs = pd.DataFrame(datos_vs)
-        df_vs = df_vs.sort_values(by="_orden").drop(columns=["_orden"]).reset_index(drop=True)
-        
-        def estilar_celdas_vs(val):
-            if val in ["Local", "Empate", "Visitante"]: 
-                return 'font-weight: bold;'
-            if "⌛" in str(val): 
-                return 'color: #888888; font-style: italic;'
-            return ''
-            
-        st.dataframe(df_vs.style.map(estilar_celdas_vs), use_container_width=True, hide_index=True)
-
-# ==========================================
-# ☠️ ¿SIGO VIVO? (PESTAÑA MATEMÁTICA DETALLADA)
-# ==========================================
-elif pagina == "☠️ ¿Sigo Vivo?":
-    st.subheader("☠️ Análisis de Probabilidades: ¿Aún puedes remontar?")
-    st.markdown("Esta sección evalúa matemáticamente si tienes posibilidades reales de alcanzar al primer lugar basándose en los partidos restantes y las diferencias en tus pronósticos.")
-
-    if len(lideres_globales) > 2:
-        st.error("🤖 *'Esto es demasiado trabajo, no puedo...'* \n\n⚠️ **Demasiadas combinaciones**, vuelva cuando haya menos líderes en la cima.")
-    else:
-        for lider in lideres_globales:
-            st.write(f"### 👑 Analizando con respecto al líder: **{lider}** ({max_puntos_global} pts)")
-            
-            vivos_datos = []
-            pronosticos_lider = participantes[lider]["pronosticos"]
-
-            for jugador, datos in participantes.items():
-                if jugador == lider:
-                    continue
-                
-                pts_jugador = puntos[jugador]
-                diferencia = max_puntos_global - pts_jugador
-                
-                partidos_utiles_para_remontar = 0
-                for idx, p_jugador in enumerate(datos["pronosticos"]):
-                    p_lider = pronosticos_lider[idx]
-                    
-                    if p_lider["Resultado Oficial"] is None: 
-                        if p_jugador["Pronóstico"] is not None and p_lider["Pronóstico"] is not None:
-                            if p_jugador["Pronóstico"] != p_lider["Pronóstico"]:
-                                partidos_utiles_para_remontar += 1
-
-                if partidos_utiles_para_remontar >= diferencia:
-                    estatus_vida = "🔥 Sigue Vivo"
-                else:
-                    estatus_vida = "💀 Matemáticamente Eliminado"
-
-                vivos_datos.append({
-                    "Participante": jugador,
-                    "Mis Puntos": pts_jugador,
-                    "Distancia al Líder": f"+{diferencia} pts",
-                    "Partidos Diferentes Restantes": partidos_utiles_para_remontar,
-                    "Estatus": estatus_vida
-                })
-
-            df_vida = pd.DataFrame(vivos_datos).sort_values(by="Mis Puntos", ascending=False).reset_index(drop=True)
-            
-            def color_vida(val):
-                if "🔥" in str(val): return 'background-color: #e6f4ea; color: #137333; font-weight: bold;'
-                elif "💀" in str(val): return 'background-color: #fce8e6; color: #c5221f; font-style: italic;'
-                return ''
-                
-            st.dataframe(df_vida.style.map(color_vida, subset=["Estatus"]), use_container_width=True, hide_index=True)
-
-# ==========================================
-# CALENDARIO
-# ==========================================
 elif pagina == "🗓️ Calendario":
     if not calendario_datos:
         st.warning("No existe o está vacía la hoja CALENDARIO")
