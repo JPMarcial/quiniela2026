@@ -38,7 +38,7 @@ st.markdown(
     </style>
     
     <div class="modo-espera">
-        <div class="frase">Fuera de servicio</div>
+        <div class="frase">Fuera de servicio, mañana regresamos</div>
         <div class="emoji-animado">🌾</div>
     </div>
     """,
