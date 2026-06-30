@@ -3,6 +3,7 @@ import pandas as pd
 import requests
 import io
 import re
+import zipfile  # <-- Nuevo: Para desempaquetar todas las hojas de un solo viaje
 from datetime import datetime, timedelta
 
 st.set_page_config(page_title="Quiniela Fase Final", page_icon="⚽", layout="wide")
@@ -11,58 +12,36 @@ st.title("⚽ Quiniela - Fase Final 2026")
 # ==============================================================================
 # 1. DETECCIÓN AUTOMÁTICA DE FECHA (ZONA HORARIA MÉXICO SIN PYTZ)
 # ==============================================================================
-# Ajustamos con base al servidor UTC (-6 horas para obtener la hora de México)
 fecha_actual_mx = datetime.utcnow() - timedelta(hours=6)
-fecha_formateada = fecha_actual_mx.strftime("%d/%m") # Formato: "30/06"
+fecha_formateada = fecha_actual_mx.strftime("%d/%m") 
 
-# Base de datos real del calendario de 16vos
 CALENDARIO_COMPLETO = [
-    # 30 de Junio
     {"Fecha": "30/06", "Rival 1": "COSTA DE MARFIL", "Rival 2": "NORUEGA", "Texto": "Costa de Marfil 🆚 Noruega", "Hora": "11:00 AM", "Keys 1": ["COSTA DE MARFIL", "MARFIL", "CIV"], "Keys 2": ["NORUEGA", "NOR"]},
     {"Fecha": "30/06", "Rival 1": "FRANCIA", "Rival 2": "SUECIA", "Texto": "Francia 🆚 Suecia", "Hora": "03:00 PM", "Keys 1": ["FRANCIA", "FRA"], "Keys 2": ["SUECIA", "SUE"]},
     {"Fecha": "30/06", "Rival 1": "MÉXICO", "Rival 2": "ECUADOR", "Texto": "México 🆚 Ecuador", "Hora": "07:00 PM", "Keys 1": ["MEXICO", "MÉXICO", "MEX"], "Keys 2": ["ECUADOR", "ECU"]},
-    
-    # 01 de Julio
     {"Fecha": "01/07", "Rival 1": "INGLATERRA", "Rival 2": "RD CONGO", "Texto": "Inglaterra 🆚 RD Congo", "Hora": "10:00 AM", "Keys 1": ["INGLATERRA", "ENG"], "Keys 2": ["CONGO", "RD CONGO", "RDC"]},
     {"Fecha": "01/07", "Rival 1": "BÉLGICA", "Rival 2": "SENEGAL", "Texto": "Bélgica 🆚 Senegal", "Hora": "02:00 PM", "Keys 1": ["BELGICA", "BÉLGICA", "BEL"], "Keys 2": ["SENEGAL", "SEN"]},
     {"Fecha": "01/07", "Rival 1": "ESTADOS UNIDOS", "Rival 2": "BOSNIA", "Texto": "Estados Unidos 🆚 Bosnia", "Hora": "06:00 PM", "Keys 1": ["ESTADOS UNIDOS", "USA", "EEUU"], "Keys 2": ["BOSNIA", "HERZEGOVINA", "BOSNIA-HERZ"]},
-    
-    # 02 de Julio
     {"Fecha": "02/07", "Rival 1": "ESPAÑA", "Rival 2": "AUSTRIA", "Texto": "España 🆚 Austria", "Hora": "01:00 PM", "Keys 1": ["ESPAÑA", "ESP"], "Keys 2": ["AUSTRIA", "AUT"]},
     {"Fecha": "02/07", "Rival 1": "PORTUGAL", "Rival 2": "CROACIA", "Texto": "Portugal 🆚 Croacia", "Hora": "05:00 PM", "Keys 1": ["PORTUGAL", "POR"], "Keys 2": ["CROACIA", "CRO"]},
     {"Fecha": "02/07", "Rival 1": "SUIZA", "Rival 2": "ARGELIA", "Texto": "Suiza 🆚 Argelia", "Hora": "09:00 PM", "Keys 1": ["SUIZA", "SUI"], "Keys 2": ["ARGELIA", "ALG"]},
-    
-    # 03 de Julio
     {"Fecha": "03/07", "Rival 1": "AUSTRALIA", "Rival 2": "EGIPTO", "Texto": "Australia 🆚 Egipto", "Hora": "12:00 PM", "Keys 1": ["AUSTRALIA", "AUS"], "Keys 2": ["EGIPTO", "EGY"]},
     {"Fecha": "03/07", "Rival 1": "ARGENTINA", "Rival 2": "CABO VERDE", "Texto": "Argentina 🆚 Cabo Verde", "Hora": "04:00 PM", "Keys 1": ["ARGENTINA", "ARG"], "Keys 2": ["CABO VERDE", "CPV"]},
     {"Fecha": "03/07", "Rival 1": "COLOMBIA", "Rival 2": "GHANA", "Texto": "Colombia 🆚 Ghana", "Hora": "07:30 PM", "Keys 1": ["COLOMBIA", "COL"], "Keys 2": ["GHANA", "GHA"]}
 ]
 
-# Filtrar dinámicamente los partidos que juegan estrictamente HOY
 PARTIDOS_HOY = [partido for partido in CALENDARIO_COMPLETO if partido["Fecha"] == fecha_formateada]
 
-# ==============================================================================
-# 2. CONFIGURACIÓN DE CONEXIÓN Y JUGADORES
-# ==============================================================================
 SPREADSHEET_ID = "1FTUtzXd-ODXBB0QxIf-68FKf0ZQzVnWM"
-
 ID_PESTAÑAS = [
     "HAAM", "CA", "HR", "JAG", "FB", "PM", "JLJF", 
     "MASM", "CAVL", "AMG", "CAER", "VAVA", "JAMP", "VCBH", 
     "JMG", "JV", "CAAM", "DSR", "SLO"
 ]
 
-@st.cache_data(ttl=60)
-def cargar_pestaña_desde_drive(spreadsheet_id, nombre_hoja):
-    url = f"https://docs.google.com/spreadsheets/d/{spreadsheet_id}/gviz/tq?tqx=out:csv&sheet={nombre_hoja}"
-    try:
-        respuesta = requests.get(url)
-        if respuesta.status_code == 200:
-            return pd.read_csv(io.StringIO(respuesta.text), header=None, dtype=str)
-    except Exception:
-        pass
-    return None
-
+# ==============================================================================
+# 2. FUNCIONES DE PROCESAMIENTO AUXILIARES
+# ==============================================================================
 def obtener_nombre_real(df_raw, id_pestaña):
     try:
         if df_raw is not None and df_raw.shape[0] > 0 and df_raw.shape[1] > 1:
@@ -106,85 +85,102 @@ def procesar_bloque_resumen(df_raw):
     except Exception:
         return None
 
-def calcular_puntos(df_jugador, df_base):
-    if df_jugador is None or df_base is None:
-        return 0
-    puntos = 0
-    if "16vos" in df_jugador.columns and "16vos" in df_base.columns:
-        # Convertir a texto limpio sin acentos para evitar fallos de coincidencia parcial
-        def limpiar_texto(s):
-            s = str(s).strip().upper()
-            s = re.sub(r'[ÁÉÍÓÚ]', lambda m: {'Á':'A','É':'E','Í':'I','Ó':'O','Ú':'U'}[m.group(0)], s)
-            return s
-
-        set_jugador = set(df_jugador["16vos"].dropna().apply(limpiar_texto))
-        set_base = set(df_base["16vos"].dropna().apply(limpiar_texto))
-        set_jugador.discard("")
-        set_base.discard("")
-        puntos += len(set_jugador.intersection(set_base))
-    return puntos
+def limpiar_texto(s):
+    s = str(s).strip().upper()
+    s = re.sub(r'[ÁÉÍÓÚ]', lambda m: {'Á':'A','É':'E','Í':'I','Ó':'O','Ú':'U'}[m.group(0)], s)
+    return s
 
 # ==============================================================================
-# 3. PROCESAMIENTO Y CARGA DE DATOS EN VIVO
+# 3. PROCESAMIENTO COMPLETO BAJO CACHÉ (UN SOLO VIAJE DE RED)
 # ==============================================================================
-with st.spinner("🔄 Actualizando calendario y procesando quinielas..."):
-    df_base_raw = cargar_pestaña_desde_drive(SPREADSHEET_ID, "BASE")
-    df_base = procesar_bloque_resumen(df_base_raw)
-
-if df_base is None or df_base.empty:
-    st.error("⚠️ No se pudo conectar correctamente con la pestaña 'BASE' en Google Drive.")
-else:
+@st.cache_data(ttl=60)
+def cargar_y_procesar_todo_el_torneo(spreadsheet_id, pestañas_jugadores, partidos_hoy):
+    # Endpoint masivo: Descarga el libro entero comprimido en ZIP en un único request
+    url = f"https://docs.google.com/spreadsheets/d/{spreadsheet_id}/export?format=zip"
+    
     datos_ranking = []
-    mapeo_nombres_df = {}  
     pronosticos_hoy_lista = []
     
-    for pestaña in ID_PESTAÑAS:
-        df_jugador_raw = cargar_pestaña_desde_drive(SPREADSHEET_ID, pestaña)
-        nombre_real = obtener_nombre_real(df_jugador_raw, pestaña)
-        df_jugador = procesar_bloque_resumen(df_jugador_raw)
-        
-        elecciones_hoy = {"Participante": nombre_real}
-        
-        if df_jugador is not None:
-            mapeo_nombres_df[nombre_real] = df_jugador
-            puntos = calcular_puntos(df_jugador, df_base)
-            datos_ranking.append({"Participante": nombre_real, "Aciertos Totales": puntos})
+    try:
+        respuesta = requests.get(url, timeout=10)
+        if respuesta.status_code != 200:
+            return None, None
             
-            # Limpiar acentos y estandarizar la lista para el comparador de hoy
-            def normalizar(txt):
-                txt = str(txt).strip().upper()
-                txt = re.sub(r'[ÁÉÍÓÚ]', lambda m: {'Á':'A','É':'E','Í':'I','Ó':'O','Ú':'U'}[m.group(0)], txt)
-                return txt
+        # Abrimos el ZIP en memoria
+        with zipfile.ZipFile(io.BytesIO(respuesta.content)) as z:
+            archivos_en_zip = z.namelist()
+            
+            # 1. Cargar la pestaña BASE
+            base_file = [f for f in archivos_en_zip if "BASE.csv" in f]
+            if not base_file:
+                return None, None
+            df_base_raw = pd.read_csv(io.StringIO(z.read(base_file[0]).decode('utf-8')), header=None, dtype=str)
+            df_base = procesar_bloque_resumen(df_base_raw)
+            if df_base is None:
+                return None, None
                 
-            lista_pronosticos = df_jugador["16vos"].dropna().apply(normalizar).tolist()
+            set_base = set(df_base["16vos"].dropna().apply(limpiar_texto))
+            set_base.discard("")
             
-            # Evaluar los partidos programados para hoy
-            for p in PARTIDOS_HOY:
-                encontrado = "Ninguno"
-                for pronostico in lista_pronosticos:
-                    if any(k in pronostico for k in p["Keys 1"]):
-                        encontrado = p["Rival 1"].title()
-                        break
-                    elif any(k in pronostico for k in p["Keys 2"]):
-                        encontrado = p["Rival 2"].title()
-                        break
-                elecciones_hoy[p["Texto"]] = encontrado
-        else:
-            datos_ranking.append({"Participante": nombre_real, "Aciertos Totales": 0})
-            for p in PARTIDOS_HOY:
-                elecciones_hoy[p["Texto"]] = "Sin Datos"
+            # 2. Procesar cada jugador desde el ZIP
+            for pestaña in pestañas_jugadores:
+                jugador_file = [f for f in archivos_en_zip if f"{pestaña}.csv" in f]
+                df_jugador = None
+                nombre_real = pestaña
                 
-        if PARTIDOS_HOY:
-            pronosticos_hoy_lista.append(elecciones_hoy)
-            
-    df_ranking = pd.DataFrame(datos_ranking).sort_values(by="Aciertos Totales", ascending=False).reset_index(drop=True)
-    df_ranking.index = df_ranking.index + 1
-    
-    if pronosticos_hoy_lista:
-        df_pronosticos_hoy = pd.DataFrame(pronosticos_hoy_lista).reset_index(drop=True)
-    else:
-        df_pronosticos_hoy = pd.DataFrame(columns=["Participante"])
+                if jugador_file:
+                    df_jugador_raw = pd.read_csv(io.StringIO(z.read(jugador_file[0]).decode('utf-8')), header=None, dtype=str)
+                    nombre_real = obtener_nombre_real(df_jugador_raw, pestaña)
+                    df_jugador = procesar_bloque_resumen(df_jugador_raw)
+                
+                elecciones_hoy = {"Participante": nombre_real}
+                
+                if df_jugador is not None and "16vos" in df_jugador.columns:
+                    # Calcular puntos (Intersección de sets optimizada)
+                    set_jugador = set(df_jugador["16vos"].dropna().apply(limpiar_texto))
+                    set_jugador.discard("")
+                    puntos = len(set_jugador.intersection(set_base))
+                    datos_ranking.append({"Participante": nombre_real, "Aciertos Totales": puntos})
+                    
+                    # Pronósticos de hoy optimizados
+                    lista_pronosticos = list(set_jugador)
+                    for p in partidos_hoy:
+                        encontrado = "Ninguno"
+                        for pronostico in lista_pronosticos:
+                            if any(k in pronostico for k in p["Keys 1"]):
+                                encontrado = p["Rival 1"].title()
+                                break
+                            elif any(k in pronostico for k in p["Keys 2"]):
+                                encontrado = p["Rival 2"].title()
+                                break
+                        elecciones_hoy[p["Texto"]] = encontrado
+                else:
+                    datos_ranking.append({"Participante": nombre_real, "Aciertos Totales": 0})
+                    for p in partidos_hoy:
+                        elecciones_hoy[p["Texto"]] = "Sin Datos"
+                        
+                if partidos_hoy:
+                    pronosticos_hoy_lista.append(elecciones_hoy)
+                    
+        # Generar DataFrames estructurados finales
+        df_ranking = pd.DataFrame(datos_ranking).sort_values(by="Aciertos Totales", ascending=False).reset_index(drop=True)
+        df_ranking.index = df_ranking.index + 1
+        
+        df_pronosticos_hoy = pd.DataFrame(pronosticos_hoy_lista).reset_index(drop=True) if pronosticos_hoy_lista else pd.DataFrame(columns=["Participante"])
+        
+        return df_ranking, df_pronosticos_hoy
 
+    except Exception as e:
+        return None, None
+
+# Ejecución limpia de la carga de datos
+with st.spinner("🚀 Sincronizando base de datos a máxima velocidad..."):
+    df_ranking, df_pronosticos_hoy = cargar_y_procesar_todo_el_torneo(SPREADSHEET_ID, ID_PESTAÑAS, PARTIDOS_HOY)
+
+# Validar errores de conexión
+if df_ranking is None:
+    st.error("⚠️ Error crítico al descargar o procesar el archivo completo desde Google Drive. Revisa los permisos compartidos.")
+else:
     # ==============================================================================
     # 4. INTERFAZ GRÁFICA CENTRALIZADA (TABS)
     # ==============================================================================
@@ -212,9 +208,7 @@ else:
                     """, unsafe_allow_html=True)
             
         st.write("---")
-        
         st.subheader("🏅 Clasificación General")
-        st.write("Posiciones calculadas de acuerdo a los pronósticos individuales.")
         
         if not df_ranking.empty:
             max_puntos_actual = df_ranking.iloc[0]["Aciertos Totales"]
@@ -231,7 +225,6 @@ else:
         if not PARTIDOS_HOY:
             st.info("No hay pronósticos que mostrar porque hoy no se juegan partidos.")
         else:
-            st.write("Visualiza de un vistazo la selección a ganar de cada persona para los juegos de esta fecha.")
             st.dataframe(df_pronosticos_hoy, use_container_width=True, hide_index=True)
 
     # --- PESTAÑA 3: VISOR DE PARTICIPANTES (CERRADO TEMPORALMENTE) ---
