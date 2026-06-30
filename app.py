@@ -3,7 +3,6 @@ import pandas as pd
 import requests
 import io
 import re
-import zipfile  # <-- Nuevo: Para desempaquetar todas las hojas de un solo viaje
 from datetime import datetime, timedelta
 
 st.set_page_config(page_title="Quiniela Fase Final", page_icon="⚽", layout="wide")
@@ -91,78 +90,76 @@ def limpiar_texto(s):
     return s
 
 # ==============================================================================
-# 3. PROCESAMIENTO COMPLETO BAJO CACHÉ (UN SOLO VIAJE DE RED)
+# 3. PROCESAMIENTO COMPLETO BAJO CACHÉ (URL DE DESCARGA DE EXCEL)
 # ==============================================================================
 @st.cache_data(ttl=60)
 def cargar_y_procesar_todo_el_torneo(spreadsheet_id, pestañas_jugadores, partidos_hoy):
-    # Endpoint masivo: Descarga el libro entero comprimido en ZIP en un único request
-    url = f"https://docs.google.com/spreadsheets/d/{spreadsheet_id}/export?format=zip"
+    # URL de descarga directa para archivos alojados en Google Drive (Excel)
+    url = f"https://drive.google.com/uc?export=download&id={spreadsheet_id}"
     
     datos_ranking = []
     pronosticos_hoy_lista = []
     
     try:
-        respuesta = requests.get(url, timeout=10)
+        respuesta = requests.get(url, timeout=15)
         if respuesta.status_code != 200:
             return None, None
             
-        # Abrimos el ZIP en memoria
-        with zipfile.ZipFile(io.BytesIO(respuesta.content)) as z:
-            archivos_en_zip = z.namelist()
+        # Leemos el archivo Excel completo en memoria indexando todas las pestañas
+        excel_file = pd.ExcelFile(io.BytesIO(respuesta.content), engine='openpyxl')
+        nombres_pestañas = excel_file.sheet_names
+        
+        # 1. Cargar y procesar pestaña BASE
+        if "BASE" not in nombres_pestañas:
+            return None, None
+        df_base_raw = excel_file.parse("BASE", header=None, dtype=str)
+        df_base = procesar_bloque_resumen(df_base_raw)
+        if df_base is None:
+            return None, None
             
-            # 1. Cargar la pestaña BASE
-            base_file = [f for f in archivos_en_zip if "BASE.csv" in f]
-            if not base_file:
-                return None, None
-            df_base_raw = pd.read_csv(io.StringIO(z.read(base_file[0]).decode('utf-8')), header=None, dtype=str)
-            df_base = procesar_bloque_resumen(df_base_raw)
-            if df_base is None:
-                return None, None
-                
-            set_base = set(df_base["16vos"].dropna().apply(limpiar_texto))
-            set_base.discard("")
+        set_base = set(df_base["16vos"].dropna().apply(limpiar_texto))
+        set_base.discard("")
+        
+        # 2. Procesar cada jugador desde las pestañas leídas del Excel
+        for pestaña in pestañas_jugadores:
+            df_jugador = None
+            nombre_real = pestaña
             
-            # 2. Procesar cada jugador desde el ZIP
-            for pestaña in pestañas_jugadores:
-                jugador_file = [f for f in archivos_en_zip if f"{pestaña}.csv" in f]
-                df_jugador = None
-                nombre_real = pestaña
+            if pestaña in nombres_pestañas:
+                df_jugador_raw = excel_file.parse(pestaña, header=None, dtype=str)
+                nombre_real = obtener_nombre_real(df_jugador_raw, pestaña)
+                df_jugador = procesar_bloque_resumen(df_jugador_raw)
+            
+            elecciones_hoy = {"Participante": nombre_real}
+            
+            if df_jugador is not None and "16vos" in df_jugador.columns:
+                # Calcular puntos eficientemente
+                set_jugador = set(df_jugador["16vos"].dropna().apply(limpiar_texto))
+                set_jugador.discard("")
+                puntos = len(set_jugador.intersection(set_base))
+                datos_ranking.append({"Participante": nombre_real, "Aciertos Totales": puntos})
                 
-                if jugador_file:
-                    df_jugador_raw = pd.read_csv(io.StringIO(z.read(jugador_file[0]).decode('utf-8')), header=None, dtype=str)
-                    nombre_real = obtener_nombre_real(df_jugador_raw, pestaña)
-                    df_jugador = procesar_bloque_resumen(df_jugador_raw)
-                
-                elecciones_hoy = {"Participante": nombre_real}
-                
-                if df_jugador is not None and "16vos" in df_jugador.columns:
-                    # Calcular puntos (Intersección de sets optimizada)
-                    set_jugador = set(df_jugador["16vos"].dropna().apply(limpiar_texto))
-                    set_jugador.discard("")
-                    puntos = len(set_jugador.intersection(set_base))
-                    datos_ranking.append({"Participante": nombre_real, "Aciertos Totales": puntos})
+                # Evaluar partidos de hoy
+                lista_pronosticos = list(set_jugador)
+                for p in partidos_hoy:
+                    encontrado = "Ninguno"
+                    for pronostico in lista_pronosticos:
+                        if any(k in pronostico for k in p["Keys 1"]):
+                            encontrado = p["Rival 1"].title()
+                            break
+                        elif any(k in pronostico for k in p["Keys 2"]):
+                            encontrado = p["Rival 2"].title()
+                            break
+                    elecciones_hoy[p["Texto"]] = encontrado
+            else:
+                datos_ranking.append({"Participante": nombre_real, "Aciertos Totales": 0})
+                for p in partidos_hoy:
+                    elecciones_hoy[p["Texto"]] = "Sin Datos"
                     
-                    # Pronósticos de hoy optimizados
-                    lista_pronosticos = list(set_jugador)
-                    for p in partidos_hoy:
-                        encontrado = "Ninguno"
-                        for pronostico in lista_pronosticos:
-                            if any(k in pronostico for k in p["Keys 1"]):
-                                encontrado = p["Rival 1"].title()
-                                break
-                            elif any(k in pronostico for k in p["Keys 2"]):
-                                encontrado = p["Rival 2"].title()
-                                break
-                        elecciones_hoy[p["Texto"]] = encontrado
-                else:
-                    datos_ranking.append({"Participante": nombre_real, "Aciertos Totales": 0})
-                    for p in partidos_hoy:
-                        elecciones_hoy[p["Texto"]] = "Sin Datos"
-                        
-                if partidos_hoy:
-                    pronosticos_hoy_lista.append(elecciones_hoy)
-                    
-        # Generar DataFrames estructurados finales
+            if partidos_hoy:
+                pronosticos_hoy_lista.append(elecciones_hoy)
+                
+        # Estructurar DataFrames de salida
         df_ranking = pd.DataFrame(datos_ranking).sort_values(by="Aciertos Totales", ascending=False).reset_index(drop=True)
         df_ranking.index = df_ranking.index + 1
         
@@ -173,13 +170,12 @@ def cargar_y_procesar_todo_el_torneo(spreadsheet_id, pestañas_jugadores, partid
     except Exception as e:
         return None, None
 
-# Ejecución limpia de la carga de datos
-with st.spinner("🚀 Sincronizando base de datos a máxima velocidad..."):
+# Ejecución de la carga de datos masiva
+with st.spinner("🚀 Sincronizando archivo Excel a máxima velocidad..."):
     df_ranking, df_pronosticos_hoy = cargar_y_procesar_todo_el_torneo(SPREADSHEET_ID, ID_PESTAÑAS, PARTIDOS_HOY)
 
-# Validar errores de conexión
 if df_ranking is None:
-    st.error("⚠️ Error crítico al descargar o procesar el archivo completo desde Google Drive. Revisa los permisos compartidos.")
+    st.error("⚠️ Error crítico al descargar o procesar el archivo Excel. Asegúrate de haber guardado los cambios en Drive y que el archivo no esté corrupto.")
 else:
     # ==============================================================================
     # 4. INTERFAZ GRÁFICA CENTRALIZADA (TABS)
