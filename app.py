@@ -4,9 +4,9 @@ import requests
 from io import BytesIO
 
 # ==============================================================================
-# 1. CONFIGURACIÓN DE PÁGINA Y ESTILOS CSS (ÁRBOL SIMÉTRICO DE 9 COLUMNAS)
+# 1. CONFIGURACIÓN DE PÁGINA Y ESTILOS CSS REFINADOS (LLAVE 100% GRÁFICA)
 # ==============================================================================
-st.set_page_config(page_title="Quiniela Mundial 2026 - Fase Final", page_icon="🏆", layout="wide")
+st.set_page_config(page_title="Fase Final Mundial 2026", page_icon="🏆", layout="wide")
 
 st.markdown("""
     <style>
@@ -22,7 +22,7 @@ st.markdown("""
     .bracket-header h1 { font-size: 32px; font-weight: 800; color: #1E3A8A; margin-bottom: 5px; text-transform: uppercase; }
     .bracket-header p { font-size: 14px; color: #64748B; }
 
-    /* Contenedor Grid Sincronizado para las 9 Columnas de la Llave */
+    /* Cuadrícula Grid balanceada para las 9 Columnas de la Llave */
     .bracket-container {
         display: grid;
         grid-template-columns: repeat(9, minmax(140px, 1fr));
@@ -39,7 +39,7 @@ st.markdown("""
         height: 850px;
     }
 
-    /* Diseño de las Tarjetas de Partidos */
+    /* Diseño Estilo Tarjeta de Partido */
     .match-meta {
         font-size: 9px;
         font-weight: 700;
@@ -67,14 +67,14 @@ st.markdown("""
     }
     .team-row:last-child { border-bottom: none; }
     
-    /* Resaltado de Acierto / Ganador Oficial */
+    /* Resaltado Verde para Aciertos */
     .winner-highlight {
         background-color: #ECFDF5;
         color: #065F46 !important;
         font-weight: 800;
     }
 
-    /* Bloque Central de Finales y Copa */
+    /* Estilos del Bloque del Trofeo Central */
     .center-trophy {
         display: flex;
         flex-direction: column;
@@ -103,7 +103,7 @@ st.markdown("""
 FILE_ID = "1NSjLaSgIodnTtk2iFQFvlBkw7wOyqAOe"
 URL_DRIVE = f"https://docs.google.com/uc?export=download&id={FILE_ID}"
 
-# Cruces Base Iniciales (Estáticos en Columna B para renderizar el orden del árbol)
+# Estructura del orden de renderizado para la primera columna de base (16vos)
 IZQ_16VOS = [
     ("Alemania", "Paraguay"), ("Francia", "Suecia"), ("Sudáfrica", "Canadá"), ("Países Bajos", "Marruecos"),
     ("Portugal", "Croacia"), ("España", "Austria"), ("Estados Unidos", "Bosnia-Herz"), ("Bélgica", "Senegal")
@@ -115,130 +115,134 @@ DER_16VOS = [
 ]
 
 # ==============================================================================
-# 2. CARGA EXCEL Y EXTRACCIÓN MAESTRA DE COLUMNAS (B, G, K, O, S, W)
+# 2. CAPTURA SEGURA DE DATOS POR COORDENADAS COGNITIVAS
 # ==============================================================================
-def extraer_lista_columna(df, indice_col):
-    if indice_col < len(df.columns):
-        return [str(x).strip().lower() for x in df.iloc[:, indice_col].dropna() if str(x).strip()]
-    return []
+def extraer_nombre_celda(df, fila, columna, default="Por Definir"):
+    """Extrae el nombre de una coordenada del dataframe de forma segura sin romper el flujo"""
+    try:
+        if fila < len(df) and columna < len(df.columns):
+            val = str(df.iloc[fila, columna]).strip()
+            if val and val.lower() != "nan" and val.lower() != "0":
+                return val
+    except:
+        pass
+    return default
 
-def mapear_hoja_fase(df):
-    """Mapea las columnas indicadas: B=1, G=6, K=10, O=14, S=18, W=22"""
-    return {
-        "16vos": extraer_lista_columna(df, 1),
-        "octavos": extraer_lista_columna(df, 6),
-        "cuartos": extraer_lista_columna(df, 10),
-        "semis": extraer_lista_columna(df, 14),
-        "tercer_lugar": extraer_lista_columna(df, 18),
-        "campeon": extraer_lista_columna(df, 22)
+def mapear_hoja_completa(df):
+    """
+    Lee las columnas mapeando por coordenadas relativas directas
+    B=1 (16vos), G=6 (Octavos), K=10 (Cuartos), O=14 (Semis), S=18 (3er Lugar), W=22 (Finales)
+    """
+    datos = {
+        "16vos": [extraer_nombre_celda(df, r, 1) for r in range(len(df))],
+        "octavos": [extraer_nombre_celda(df, r, 6) for r in range(len(df))],
+        "cuartos": [extraer_nombre_celda(df, r, 10) for r in range(len(df))],
+        "semis": [extraer_nombre_celda(df, r, 14) for r in range(len(df))],
+        "tercer_lugar": [extraer_nombre_celda(df, r, 18) for r in range(len(df))],
+        "campeon": [extraer_nombre_celda(df, r, 22) for r in range(len(df))]
     }
+    return datos
 
 @st.cache_data(ttl=5)
-def cargar_toda_la_quiniela():
+def cargar_tablas_quiniela():
     try:
         respuesta = requests.get(URL_DRIVE, timeout=12)
         xls = pd.ExcelFile(BytesIO(respuesta.content))
         
-        # Cargar hoja oficial de resultados reales
+        # Cargar hoja de control de resultados reales
         df_res = pd.read_excel(xls, sheet_name='RESULTADOS', header=None)
-        datos_resultados = mapear_hoja_fase(df_res)
+        resultados_reales = mapear_hoja_completa(df_res)
         
-        # Cargar hojas de los participantes dinámicamente
+        # Cargar hojas de los participantes de manera dinámica
         datos_participantes = {}
-        for nombre_hoja in xls.sheet_names:
-            if nombre_hoja.upper() not in ['RESULTADOS', 'INICIO', 'CONFIG', 'SHEET1']:
-                df_part = pd.read_excel(xls, sheet_name=nombre_hoja, header=None)
-                datos_participantes[nombre_hoja] = mapear_hoja_fase(df_part)
+        for hoja in xls.sheet_names:
+            if hoja.upper() not in ['RESULTADOS', 'INICIO', 'CONFIG', 'SHEET1', 'CALENDARIO', 'MURO']:
+                df_part = pd.read_excel(xls, sheet_name=hoja, header=None)
+                datos_participantes[hoja] = mapear_hoja_completa(df_part)
                 
-        return datos_resultados, datos_participantes, None
+        return resultados_reales, datos_participantes, None
     except Exception as e:
-        return {}, {}, f"Error al procesar el archivo Excel: {str(e)}"
+        return {}, {}, f"Error de lectura en archivo de quiniela: {str(e)}"
 
-resultados_reales, participantes, error = cargar_toda_la_quiniela()
+resultados_reales, participantes, error = cargar_tablas_quiniela()
 
 if error:
     st.error(error)
 else:
-    # Sidebar para control de visualización
-    st.sidebar.title("🏆 Navegación")
-    opciones_visor = ["Resultados Oficiales"] + sorted(list(participantes.keys()))
-    visor_seleccionado = st.sidebar.selectbox("Selecciona qué llave visualizar:", opciones_visor)
+    # Sidebar de Navegación Lateral
+    st.sidebar.title("👤 Visor de Quinielas")
+    opciones = ["Resultados Oficiales"] + sorted(list(participantes.keys()))
+    seleccion = st.sidebar.selectbox("Seleccione un participante para ver su llave:", opciones)
     
-    # Determinar qué datos renderizar en la estructura gráfica
-    es_real = visor_seleccionado == "Resultados Oficiales"
-    fuente_datos = resultados_reales if es_real else participantes[visor_seleccionado]
+    es_real = seleccion == "Resultados Oficiales"
+    fuente = resultados_reales if es_real else participantes[seleccion]
 
     # ==============================================================================
-    # 3. LÓGICA DE CONSTRUCCIÓN DINÁMICA DEL ÁRBOL
+    # 3. LÓGICA DE COMPARACIÓN DIRECTA CONTRA "RESULTADOS" (CONTROL DE ACUERDOS)
     # ==============================================================================
-    def verificar_acierto(equipo, fase_key):
-        """Verifica si el equipo sugerido por el participante está en los resultados oficiales de esa fase"""
-        if not equipo or equipo == "por definir":
+    def verificar_coincidencia(equipo, llave_fase):
+        """Busca si el equipo ingresado por el usuario fue un acierto real en esa fase"""
+        if not equipo or equipo == "Por Definir":
             return False
-        return equipo.lower() in resultados_reales.get(fase_key, [])
+        # Buscamos en toda la columna correspondiente de resultados oficiales
+        lista_oficial = [str(x).lower() for x in resultados_reales.get(llave_fase, [])]
+        return equipo.lower() in lista_oficial
 
-    def obtener_nombre_seguro(lista, indice, default="Por Definir"):
-        if indice < len(lista):
-            val = str(lista[indice]).strip()
-            return val if val and val.lower() != "nan" else default
-        return default
-
+    # Estructurar la matriz limpia para pasar las variables directamente al HTML
     arbol = {}
 
-    # --- 16VOS DE FINAL (Columna B de la fuente) ---
-    # Para resultados reales o predicciones, mapeamos los nombres en el orden estático
+    # --- FASE 16VOS ---
     for i, (l, v) in enumerate(IZQ_16VOS):
-        arbol[f"IZQ_D16_{i+1}"] = {"l": l, "v": v, "gl": verificar_acierto(l, "16vos"), "gv": verificar_acierto(v, "16vos")}
+        arbol[f"IZQ_D16_{i+1}"] = {"l": l, "v": v, "gl": verificar_coincidencia(l, "16vos"), "gv": verificar_coincidencia(v, "16vos")}
     for i, (l, v) in enumerate(DER_16VOS):
-        arbol[f"DER_D16_{i+1}"] = {"l": l, "v": v, "gl": verificar_acierto(l, "16vos"), "gv": verificar_acierto(v, "16vos")}
+        arbol[f"DER_D16_{i+1}"] = {"l": l, "v": v, "gl": verificar_coincidencia(l, "16vos"), "gv": verificar_coincidencia(v, "16vos")}
 
-    # --- OCTAVOS DE FINAL (Columna G de la fuente) ---
-    # Extraemos directamente del arreglo de la columna G (índice secuencial para rellenar los 4 partidos por lado)
+    # --- FASE OCTAVOS ---
+    # Se obtienen secuencialmente las posiciones válidas de la columna G (índice 6)
     for i in range(4):
-        l_izq = obtener_nombre_seguro(fuente_datos["octavos"], 2 * i)
-        v_izq = obtener_nombre_seguro(fuente_datos["octavos"], 2 * i + 1)
-        arbol[f"IZQ_OCT_{i+1}"] = {"l": l_izq, "v": v_izq, "gl": verificar_acierto(l_izq, "octavos"), "gv": verificar_acierto(v_izq, "octavos")}
-        
-        l_der = obtener_nombre_seguro(fuente_datos["octavos"], 8 + 2 * i)
-        v_der = obtener_nombre_seguro(fuente_datos["octavos"], 8 + 2 * i + 1)
-        arbol[f"DER_OCT_{i+1}"] = {"l": l_der, "v": v_der, "gl": verificar_acierto(l_der, "octavos"), "gv": verificar_acierto(v_der, "octavos")}
+        l_izq = fuente["octavos"][2*i] if i*2 < len(fuente["octavos"]) else "Por Definir"
+        v_izq = fuente["octavos"][2*i+1] if i*2+1 < len(fuente["octavos"]) else "Por Definir"
+        arbol[f"IZQ_OCT_{i+1}"] = {"l": l_izq, "v": v_izq, "gl": verificar_coincidencia(l_izq, "octavos"), "gv": verificar_coincidencia(v_izq, "octavos")}
 
-    # --- CUARTOS DE FINAL (Columna K de la fuente) ---
+        l_der = fuente["octavos"][8+2*i] if 8+2*i < len(fuente["octavos"]) else "Por Definir"
+        v_der = fuente["octavos"][8+2*i+1] if 8+2*i+1 < len(fuente["octavos"]) else "Por Definir"
+        arbol[f"DER_OCT_{i+1}"] = {"l": l_der, "v": v_der, "gl": verificar_coincidencia(l_der, "octavos"), "gv": verificar_coincidencia(v_der, "octavos")}
+
+    # --- FASE CUARTOS ---
     for i in range(2):
-        l_izq = obtener_nombre_seguro(fuente_datos["cuartos"], 2 * i)
-        v_izq = obtener_nombre_seguro(fuente_datos["cuartos"], 2 * i + 1)
-        arbol[f"IZQ_CRT_{i+1}"] = {"l": l_izq, "v": v_izq, "gl": verificar_acierto(l_izq, "cuartos"), "gv": verificar_acierto(v_izq, "cuartos")}
+        l_izq = fuente["cuartos"][2*i] if i*2 < len(fuente["cuartos"]) else "Por Definir"
+        v_izq = fuente["cuartos"][2*i+1] if i*2+1 < len(fuente["cuartos"]) else "Por Definir"
+        arbol[f"IZQ_CRT_{i+1}"] = {"l": l_izq, "v": v_izq, "gl": verificar_coincidencia(l_izq, "cuartos"), "gv": verificar_coincidencia(v_izq, "cuartos")}
 
-        l_der = obtener_nombre_seguro(fuente_datos["cuartos"], 4 + 2 * i)
-        v_der = Pattern = obtener_nombre_seguro(fuente_datos["cuartos"], 4 + 2 * i + 1)
-        arbol[f"DER_CRT_{i+1}"] = {"l": l_der, "v": v_der, "gl": verificar_acierto(l_der, "cuartos"), "gv": verificar_acierto(v_der, "cuartos")}
+        l_der = fuente["cuartos"][4+2*i] if 4+2*i < len(fuente["cuartos"]) else "Por Definir"
+        v_der = fuente["cuartos"][4+2*i+1] if 4+2*i+1 < len(fuente["cuartos"]) else "Por Definir"
+        arbol[f"DER_CRT_{i+1}"] = {"l": l_der, "v": v_der, "gl": verificar_coincidencia(l_der, "cuartos"), "gv": verificar_coincidencia(v_der, "cuartos")}
 
-    # --- SEMIFINALES (Columna O de la fuente) ---
-    l_semi_izq = obtener_nombre_seguro(fuente_datos["semis"], 0)
-    v_semi_izq = obtener_nombre_seguro(fuente_datos["semis"], 1)
-    arbol["IZQ_SEM"] = {"l": l_semi_izq, "v": v_semi_izq, "gl": verificar_acierto(l_semi_izq, "semis"), "gv": verificar_acierto(v_semi_izq, "semis")}
+    # --- FASE SEMIFINALES ---
+    l_s_izq = fuente["semis"][0] if len(fuente["semis"]) > 0 else "Por Definir"
+    v_s_izq = fuente["semis"][1] if len(fuente["semis"]) > 1 else "Por Definir"
+    arbol["IZQ_SEM"] = {"l": l_s_izq, "v": v_s_izq, "gl": verificar_coincidencia(l_s_izq, "semis"), "gv": verificar_coincidencia(v_s_izq, "semis")}
 
-    l_semi_der = obtener_nombre_seguro(fuente_datos["semis"], 2)
-    v_semi_der = obtener_nombre_seguro(fuente_datos["semis"], 3)
-    arbol["DER_SEM"] = {"l": l_semi_der, "v": v_semi_der, "gl": verificar_acierto(l_semi_der, "semis"), "gv": verificar_acierto(v_semi_der, "semis")}
+    l_s_der = fuente["semis"][2] if len(fuente["semis"]) > 2 else "Por Definir"
+    v_s_der = fuente["semis"][3] if len(fuente["semis"]) > 3 else "Por Definir"
+    arbol["DER_SEM"] = {"l": l_s_der, "v": v_s_der, "gl": verificar_coincidencia(l_s_der, "semis"), "gv": verificar_coincidencia(v_s_der, "semis")}
 
-    # --- TERCER LUGAR Y GRAN FINAL (Columnas S y W) ---
-    tl_l = obtener_nombre_seguro(fuente_datos["tercer_lugar"], 0)
-    tl_v = obtener_nombre_seguro(fuente_datos["tercer_lugar"], 1)
-    arbol["3ER"] = {"l": tl_l, "v": tl_v, "gl": verificar_acierto(tl_l, "tercer_lugar"), "gv": verificar_acierto(tl_v, "tercer_lugar")}
+    # --- TERCER LUGAR Y GRAN FINAL ---
+    tl_l = fuente["tercer_lugar"][0] if len(fuente["tercer_lugar"]) > 0 else "Por Definir"
+    tl_v = fuente["tercer_lugar"][1] if len(fuente["tercer_lugar"]) > 1 else "Por Definir"
+    arbol["3ER"] = {"l": tl_l, "v": tl_v, "gl": verificar_coincidencia(tl_l, "tercer_lugar"), "gv": verificar_coincidencia(tl_v, "tercer_lugar")}
 
-    f_l = obtener_nombre_seguro(fuente_datos["campeon"], 0)
-    f_v = obtener_nombre_seguro(fuente_datos["campeon"], 1)
-    arbol["FIN"] = {"l": f_l, "v": f_v, "gl": verificar_acierto(f_l, "campeon"), "gv": verificar_acierto(f_v, "campeon")}
+    f_l = fuente["campeon"][0] if len(fuente["campeon"]) > 0 else "Por Definir"
+    f_v = fuente["campeon"][1] if len(fuente["campeon"]) > 1 else "Por Definir"
+    arbol["FIN"] = {"l": f_l, "v": f_v, "gl": verificar_coincidencia(f_l, "campeon"), "gv": verificar_coincidencia(f_v, "campeon")}
 
-    # Determinar Campeón
+    # Obtener el Campeón definitivo asentado en la celda final de la columna W
     campeon_final = "⌛"
-    if len(fuente_datos["campeon"]) > 2:
-        posible_camp = obtener_nombre_seguro(fuente_datos["campeon"], 2)
-        if posible_camp != "Por Definir":
-            campeon_final = posible_camp
+    if len(fuente["campeon"]) > 2:
+        val_c = fuente["campeon"][2]
+        if val_c != "Por Definir": campeon_final = val_c
 
-    # Helper para armar bloques HTML limpios
+    # Función generadora de cajas HTML sanitizadas
     def render_match_html(id_partido, meta_text=""):
         p = arbol.get(id_partido, {"l": "Por Definir", "v": "Por Definir", "gl": False, "gv": False})
         c_loc = "winner-highlight" if p["gl"] else ""
@@ -254,13 +258,13 @@ else:
         """
 
     # ==============================================================================
-    # 4. RENDERIZADO DE LA ESTRUCTURA VISUAL DE LA LLAVE
+    # 4. INYECCIÓN TOTAL EN PANTALLA DE LA INTERFAZ COMPLETA
     # ==============================================================================
     st.markdown('<div class="bracket-wrapper">', unsafe_allow_html=True)
     st.markdown(f"""
         <div class="bracket-header">
-            <h1>FASE ELIMINATORIA QUINIELA 2026</h1>
-            <p>Visualizando la llave de: <b>{visor_seleccionado}</b></p>
+            <h1>FASE FINAL MUNDIAL 2026</h1>
+            <p>Visualización en formato de llave gráfica para: <b>{seleccion}</b></p>
         </div>
     """, unsafe_allow_html=True)
 
@@ -295,10 +299,10 @@ else:
         </div>
         
         <div class="center-trophy">
-            <div style="margin-bottom: 40px;">
+            <div style="margin-bottom: 40px; width: 100%;">
                 {render_match_html("FIN", "GRAN FINAL 19/07")}
             </div>
-            <div>
+            <div style="width: 100%;">
                 {render_match_html("3ER", "TERCER LUGAR 18/07")}
             </div>
             <div class="champion-display">
@@ -337,5 +341,5 @@ else:
     </div>
     """
     
-    st.markdown(html_llave, unsafe_allow_html=True)
+    st.write(html_llave, unsafe_allow_html=True)
     st.markdown('</div>', unsafe_allow_html=True)
