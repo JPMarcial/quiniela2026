@@ -2,6 +2,7 @@ import streamlit as st
 import pandas as pd
 import requests
 import io
+import re
 
 st.set_page_config(page_title="Quiniela Fase Final", page_icon="⚽", layout="wide")
 st.title("⚽ Quiniela - Fase Final 2026")
@@ -11,18 +12,17 @@ st.title("⚽ Quiniela - Fase Final 2026")
 # ==============================================================================
 SPREADSHEET_ID = "1FTUtzXd-ODXBB0QxIf-68FKf0ZQzVnWM"
 
-# Identificadores de las pestañas en Drive
 ID_PESTAÑAS = [
     "HAAM", "CA", "HR", "JAG", "FB", "PM", "JLJF", 
     "MASM", "CAVL", "AMG", "CAER", "VAVA", "JAMP", "VCBH", 
     "JMG", "JV", "CAAM", "DSR", "SLO"
 ]
 
-# Definición de los partidos del día de hoy y los equipos involucrados
+# Partidos del día con horarios asignados y "palabras clave" para búsquedas parciales
 PARTIDOS_HOY = [
-    {"Rival 1": "PORTUGAL", "Rival 2": "CROACIA", "Texto": "Portugal 🆚 Croacia"},
-    {"Rival 1": "ESPAÑA", "Rival 2": "AUSTRIA", "Texto": "España 🆚 Austria"},
-    {"Rival 1": "ESTADOS UNIDOS", "Rival 2": "BOSNIA-HERZ", "Texto": "Estados Unidos 🆚 Bosnia-Herz"}
+    {"Rival 1": "PORTUGAL", "Rival 2": "CROACIA", "Texto": "Portugal 🆚 Croacia", "Hora": "11:00 AM", "Keys 1": ["PORTUGAL", "POR"], "Keys 2": ["CROACIA", "CRO"]},
+    {"Rival 1": "ESPAÑA", "Rival 2": "AUSTRIA", "Texto": "España 🆚 Austria", "Hora": "02:00 PM", "Keys 1": ["ESPAÑA", "ESP"], "Keys 2": ["AUSTRIA", "AUT"]},
+    {"Rival 1": "ESTADOS UNIDOS", "Rival 2": "BOSNIA-HERZ", "Texto": "Estados Unidos 🆚 Bosnia-Herz", "Hora": "07:00 PM", "Keys 1": ["ESTADOS UNIDOS", "USA", "EEUU"], "Keys 2": ["BOSNIA", "HERZEGOVINA", "BOSNIA-HERZ"]}
 ]
 
 @st.cache_data(ttl=60)
@@ -37,12 +37,16 @@ def cargar_pestaña_desde_drive(spreadsheet_id, nombre_hoja):
     return None
 
 def obtener_nombre_real(df_raw, id_pestaña):
-    """Extrae el nombre real estrictamente de la celda B1 (Fila 0, Columna 1 del CSV crudo)"""
+    """Extrae el nombre de B1 y elimina texto basura de celdas combinadas"""
     try:
         if df_raw is not None and df_raw.shape[0] > 0 and df_raw.shape[1] > 1:
-            nombre = df_raw.iloc[0, 1]
-            if pd.notna(nombre) and str(nombre).strip() != "" and str(nombre).strip() != "0":
-                return str(nombre).strip()
+            raw_val = str(df_raw.iloc[0, 1]).strip()
+            if pd.notna(raw_val) and raw_val != "" and raw_val != "0" and raw_val.lower() != "nan":
+                nombre = raw_val.split('\n')[0].strip()
+                palabras_a_remover = ["Alemania", "Portugal", "Croacia", "España", "Austria", "Francia", "Brasil"]
+                for palabra in palabras_a_remover:
+                    nombre = re.sub(rf'\s+{palabra}$', '', nombre, flags=re.IGNORECASE).strip()
+                return nombre
     except Exception:
         pass
     return id_pestaña
@@ -52,7 +56,6 @@ def procesar_bloque_resumen(df_raw):
         return None
     try:
         inicio_tabla = None
-        # Buscar la fila exacta donde se encuentra el encabezado de las fases
         for idx, row in df_raw.iterrows():
             if row.astype(str).str.contains('16vos', case=False, na=False).any():
                 inicio_tabla = idx
@@ -60,25 +63,18 @@ def procesar_bloque_resumen(df_raw):
         if inicio_tabla is None:
             return None
             
-        # Extraer las filas correspondientes al bloque
         df_resumen = df_raw.iloc[inicio_tabla:].copy()
-        
-        # Guardamos la primera fila como nombres de columna limpios
         cabeceras = [str(c).strip().lower() if pd.notna(c) else "" for c in df_resumen.iloc[0]]
         df_resumen.columns = cabeceras
         df_resumen = df_resumen[1:]
         
-        # Encontrar la posición exacta de la columna '16vos' por índice para no confundir datos
         idx_16vos = [i for i, x in enumerate(cabeceras) if x == '16vos']
         if not idx_16vos:
             return None
         col_pos = idx_16vos[0]
         
-        # Extraer exclusivamente esa columna por posición de índice
         df_final = pd.DataFrame()
         df_final["16vos"] = df_resumen.iloc[:, col_pos].astype(str).str.strip()
-        
-        # Limpiar filas vacías o nulas
         df_final = df_final[df_final["16vos"].notna() & (df_final["16vos"] != "") & (df_final["16vos"] != "nan")]
         return df_final.reset_index(drop=True)
     except Exception:
@@ -99,12 +95,12 @@ def calcular_puntos(df_jugador, df_base):
 # ==============================================================================
 # 2. PROCESAMIENTO Y CARGA DE DATOS EN VIVO
 # ==============================================================================
-with st.spinner("🔄 Cargando y procesando datos desde Google Drive..."):
+with st.spinner("🔄 Cargando y limpiando datos desde Google Drive..."):
     df_base_raw = cargar_pestaña_desde_drive(SPREADSHEET_ID, "BASE")
     df_base = procesar_bloque_resumen(df_base_raw)
 
 if df_base is None or df_base.empty:
-    st.error("⚠️ No se pudo conectar correctamente con la pestaña 'BASE' en Google Drive.")
+    st.error("⚠️ No se pudo conectar correctamente con la pestaña 'BASE' in Google Drive.")
 else:
     datos_ranking = []
     mapeo_nombres_df = {}  
@@ -122,18 +118,21 @@ else:
             puntos = calcular_puntos(df_jugador, df_base)
             datos_ranking.append({"Participante": nombre_real, "Aciertos Totales": puntos})
             
-            # Extraer los pronósticos específicos del día evaluando la columna limpia
             lista_pronosticos = df_jugador["16vos"].dropna().astype(str).str.strip().str.upper().tolist()
             
+            # Buscador inteligente por palabras clave de hoy
             for p in PARTIDOS_HOY:
-                r1 = p["Rival 1"]
-                r2 = p["Rival 2"]
-                if r1 in lista_pronosticos:
-                    elecciones_hoy[p["Texto"]] = r1.title()
-                elif r2 in lista_pronosticos:
-                    elecciones_hoy[p["Texto"]] = r2.title()
-                else:
-                    elecciones_hoy[p["Texto"]] = "Ninguno"
+                encontrado = "Ninguno"
+                for pronostico in lista_pronosticos:
+                    # Comprobar si el texto ingresado coincide con alguna de las palabras clave del Rival 1
+                    if any(k in pronostico for k in p["Keys 1"]):
+                        encontrado = p["Rival 1"].title()
+                        break
+                    # Comprobar para el Rival 2 (Ej. si dice 'BOSNIA' y la clave incluye 'BOSNIA')
+                    elif any(k in pronostico for k in p["Keys 2"]):
+                        encontrado = p["Rival 2"].title()
+                        break
+                elecciones_hoy[p["Texto"]] = encontrado
         else:
             datos_ranking.append({"Participante": nombre_real, "Aciertos Totales": 0})
             for p in PARTIDOS_HOY:
@@ -141,7 +140,7 @@ else:
                 
         pronosticos_hoy_lista.append(elecciones_hoy)
             
-    # Estructurar tablas generales
+    # Estructurar tablas generales ordenadas
     df_ranking = pd.DataFrame(datos_ranking).sort_values(by="Aciertos Totales", ascending=False).reset_index(drop=True)
     df_ranking.index = df_ranking.index + 1
     
@@ -156,35 +155,32 @@ else:
         "👤 Participantes"
     ])
 
-    # --- PESTAÑA 1: CALENDARIO Y RANKING JUNTOS ---
+    # --- PESTAÑA 1: CALENDARIO CON HORARIOS Y RANKING ---
     with tab_principal:
         st.subheader("📅 Partidos del Día - 16vos de Final")
-        col_m1, col_m2 = st.columns(2)
+        col_m1, col_m2, col_m3 = st.columns(3)
+        
         with col_m1:
             st.markdown("""
-            <div style="background-color: #FFFFFF; padding: 12px; border-left: 4px solid #3B82F6; border-radius: 4px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); margin-bottom: 10px;">
-                <span style="font-size: 11px; font-weight: bold; color: #94A3B8; text-transform: uppercase;">30/06 - NY/NJ</span><br>
-                <span style="font-size: 14px; font-weight: 600; color: #334155;">Portugal 🆚 Croacia</span>
-            </div>
-            """, unsafe_allow_html=True)
-            st.markdown("""
-            <div style="background-color: #FFFFFF; padding: 12px; border-left: 4px solid #3B82F6; border-radius: 4px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); margin-bottom: 10px;">
-                <span style="font-size: 11px; font-weight: bold; color: #94A3B8; text-transform: uppercase;">30/06 - Dallas</span><br>
-                <span style="font-size: 14px; font-weight: 600; color: #334155;">España 🆚 Austria</span>
+            <div style="background-color: #FFFFFF; padding: 12px; border-left: 4px solid #3B82F6; border-radius: 4px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
+                <span style="font-size: 11px; font-weight: bold; color: #3B82F6; text-transform: uppercase;">⏰ 11:00 AM</span><br>
+                <span style="font-size: 15px; font-weight: 600; color: #334155;">Portugal 🆚 Croacia</span>
             </div>
             """, unsafe_allow_html=True)
             
         with col_m2:
             st.markdown("""
-            <div style="background-color: #FFFFFF; padding: 12px; border-left: 4px solid #3B82F6; border-radius: 4px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); margin-bottom: 10px;">
-                <span style="font-size: 11px; font-weight: bold; color: #94A3B8; text-transform: uppercase;">30/06 - CDMX</span><br>
-                <span style="font-size: 14px; font-weight: 600; color: #334155;">Estados Unidos 🆚 Bosnia-Herz</span>
+            <div style="background-color: #FFFFFF; padding: 12px; border-left: 4px solid #3B82F6; border-radius: 4px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
+                <span style="font-size: 11px; font-weight: bold; color: #3B82F6; text-transform: uppercase;">⏰ 02:00 PM</span><br>
+                <span style="font-size: 15px; font-weight: 600; color: #334155;">España 🆚 Austria</span>
             </div>
             """, unsafe_allow_html=True)
+            
+        with col_m3:
             st.markdown("""
-            <div style="background-color: #FFFFFF; padding: 12px; border-left: 4px solid #10B981; border-radius: 4px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); margin-bottom: 10px;">
-                <span style="font-size: 11px; font-weight: bold; color: #10B981; text-transform: uppercase;">01/07 - Mañana</span><br>
-                <span style="font-size: 14px; font-weight: 600; color: #334155;">Bélgica 🆚 Senegal</span>
+            <div style="background-color: #FFFFFF; padding: 12px; border-left: 4px solid #3B82F6; border-radius: 4px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
+                <span style="font-size: 11px; font-weight: bold; color: #3B82F6; text-transform: uppercase;">⏰ 07:00 PM</span><br>
+                <span style="font-size: 15px; font-weight: 600; color: #334155;">Estados Unidos 🆚 Bosnia-Herz</span>
             </div>
             """, unsafe_allow_html=True)
             
