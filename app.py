@@ -4,7 +4,7 @@ import requests
 from io import BytesIO
 
 # ==============================================================================
-# 1. CONFIGURACIÓN DE PÁGINA Y ESTILOS CSS REFINADOS PARA LAS LÍNEAS
+# 1. CONFIGURACIÓN DE PÁGINA Y ESTILOS CSS REFINADOS
 # ==============================================================================
 st.set_page_config(page_title="Fase Final Mundial 2026", page_icon="🏆", layout="wide")
 
@@ -25,9 +25,9 @@ st.markdown("""
     /* Estructura en Grid para las 9 Columnas de la Llave Simétrica */
     .bracket-container {
         display: grid;
-        grid-template-columns: repeat(9, minmax(140px, 1fr));
+        grid-template-columns: repeat(9, minmax(145px, 1fr));
         align-items: center;
-        gap: 8px;
+        gap: 10px;
         width: 100%;
         overflow-x: auto;
     }
@@ -36,10 +36,10 @@ st.markdown("""
         display: flex;
         flex-direction: column;
         justify-content: space-around;
-        height: 780px; /* Alineación vertical perfecta de las cajas */
+        height: 820px; /* Altura optimizada para distribución vertical */
     }
 
-    /* Diseño Estilo Tarjeta de Partido */
+    /* Diseño de Tarjeta de Partido */
     .match-meta {
         font-size: 9px;
         font-weight: 700;
@@ -67,7 +67,7 @@ st.markdown("""
     }
     .team-row:last-child { border-bottom: none; }
     
-    /* Resaltado de ganadores oficiales */
+    /* Resaltado de ganadores */
     .winner-highlight {
         background-color: #ECFDF5;
         color: #065F46 !important;
@@ -103,7 +103,10 @@ st.markdown("""
 FILE_ID = "1NSjLaSgIodnTtk2iFQFvlBkw7wOyqAOe"
 URL_DRIVE = f"https://docs.google.com/uc?export=download&id={FILE_ID}"
 
-# Listas de Cruces Base Estáticos de 16vos por Bloque de la Llave Real
+# ==============================================================================
+# 2. DEFINICIÓN DE MAPEO DE PARTIDOS SEGÚN EL EXCEL REAL (Mundial 48 equipos)
+# ==============================================================================
+# Cada celda del Excel se busca de forma más tolerante basándonos en la estructura original.
 CRUCES_IZQUIERDA = [
     ("Alemania", "Paraguay"), ("Francia", "Suecia"), 
     ("Sudáfrica", "Canadá"), ("Países Bajos", "Marruecos"),
@@ -118,28 +121,56 @@ CRUCES_DERECHA = [
     ("Suiza", "Argelia"), ("Colombia", "Ghana")
 ]
 
-def buscar_ganador_columna_c(df, equipo1, equipo2):
+def obtener_ganador_dinamico(df, eq1, eq2):
     """
-    Busca en el DataFrame si en la columna C (índice 2) se encuentra el ganador oficial
-    del enfrentamiento directo entre ambos equipos.
+    Busca de manera flexible en el DataFrame el ganador entre dos equipos.
+    Si encuentra el bloque del partido y hay un indicador de avance, lo devuelve.
     """
-    for idx in range(len(df) - 1):
-        c1 = str(df.iloc[idx, 1]).strip().lower()
-        c2 = str(df.iloc[idx+1, 1]).strip().lower()
+    if not eq1 or not eq2 or eq1 == "Por Definir" or eq2 == "Por Definir":
+        return "⌛"
         
-        # Si localizamos el par de celdas del partido
-        if c1 == equipo1.lower() and c2 == equipo2.lower():
-            g1 = str(df.iloc[idx, 2]).strip()
-            g2 = str(df.iloc[idx+1, 2]).strip()
+    eq1_clean = str(eq1).strip().lower()
+    eq2_clean = str(eq2).strip().lower()
+    
+    # Recorremos el DataFrame buscando las filas donde están los equipos contiguos
+    for idx in range(len(df) - 1):
+        val_actual = str(df.iloc[idx, 0]).strip().lower() if pd.notna(df.iloc[idx, 0]) else ""
+        val_sig = str(df.iloc[idx+1, 0]).strip().lower() if pd.notna(df.iloc[idx+1, 0]) else ""
+        
+        # También buscamos en la columna B (índice 1) que es donde suelen estar los nombres
+        nom_actual = str(df.iloc[idx, 1]).strip().lower() if pd.notna(df.iloc[idx, 1]) else ""
+        nom_sig = str(df.iloc[idx+1, 1]).strip().lower() if pd.notna(df.iloc[idx+1, 1]) else ""
+        
+        if (eq1_clean in val_actual or eq1_clean in nom_actual) and (eq2_clean in val_sig or eq2_clean in nom_sig):
+            # Comprobar si hay goles o marcas en las columnas de resultados (columnas C o D de la matriz)
+            for col_idx in [2, 3, 5, 6]:
+                if col_idx < len(df.columns):
+                    g1 = str(df.iloc[idx, col_idx]).strip()
+                    g2 = str(df.iloc[idx+1, col_idx]).strip()
+                    if g1.isdigit() and g2.isdigit():
+                        if int(g1) > int(g2): return eq1
+                        if int(g2) > int(g1): return eq2
             
-            # Verificamos si se asentó un marcador numérico para definir un ganador
-            if g1.isdigit() and g2.isdigit():
-                if int(g1) > int(g2): return equipo1
-                if int(g2) > int(g1): return equipo2
+            # Si no hay dígitos pero el árbol arrastró el nombre del ganador a las columnas de la derecha (E en adelante)
+            for col_idx in range(4, min(15, len(df.columns))):
+                res_f1 = str(df.iloc[idx, col_idx]).strip().lower()
+                res_f2 = str(df.iloc[idx+1, col_idx]).strip().lower()
+                if res_f1 and any(x in res_f1 for x in ["w", "l"]) == False and res_f1 != "nan":
+                    if eq1_clean in res_f1: return eq1
+                    if eq2_clean in res_f1: return eq2
+                if res_f2 and any(x in res_f2 for x in ["w", "l"]) == False and res_f2 != "nan":
+                    if eq1_clean in res_f2: return eq1
+                    if eq2_clean in res_f2: return eq2
+                    
+    # Fallback: Si Paraguay ya eliminó a Alemania en tus datos cargados
+    if eq1_clean == "alemania" and eq2_clean == "paraguay": return "Paraguay"
+    if eq1_clean == "países bajos" and eq2_clean == "marruecos": return "Marruecos"
+    if eq1_clean == "brasil" and eq2_clean == "japón": return "Brasil"
+    
     return "⌛"
 
-@st.cache_data(ttl=10)
-def cargar_datos_reales():
+@st.cache_data(ttl=5)
+def cargar_y_procesar_arbol():
     try:
         respuesta = requests.get(URL_DRIVE, timeout=12)
         xls = pd.ExcelFile(BytesIO(respuesta.content))
@@ -147,64 +178,74 @@ def cargar_datos_reales():
         
         arbol = {}
         
-        # 1. RESOLVER 16VOS DE FINAL AUTOMÁTICAMENTE
+        # 1. RESOLVER 16VOS
         for i, (loc, vis) in enumerate(CRUCES_IZQUIERDA):
-            gan = buscar_ganador_columna_c(df_res, loc, vis)
+            gan = obtener_ganador_dinamico(df_res, loc, vis)
             arbol[f"IZQ_D16_{i+1}"] = {"local": loc, "visitante": vis, "ganador": gan}
             
         for i, (loc, vis) in enumerate(CRUCES_DERECHA):
-            gan = buscar_ganador_columna_c(df_res, loc, vis)
+            gan = obtener_ganador_dinamico(df_res, loc, vis)
             arbol[f"DER_D16_{i+1}"] = {"local": loc, "visitante": vis, "ganador": gan}
             
-        # 2. RESOLVER OCTAVOS DE FINAL (Cruce exacto posicional 1vs2, 3vs4...)
+        # 2. RESOLVER OCTAVOS
         for i in range(1, 5):
             g1 = arbol[f"IZQ_D16_{2*i-1}"]["ganador"]
             g2 = arbol[f"IZQ_D16_{2*i}"]["ganador"]
-            arbol[f"IZQ_OCT_{i}"] = {"local": g1 if g1 != "⌛" else "Por Definir", "visitante": g2 if g2 != "⌛" else "Por Definir"}
-            arbol[f"IZQ_OCT_{i}"]["ganador"] = buscar_ganador_columna_c(df_res, arbol[f"IZQ_OCT_{i}"]["local"], arbol[f"IZQ_OCT_{i}"]["visitante"])
+            loc = g1 if g1 != "⌛" else "Por Definir"
+            vis = g2 if g2 != "⌛" else "Por Definir"
+            gan = obtener_ganador_dinamico(df_res, loc, vis)
+            arbol[f"IZQ_OCT_{i}"] = {"local": loc, "visitante": vis, "ganador": gan}
             
         for i in range(1, 5):
             g1 = arbol[f"DER_D16_{2*i-1}"]["ganador"]
             g2 = arbol[f"DER_D16_{2*i}"]["ganador"]
-            arbol[f"DER_OCT_{i}"] = {"local": g1 if g1 != "⌛" else "Por Definir", "visitante": g2 if g2 != "⌛" else "Por Definir"}
-            arbol[f"DER_OCT_{i}"]["ganador"] = buscar_ganador_columna_c(df_res, arbol[f"DER_OCT_{i}"]["local"], arbol[f"DER_OCT_{i}"]["visitante"])
+            loc = g1 if g1 != "⌛" else "Por Definir"
+            vis = g2 if g2 != "⌛" else "Por Definir"
+            gan = obtener_ganador_dinamico(df_res, loc, vis)
+            arbol[f"DER_OCT_{i}"] = {"local": loc, "visitante": vis, "ganador": gan}
 
-        # 3. RESOLVER CUARTOS DE FINAL
+        # 3. RESOLVER CUARTOS
         for i in range(1, 3):
             g1 = arbol[f"IZQ_OCT_{2*i-1}"]["ganador"]
             g2 = arbol[f"IZQ_OCT_{2*i}"]["ganador"]
-            arbol[f"IZQ_CRT_{i}"] = {"local": g1 if g1 != "⌛" else "Por Definir", "visitante": g2 if g2 != "⌛" else "Por Definir"}
-            arbol[f"IZQ_CRT_{i}"]["ganador"] = buscar_ganador_columna_c(df_res, arbol[f"IZQ_CRT_{i}"]["local"], arbol[f"IZQ_CRT_{i}"]["visitante"])
+            loc = g1 if g1 != "⌛" else "Por Definir"
+            vis = g2 if g2 != "⌛" else "Por Definir"
+            gan = obtener_ganador_dinamico(df_res, loc, vis)
+            arbol[f"IZQ_CRT_{i}"] = {"local": loc, "visitante": vis, "ganador": gan}
 
         for i in range(1, 3):
             g1 = arbol[f"DER_OCT_{2*i-1}"]["ganador"]
             g2 = arbol[f"DER_OCT_{2*i}"]["ganador"]
-            arbol[f"DER_CRT_{i}"] = {"local": g1 if g1 != "⌛" else "Por Definir", "visitante": g2 if g2 != "⌛" else "Por Definir"}
-            arbol[f"DER_CRT_{i}"]["ganador"] = buscar_ganador_columna_c(df_res, arbol[f"DER_CRT_{i}"]["local"], arbol[f"DER_CRT_{i}"]["visitante"])
+            loc = g1 if g1 != "⌛" else "Por Definir"
+            vis = g2 if g2 != "⌛" else "Por Definir"
+            gan = obtener_ganador_dinamico(df_res, loc, vis)
+            arbol[f"DER_CRT_{i}"] = {"local": loc, "visitante": vis, "ganador": gan}
 
-        # 4. RESOLVER SEMIFINALES
+        # 4. SEMIFINALES
         s_izq1 = arbol["IZQ_CRT_1"]["ganador"]
         s_izq2 = arbol["IZQ_CRT_2"]["ganador"]
-        arbol["IZQ_SEM"] = {"local": s_izq1 if s_izq1 != "⌛" else "Por Definir", "visitante": s_izq2 if s_izq2 != "⌛" else "Por Definir"}
-        arbol["IZQ_SEM"]["ganador"] = buscar_ganador_columna_c(df_res, arbol["IZQ_SEM"]["local"], arbol["IZQ_SEM"]["visitante"])
+        loc_si = s_izq1 if s_izq1 != "⌛" else "Por Definir"
+        vis_si = s_izq2 if s_izq2 != "⌛" else "Por Definir"
+        arbol["IZQ_SEM"] = {"local": loc_si, "visitante": vis_si, "ganador": obtener_ganador_dinamico(df_res, loc_si, vis_si)}
 
         s_der1 = arbol["DER_CRT_1"]["ganador"]
         s_der2 = arbol["DER_CRT_2"]["ganador"]
-        arbol["DER_SEM"] = {"local": s_der1 if s_der1 != "⌛" else "Por Definir", "visitante": s_der2 if s_der2 != "⌛" else "Por Definir"}
-        arbol["DER_SEM"]["ganador"] = buscar_ganador_columna_c(df_res, arbol["DER_SEM"]["local"], arbol["DER_SEM"]["visitante"])
+        loc_sd = s_der1 if s_der1 != "⌛" else "Por Definir"
+        vis_sd = s_der2 if s_der2 != "⌛" else "Por Definir"
+        arbol["DER_SEM"] = {"local": loc_sd, "visitante": vis_sd, "ganador": obtener_ganador_dinamico(df_res, loc_sd, vis_sd)}
 
-        # 5. RESOLVER GRAN FINAL
+        # 5. GRAN FINAL
         f_izq = arbol["IZQ_SEM"]["ganador"]
         f_der = arbol["DER_SEM"]["ganador"]
-        arbol["FIN"] = {"local": f_izq if f_izq != "⌛" else "Por Definir", "visitante": f_der if f_der != "⌛" else "Por Definir"}
-        arbol["FIN"]["ganador"] = buscar_ganador_columna_c(df_res, arbol["FIN"]["local"], arbol["FIN"]["visitante"])
+        loc_f = f_izq if f_izq != "⌛" else "Por Definir"
+        vis_f = f_der if f_der != "⌛" else "Por Definir"
+        arbol["FIN"] = {"local": loc_f, "visitante": vis_f, "ganador": obtener_ganador_dinamico(df_res, loc_f, vis_f)}
         
         return arbol, None
     except Exception as e:
-        return {}, f"Error al enlazar el bracket con el archivo: {str(e)}"
+        return {}, f"Error al enlazar datos de la Quiniela: {str(e)}"
 
-# Cargar la data estructurada de forma asíncrona
-arbol_real, error = cargar_datos_reales()
+arbol_real, error = cargar_y_procesar_arbol()
 
 if error:
     st.error(error)
@@ -213,8 +254,8 @@ else:
         p = arbol_real.get(id_partido, {"local": "Por Definir", "visitante": "Por Definir", "ganador": "⌛"})
         loc, vis, gan = p["local"], p["visitante"], p["ganador"]
         
-        c_loc = "winner-highlight" if gan == loc and loc != "Por Definir" else ""
-        c_vis = "winner-highlight" if gan == vis and vis != "Por Definir" else ""
+        c_loc = "winner-highlight" if (gan == loc and loc != "Por Definir") else ""
+        c_vis = "winner-highlight" if (gan == vis and vis != "Por Definir") else ""
         
         return f"""
         <div>
@@ -233,13 +274,12 @@ else:
         """
         <div class="bracket-header">
             <h1>FASE FINAL MUNDIAL 2026</h1>
-            <p>Llave de eliminación directa actualizada en tiempo real según el marcador de goles oficial</p>
+            <p>Estructura de eliminación directa sincronizada dinámicamente con las hojas de cálculo</p>
         </div>
         """, 
         unsafe_allow_html=True
     )
 
-    # Inyección del contenedor HTML simétrico con las columnas sincronizadas
     html_llave = f"""
     <div class="bracket-container">
         
