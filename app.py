@@ -6,6 +6,15 @@ import re
 from datetime import datetime, timedelta
 
 st.set_page_config(page_title="Quiniela Fase Final", page_icon="⚽", layout="wide")
+
+# Estilos CSS personalizados para limpiar la interfaz y mejorar fuentes
+st.markdown("""
+    <style>
+    .main .block-container { padding-top: 2rem; }
+    div[data-testid="stMetric"] { background-color: #f8fafc; padding: 15px; border-radius: 10px; border: 1px solid #e2e8f0; }
+    </style>
+""", unsafe_allow_html=True)
+
 st.title("⚽ Quiniela - Fase Final 2026")
 
 # ==============================================================================
@@ -116,7 +125,6 @@ def cargar_y_procesar_todo_el_torneo(spreadsheet_id, pestañas_jugadores, partid
         set_base = set(df_base["16vos"].dropna().apply(limpiar_texto))
         set_base.discard("")
 
-        # --- LEER RESULTADOS DESDE LA COLUMNA D DE CALENDARIO ---
         pestaña_cal = [n for n in nombres_pestañas if "CALENDARIO" in n.upper()]
         
         for p in partidos_hoy:
@@ -124,10 +132,7 @@ def cargar_y_procesar_todo_el_torneo(spreadsheet_id, pestañas_jugadores, partid
             p["Ganador"] = ""
             
             if pestaña_cal:
-                # Leemos sin procesar cabeceras para controlar las posiciones exactas de las columnas (A, B, C, D)
                 df_cal_excel = excel_file.parse(pestaña_cal[0], header=None, dtype=str)
-                
-                # Identificamos la fila del partido buscando la coexistencia de ambos rivales en esa fila
                 fila_idx = None
                 for idx, row in df_cal_excel.iterrows():
                     fila_str = " ".join(row.astype(str).fillna("").tolist()).upper()
@@ -136,14 +141,11 @@ def cargar_y_procesar_todo_el_torneo(spreadsheet_id, pestañas_jugadores, partid
                         break
                 
                 if fila_idx is not None and df_cal_excel.shape[1] >= 4:
-                    # Columna D es el índice 3 en Python
                     marcador_crudo = str(df_cal_excel.iloc[fila_idx, 3]).strip()
                     
-                    # Verificamos si pusiste un marcador válido con números (ej: "1 - 2")
                     if pd.notna(marcador_crudo) and marcador_crudo != "" and re.search(r'\d', marcador_crudo) and "nan" not in marcador_crudo.lower():
-                        p["Resultado"] = f"{marcador_crudo} FINAL"
+                        p["Resultado"] = marcador_crudo
                         
-                        # Extraemos los goles ignorando guiones o espacios
                         goles = [int(g) for g in re.findall(r'\d+', marcador_crudo)]
                         if len(goles) >= 2:
                             if goles[0] > goles[1]:
@@ -151,14 +153,12 @@ def cargar_y_procesar_todo_el_torneo(spreadsheet_id, pestañas_jugadores, partid
                             elif goles[1] > goles[0]:
                                 p["Ganador"] = p["Rival 2"]
                             else:
-                                # En caso de empate técnico pero con penales anotados: "1-1 (4-3 PEN)"
                                 if "PEN" in marcador_crudo.upper() and len(goles) >= 4:
                                     if goles[2] > goles[3]:
                                         p["Ganador"] = p["Rival 1"]
                                     else:
                                         p["Ganador"] = p["Rival 2"]
         
-        # --- PROCESAR PARTICIPANTES ---
         for pestaña in pestañas_jugadores:
             df_jugador = None
             nombre_real = pestaña
@@ -187,12 +187,10 @@ def cargar_y_procesar_todo_el_torneo(spreadsheet_id, pestañas_jugadores, partid
                             encontrado = p["Rival 2"].title()
                             break
                     
-                    # Verificación y marcación en base al Ganador obtenido de la columna D
                     if p["Ganador"] != "":
-                        ganador_limpio = limpiar_texto(p["Ganador"])
+                        ganador_limpia = limpiar_texto(p["Ganador"])
                         eleccion_limpia = limpiar_texto(encontrado)
-                        
-                        if ganador_limpio == eleccion_limpia:
+                        if ganador_limpia == eleccion_limpia:
                             elecciones_hoy[p["Texto"]] = f"✅ {encontrado}"
                         else:
                             elecciones_hoy[p["Texto"]] = f"• {encontrado}"
@@ -207,7 +205,6 @@ def cargar_y_procesar_todo_el_torneo(spreadsheet_id, pestañas_jugadores, partid
                 pronosticos_hoy_lista.append(elecciones_hoy)
                 
         df_ranking = pd.DataFrame(datos_ranking).sort_values(by="Aciertos Totales", ascending=False).reset_index(drop=True)
-        df_ranking.index = df_ranking.index + 1
         df_pronosticos_hoy = pd.DataFrame(pronosticos_hoy_lista).reset_index(drop=True) if pronosticos_hoy_lista else pd.DataFrame(columns=["Participante"])
         
         return df_ranking, df_pronosticos_hoy, partidos_hoy
@@ -215,7 +212,7 @@ def cargar_y_procesar_todo_el_torneo(spreadsheet_id, pestañas_jugadores, partid
     except Exception as e:
         return None, None, partidos_hoy
 
-# Ejecución de la carga de datos masiva
+# Ejecución
 with st.spinner("🚀 Sincronizando archivo Excel..."):
     df_ranking, df_pronosticos_hoy, PARTIDOS_HOY = cargar_y_procesar_todo_el_torneo(SPREADSHEET_ID, ID_PESTAÑAS, PARTIDOS_HOY)
 
@@ -228,9 +225,9 @@ else:
         "👤 Participantes"
     ])
 
-    # --- PESTAÑA 1: CALENDARIO DEL DÍA Y RANKING ---
+    # --- PESTAÑA 1: CLASIFICACIÓN PRINCIPAL Y PARTIDOS ---
     with tab_principal:
-        st.subheader(f"📅 Partidos del Día ({fecha_formateada}) - 16vos de Final")
+        st.subheader(f"📅 Partidos del Día ({fecha_formateada})")
         
         if not PARTIDOS_HOY:
             st.info("⚽ No hay partidos agendados para el día de hoy.")
@@ -238,29 +235,46 @@ else:
             columnas_juegos = st.columns(len(PARTIDOS_HOY))
             for i, partido in enumerate(PARTIDOS_HOY):
                 with columnas_juegos[i]:
-                    if partido.get("Resultado", "") != "":
-                        sub_badge = f'<span style="font-size: 11px; font-weight: bold; color: #10B981; background-color: #D1FAE5; padding: 2px 6px; border-radius: 4px;">🏁 {partido["Resultado"]}</span>'
+                    marcador = partido.get("Resultado", "")
+                    
+                    if marcador != "":
+                        badge_html = f'<div style="text-align: center; font-size: 26px; font-weight: 800; color: #10B981; background-color: #ECFDF5; padding: 10px; border-radius: 8px; border: 2px solid #A7F3D0; margin-bottom: 10px;">{marcador} <span style="font-size:12px; font-weight:bold; display:block; color:#059669;">FINALIZADO</span></div>'
                     else:
-                        sub_badge = f'<span style="font-size: 11px; font-weight: bold; color: #3B82F6; text-transform: uppercase;">⏰ {partido["Hora"]} MX</span>'
-                        
+                        badge_html = f'<div style="text-align: center; font-size: 14px; font-weight: 700; color: #1D4ED8; background-color: #EFF6FF; padding: 6px; border-radius: 6px; margin-bottom: 10px;">⏰ {partido["Hora"]} MX</div>'
+                    
                     st.markdown(f"""
-                    <div style="background-color: #FFFFFF; padding: 12px; border-left: 4px solid #3B82F6; border-radius: 4px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
-                        {sub_badge}<br>
-                        <span style="font-size: 15px; font-weight: 600; color: #334155;">{partido['Texto']}</span>
+                    <div style="background-color: #FFFFFF; padding: 20px; border-radius: 12px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.07), 0 2px 4px -1px rgba(0,0,0,0.06); border: 1px solid #F1F5F9;">
+                        {badge_html}
+                        <div style="font-size: 19px; font-weight: 700; color: #1E293B; text-align: center; line-height: 1.4;">
+                            {partido['Rival 1'].title()} <br><span style="color:#94A3B8; font-size:14px; font-weight:normal;">VS</span><br> {partido['Rival 2'].title()}
+                        </div>
                     </div>
                     """, unsafe_allow_html=True)
             
         st.write("---")
-        st.subheader("🏅 Clasificación General")
+        
+        # --- NUEVA LISTA DE CLASIFICACIÓN UNIFICADA ---
+        st.subheader("🏅 Tabla de Posiciones General")
         
         if not df_ranking.empty:
-            max_puntos_actual = df_ranking.iloc[0]["Aciertos Totales"]
-            empates_primer_lugar = df_ranking[df_ranking["Aciertos Totales"] == max_puntos_actual]
-            if len(empates_primer_lugar) <= 2:
-                nombres_lideres = " y ".join(empates_primer_lugar["Participante"].tolist())
-                st.metric(label="🔥 Líder(es) de la Quiniela", value=nombres_lideres, delta=f"{max_puntos_actual} pts")
+            max_puntos_global = int(df_ranking["Aciertos Totales"].max()) if df_ranking["Aciertos Totales"].max() > 0 else 1
+            
+            for index, row in df_ranking.iterrows():
+                pts = int(row["Aciertos Totales"])
+                progreso = pts / max_puntos_global
                 
-        st.dataframe(df_ranking, use_container_width=True)
+                st.markdown(f"""
+                <div style="display: flex; align-items: center; background-color: #FFFFFF; padding: 12px 18px; margin-bottom: 8px; border-radius: 8px; box-shadow: 0 1px 2px rgba(0,0,0,0.05); border: 1px solid #F1F5F9;">
+                    <div style="width: 50px; font-size: 16px; font-weight: 700; color: #64748B;">#{index + 1}</div>
+                    <div style="flex-grow: 1; font-size: 16px; font-weight: 600; color: #334155;">{row['Participante']}</div>
+                    <div style="width: 140px; margin-right: 20px;">
+                        <div style="background-color: #E2E8F0; border-radius: 10px; height: 8px; width: 100%;">
+                            <div style="background-color: #3B82F6; height: 8px; border-radius: 10px; width: {progreso * 100}%;"></div>
+                        </div>
+                    </div>
+                    <div style="font-size: 16px; font-weight: 700; color: #1E293B; width: 60px; text-align: right;">{pts} pts</div>
+                </div>
+                """, unsafe_allow_html=True)
 
     # --- PESTAÑA 2: PRONÓSTICOS DEL DÍA ---
     with tab_hoy:
