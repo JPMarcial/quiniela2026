@@ -14,7 +14,6 @@ st.title("⚽ Quiniela - Fase Final 2026")
 fecha_actual_mx = datetime.utcnow() - timedelta(hours=6)
 fecha_formateada = fecha_actual_mx.strftime("%d/%m") 
 
-# Calendario base para identificar los partidos y sus llaves de búsqueda
 CALENDARIO_COMPLETO = [
     {"Fecha": "30/06", "Rival 1": "COSTA DE MARFIL", "Rival 2": "NORUEGA", "Texto": "Costa de Marfil 🆚 Noruega", "Hora": "11:00 AM", "Keys 1": ["COSTA DE MARFIL", "MARFIL", "CIV"], "Keys 2": ["NORUEGA", "NOR"]},
     {"Fecha": "30/06", "Rival 1": "FRANCIA", "Rival 2": "SUECIA", "Texto": "Francia 🆚 Suecia", "Hora": "03:00 PM", "Keys 1": ["FRANCIA", "FRA"], "Keys 2": ["SUECIA", "SUE"]},
@@ -117,8 +116,7 @@ def cargar_y_procesar_todo_el_torneo(spreadsheet_id, pestañas_jugadores, partid
         set_base = set(df_base["16vos"].dropna().apply(limpiar_texto))
         set_base.discard("")
 
-        # --- LEER RESULTADOS DESDE LA PESTAÑA DE CALENDARIO ---
-        # Buscamos si existe una pestaña llamada "CALENDARIO" o similar en tu archivo
+        # --- LEER RESULTADOS DESDE LA COLUMNA D DE CALENDARIO ---
         pestaña_cal = [n for n in nombres_pestañas if "CALENDARIO" in n.upper()]
         
         for p in partidos_hoy:
@@ -126,40 +124,39 @@ def cargar_y_procesar_todo_el_torneo(spreadsheet_id, pestañas_jugadores, partid
             p["Ganador"] = ""
             
             if pestaña_cal:
-                df_cal_excel = excel_file.parse(pestaña_cal[0], dtype=str)
-                # Normalizamos las columnas a minúsculas para evitar fallos por espacios
-                df_cal_excel.columns = [str(c).strip().lower() for c in df_cal_excel.columns]
+                # Leemos sin procesar cabeceras para controlar las posiciones exactas de las columnas (A, B, C, D)
+                df_cal_excel = excel_file.parse(pestaña_cal[0], header=None, dtype=str)
                 
-                # Buscamos la fila del partido usando el nombre de los rivales
-                fila_partido = df_cal_excel[
-                    df_cal_excel.astype(str).apply(lambda x: x.str.contains(p["Rival 1"], case=False, na=False)).any(axis=1) &
-                    df_cal_excel.astype(str).apply(lambda x: x.str.contains(p["Rival 2"], case=False, na=False)).any(axis=1)
-                ]
+                # Identificamos la fila del partido buscando la coexistencia de ambos rivales en esa fila
+                fila_idx = None
+                for idx, row in df_cal_excel.iterrows():
+                    fila_str = " ".join(row.astype(str).fillna("").tolist()).upper()
+                    if p["Rival 1"] in fila_str and p["Rival 2"] in fila_str:
+                        fila_idx = idx
+                        break
                 
-                if not fila_partido.empty:
-                    # Buscamos si existe una columna llamada 'marcador', 'resultado' o 'goles'
-                    cols_marcador = [c for c in df_cal_excel.columns if 'marcador' in c or 'resultado' in c or 'goles' in c]
-                    if cols_marcador:
-                        marcador_crudo = str(fila_partido.iloc[0][cols_marcador[0]]).strip()
+                if fila_idx is not None and df_cal_excel.shape[1] >= 4:
+                    # Columna D es el índice 3 en Python
+                    marcador_crudo = str(df_cal_excel.iloc[fila_idx, 3]).strip()
+                    
+                    # Verificamos si pusiste un marcador válido con números (ej: "1 - 2")
+                    if pd.notna(marcador_crudo) and marcador_crudo != "" and re.search(r'\d', marcador_crudo) and "nan" not in marcador_crudo.lower():
+                        p["Resultado"] = f"{marcador_crudo} FINAL"
                         
-                        # Si el campo tiene datos y contiene números (ej. "2 - 1")
-                        if pd.notna(marcador_crudo) and marcador_crudo != "" and re.search(r'\d', marcador_crudo):
-                            p["Resultado"] = f"{marcador_crudo} FINAL"
-                            
-                            # Extraemos los números para saber quién ganó de forma automática
-                            goles = [int(g) for g in re.findall(r'\d+', marcador_crudo)]
-                            if len(goles) >= 2:
-                                if goles[0] > goles[1]:
-                                    p["Ganador"] = p["Rival 1"]
-                                elif goles[1] > goles[0]:
-                                    p["Ganador"] = p["Rival 2"]
-                                else:
-                                    # Si hay empate pero hay info de penales en el texto: "0-0 (4-3 PEN)"
-                                    if "PEN" in marcador_crudo.upper() and len(goles) >= 4:
-                                        if goles[2] > goles[3]:
-                                            p["Ganador"] = p["Rival 1"]
-                                        else:
-                                            p["Ganador"] = p["Rival 2"]
+                        # Extraemos los goles ignorando guiones o espacios
+                        goles = [int(g) for g in re.findall(r'\d+', marcador_crudo)]
+                        if len(goles) >= 2:
+                            if goles[0] > goles[1]:
+                                p["Ganador"] = p["Rival 1"]
+                            elif goles[1] > goles[0]:
+                                p["Ganador"] = p["Rival 2"]
+                            else:
+                                # En caso de empate técnico pero con penales anotados: "1-1 (4-3 PEN)"
+                                if "PEN" in marcador_crudo.upper() and len(goles) >= 4:
+                                    if goles[2] > goles[3]:
+                                        p["Ganador"] = p["Rival 1"]
+                                    else:
+                                        p["Ganador"] = p["Rival 2"]
         
         # --- PROCESAR PARTICIPANTES ---
         for pestaña in pestañas_jugadores:
@@ -190,7 +187,7 @@ def cargar_y_procesar_todo_el_torneo(spreadsheet_id, pestañas_jugadores, partid
                             encontrado = p["Rival 2"].title()
                             break
                     
-                    # Validación sutil con el ganador extraído del Excel
+                    # Verificación y marcación en base al Ganador obtenido de la columna D
                     if p["Ganador"] != "":
                         ganador_limpio = limpiar_texto(p["Ganador"])
                         eleccion_limpia = limpiar_texto(encontrado)
