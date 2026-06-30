@@ -3,12 +3,33 @@ import pandas as pd
 import requests
 import io
 import re
+from datetime import datetime
+import pytz
 
 st.set_page_config(page_title="Quiniela Fase Final", page_icon="⚽", layout="wide")
 st.title("⚽ Quiniela - Fase Final 2026")
 
 # ==============================================================================
-# 1. CONFIGURACIÓN DE CONEXIÓN Y JUGADORES
+# 1. DETECCIÓN AUTOMÁTICA DE FECHA (ZONA HORARIA MÉXICO)
+# ==============================================================================
+zona_mx = pytz.timezone('America/Mexico_City')
+fecha_actual_mx = datetime.now(zona_mx)
+fecha_formateada = fecha_actual_mx.strftime("%d/%m") # Ejemplo: "30/06"
+
+# Base de datos completa de partidos de 16vos con sus fechas reales
+CALENDARIO_COMPLETO = [
+    {"Fecha": "30/06", "Rival 1": "PORTUGAL", "Rival 2": "CROACIA", "Texto": "Portugal 🆚 Croacia", "Hora": "11:00 AM", "Keys 1": ["PORTUGAL", "POR"], "Keys 2": ["CROACIA", "CRO"]},
+    {"Fecha": "30/06", "Rival 1": "ESPAÑA", "Rival 2": "AUSTRIA", "Texto": "España 🆚 Austria", "Hora": "02:00 PM", "Keys 1": ["ESPAÑA", "ESP"], "Keys 2": ["AUSTRIA", "AUT"]},
+    {"Fecha": "30/06", "Rival 1": "ESTADOS UNIDOS", "Rival 2": "BOSNIA-HERZ", "Texto": "Estados Unidos 🆚 Bosnia-Herz", "Hora": "07:00 PM", "Keys 1": ["ESTADOS UNIDOS", "USA", "EEUU"], "Keys 2": ["BOSNIA", "HERZEGOVINA", "BOSNIA-HERZ"]},
+    {"Fecha": "01/07", "Rival 1": "BÉLGICA", "Rival 2": "SENEGAL", "Texto": "Bélgica 🆚 Senegal", "Hora": "11:00 AM", "Keys 1": ["BELGICA", "BEL"], "Keys 2": ["SENEGAL", "SEN"]},
+    # Puedes seguir agregando el resto de días aquí abajo con el mismo formato...
+]
+
+# Filtrar dinámicamente los partidos que juegan estrictamente HOY
+PARTIDOS_HOY = [partido for partido in CALENDARIO_COMPLETO if partido["Fecha"] == fecha_formateada]
+
+# ==============================================================================
+# 2. CONFIGURACIÓN DE CONEXIÓN Y JUGADORES
 # ==============================================================================
 SPREADSHEET_ID = "1FTUtzXd-ODXBB0QxIf-68FKf0ZQzVnWM"
 
@@ -16,13 +37,6 @@ ID_PESTAÑAS = [
     "HAAM", "CA", "HR", "JAG", "FB", "PM", "JLJF", 
     "MASM", "CAVL", "AMG", "CAER", "VAVA", "JAMP", "VCBH", 
     "JMG", "JV", "CAAM", "DSR", "SLO"
-]
-
-# Partidos del día con horarios asignados y "palabras clave" para búsquedas parciales
-PARTIDOS_HOY = [
-    {"Rival 1": "PORTUGAL", "Rival 2": "CROACIA", "Texto": "Portugal 🆚 Croacia", "Hora": "11:00 AM", "Keys 1": ["PORTUGAL", "POR"], "Keys 2": ["CROACIA", "CRO"]},
-    {"Rival 1": "ESPAÑA", "Rival 2": "AUSTRIA", "Texto": "España 🆚 Austria", "Hora": "02:00 PM", "Keys 1": ["ESPAÑA", "ESP"], "Keys 2": ["AUSTRIA", "AUT"]},
-    {"Rival 1": "ESTADOS UNIDOS", "Rival 2": "BOSNIA-HERZ", "Texto": "Estados Unidos 🆚 Bosnia-Herz", "Hora": "07:00 PM", "Keys 1": ["ESTADOS UNIDOS", "USA", "EEUU"], "Keys 2": ["BOSNIA", "HERZEGOVINA", "BOSNIA-HERZ"]}
 ]
 
 @st.cache_data(ttl=60)
@@ -37,7 +51,6 @@ def cargar_pestaña_desde_drive(spreadsheet_id, nombre_hoja):
     return None
 
 def obtener_nombre_real(df_raw, id_pestaña):
-    """Extrae el nombre de B1 y elimina texto basura de celdas combinadas"""
     try:
         if df_raw is not None and df_raw.shape[0] > 0 and df_raw.shape[1] > 1:
             raw_val = str(df_raw.iloc[0, 1]).strip()
@@ -93,9 +106,9 @@ def calcular_puntos(df_jugador, df_base):
     return puntos
 
 # ==============================================================================
-# 2. PROCESAMIENTO Y CARGA DE DATOS EN VIVO
+# 3. PROCESAMIENTO Y CARGA DE DATOS EN VIVO
 # ==============================================================================
-with st.spinner("🔄 Cargando y limpiando datos desde Google Drive..."):
+with st.spinner("🔄 Cargando y sincronizando con la hora de México..."):
     df_base_raw = cargar_pestaña_desde_drive(SPREADSHEET_ID, "BASE")
     df_base = procesar_bloque_resumen(df_base_raw)
 
@@ -120,6 +133,7 @@ else:
             
             lista_pronosticos = df_jugador["16vos"].dropna().astype(str).str.strip().str.upper().tolist()
             
+            # Evaluar partidos filtrados para hoy
             for p in PARTIDOS_HOY:
                 encontrado = "Ninguno"
                 for pronostico in lista_pronosticos:
@@ -135,15 +149,20 @@ else:
             for p in PARTIDOS_HOY:
                 elecciones_hoy[p["Texto"]] = "Sin Datos"
                 
-        pronosticos_hoy_lista.append(elecciones_hoy)
+        # Solo agregar si hay partidos programados para la fecha actual
+        if PARTIDOS_HOY:
+            pronosticos_hoy_lista.append(elecciones_hoy)
             
     df_ranking = pd.DataFrame(datos_ranking).sort_values(by="Aciertos Totales", ascending=False).reset_index(drop=True)
     df_ranking.index = df_ranking.index + 1
     
-    df_pronosticos_hoy = pd.DataFrame(pronosticos_hoy_lista).reset_index(drop=True)
+    if pronosticos_hoy_lista:
+        df_pronosticos_hoy = pd.DataFrame(pronosticos_hoy_lista).reset_index(drop=True)
+    else:
+        df_pronosticos_hoy = pd.DataFrame(columns=["Participante"])
 
     # ==============================================================================
-    # 3. INTERFAZ GRÁFICA CENTRALIZADA (TABS)
+    # 4. INTERFAZ GRÁFICA CENTRALIZADA (TABS)
     # ==============================================================================
     tab_principal, tab_hoy, tab_participantes = st.tabs([
         "📊 Clasificación Principal", 
@@ -151,39 +170,28 @@ else:
         "👤 Participantes"
     ])
 
-    # --- PESTAÑA 1: CALENDARIO CON HORARIOS Y RANKING ---
+    # --- PESTAÑA 1: CALENDARIO DEL DÍA Y RANKING ---
     with tab_principal:
-        st.subheader("📅 Partidos del Día - 16vos de Final")
-        col_m1, col_m2, col_m3 = st.columns(3)
+        st.subheader(f"📅 Partidos del Día ({fecha_formateada}) - 16vos de Final")
         
-        with col_m1:
-            st.markdown("""
-            <div style="background-color: #FFFFFF; padding: 12px; border-left: 4px solid #3B82F6; border-radius: 4px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
-                <span style="font-size: 11px; font-weight: bold; color: #3B82F6; text-transform: uppercase;">⏰ 11:00 AM</span><br>
-                <span style="font-size: 15px; font-weight: 600; color: #334155;">Portugal 🆚 Croacia</span>
-            </div>
-            """, unsafe_allow_html=True)
-            
-        with col_m2:
-            st.markdown("""
-            <div style="background-color: #FFFFFF; padding: 12px; border-left: 4px solid #3B82F6; border-radius: 4px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
-                <span style="font-size: 11px; font-weight: bold; color: #3B82F6; text-transform: uppercase;">⏰ 02:00 PM</span><br>
-                <span style="font-size: 15px; font-weight: 600; color: #334155;">España 🆚 Austria</span>
-            </div>
-            """, unsafe_allow_html=True)
-            
-        with col_m3:
-            st.markdown("""
-            <div style="background-color: #FFFFFF; padding: 12px; border-left: 4px solid #3B82F6; border-radius: 4px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
-                <span style="font-size: 11px; font-weight: bold; color: #3B82F6; text-transform: uppercase;">⏰ 07:00 PM</span><br>
-                <span style="font-size: 15px; font-weight: 600; color: #334155;">Estados Unidos 🆚 Bosnia-Herz</span>
-            </div>
-            """, unsafe_allow_html=True)
+        if not PARTIDOS_HOY:
+            st.info("⚽ No hay partidos agendados para el día de hoy.")
+        else:
+            # Crear columnas dinámicas según la cantidad de partidos del día
+            columnas_juegos = st.columns(len(PARTIDOS_HOY))
+            for i, partido in enumerate(PARTIDOS_HOY):
+                with columnas_juegos[i]:
+                    st.markdown(f"""
+                    <div style="background-color: #FFFFFF; padding: 12px; border-left: 4px solid #3B82F6; border-radius: 4px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
+                        <span style="font-size: 11px; font-weight: bold; color: #3B82F6; text-transform: uppercase;">⏰ {partido['Hora']} MX</span><br>
+                        <span style="font-size: 15px; font-weight: 600; color: #334155;">{partido['Texto']}</span>
+                    </div>
+                    """, unsafe_allow_html=True)
             
         st.write("---")
         
         st.subheader("🏅 Clasificación General")
-        st.write("Posiciones calculadas de acuerdo a los pronosticos individuales.")
+        st.write("Posiciones calculadas de acuerdo a los pronósticos individuales.")
         
         if not df_ranking.empty:
             max_puntos_actual = df_ranking.iloc[0]["Aciertos Totales"]
@@ -194,14 +202,17 @@ else:
                 
         st.dataframe(df_ranking, use_container_width=True)
 
-    # --- PESTAÑA 2: PRONÓSTICOS DEL DIA ---
+    # --- PESTAÑA 2: PRONÓSTICOS DEL DÍA ---
     with tab_hoy:
-        st.subheader("🔮 ¿Qué eligió cada participante para hoy?")
-        st.write("Visualiza de un vistazo la selección a ganar de cada persona para los juegos de esta fecha.")
-        st.dataframe(df_pronosticos_hoy, use_container_width=True, hide_index=True)
+        st.subheader(f"🔮 ¿Qué eligió cada participante para hoy ({fecha_formateada})?")
+        if not PARTIDOS_HOY:
+            st.info("No hay pronósticos que mostrar porque hoy no se juegan partidos.")
+        else:
+            st.write("Visualiza de un vistazo la selección a ganar de cada persona para los juegos de esta fecha.")
+            st.dataframe(df_pronosticos_hoy, use_container_width=True, hide_index=True)
 
     # --- PESTAÑA 3: VISOR DE PARTICIPANTES (CERRADO TEMPORALMENTE) ---
     with tab_participantes:
         st.write("")
-        st.error("### 🤖 Temporalmente fuera de servicio")
+        st.error("### 🤖 Temporalmente fuera de servicio y un robot enojado")
         st.image("https://fonts.gstatic.com/s/e/notoemoji/latest/1f916/512.webp", width=120)
