@@ -27,35 +27,37 @@ st.markdown("""
 FILE_ID = "1NSjLaSgIodnTtk2iFQFvlBkw7wOyqAOe"
 URL_DRIVE = f"https://docs.google.com/uc?export=download&id={FILE_ID}"
 
+# Lista oficial de países participantes en esta fase para validar de forma estricta
+PAISES_VALIDOS = {
+    "alemania", "paraguay", "francia", "suecia", "sudafrica", "canada", 
+    "paises bajos", "marruecos", "portugal", "croacia", "españa", "austria", 
+    "estados unidos", "bosnia-herz", "bosnia", "belgica", "senegal", "brasil", 
+    "japon", "costa marfil", "costa de marfil", "noruega", "mexico", "ecuador", 
+    "inglaterra", "congo", "argentina", "cabo verde", "australia", "egipto", 
+    "suiza", "argelia", "colombia", "ghana"
+}
+
 # ==============================================================================
-# 2. LÓGICA DE EXTRACCIÓN (COLUMNA G EN ADELANTE = ÍNDICE 6)
+# 2. LÓGICA DE EXTRACCIÓN FILTRADA (COLUMNA G EN ADELANTE = ÍNDICE 6)
 # ==============================================================================
 def extraer_arbol_ganadores(df):
     """
     Recorre el DataFrame desde la Columna G (Índice 6) hacia la derecha.
-    Recolecta los nombres de los equipos elegidos en las llaves de avance.
+    Filtra estrictamente para conservar únicamente nombres válidos de países,
+    eliminando códigos de llaves como W97, LF, WF, etc.
     """
     equipos_seleccionados = set()
     
     # Índice 6 corresponde a la Columna G
     for col_idx in range(6, len(df.columns)):
-        # Convertimos todo a texto limpio, eliminando espacios y celdas vacías
         valores = df.iloc[:, col_idx].dropna().astype(str).str.strip()
         
         for val in valores:
-            val_upper = val.upper()
+            val_lower = val.lower()
             
-            # Filtros de seguridad para ignorar textos de llaves o encabezados del Mundial
-            if (len(val) > 2 and 
-                not val_upper.startswith('W') and 
-                not val_upper.startswith('L') and 
-                not val.isdigit() and
-                "VS" not in val_upper and
-                "MUNDIAL" not in val_upper and
-                val_upper not in ['NOMBRE', 'FASE', 'RESULTADOS', 'VS']):
-                
-                # Almacenamos en minúsculas para comparar de forma exacta libre de errores de dedo
-                equipos_seleccionados.add(val.lower())
+            # Validación estricta: el texto debe pertenecer a la lista de países
+            if val_lower in PAISES_VALIDOS:
+                equipos_seleccionados.add(val_lower)
                 
     return equipos_seleccionados
 
@@ -68,7 +70,7 @@ def calcular_quiniela():
             
         xls = pd.ExcelFile(BytesIO(respuesta.content))
         
-        # 1. GANADORES REALES (Columna G en adelante de la hoja RESULTADOS)
+        # 1. GANADORES REALES (Hoja RESULTADOS - Columna G en adelante)
         df_res = pd.read_excel(xls, sheet_name='RESULTADOS', header=None)
         ganadores_reales = extraer_arbol_ganadores(df_res)
         
@@ -83,7 +85,7 @@ def calcular_quiniela():
         for p in pestanas_jugadores:
             df_part = pd.read_excel(xls, sheet_name=p, header=None)
             
-            # Intentar buscar el nombre real del jugador en las celdas superiores (B1 o B2)
+            # Buscar el nombre real del jugador en las celdas superiores (B1 o B2)
             nombre_mostrar = p
             try:
                 for fila in [0, 1]:
@@ -95,10 +97,10 @@ def calcular_quiniela():
             except:
                 pass
             
-            # Extraer árbol de pronósticos del jugador (Columna G en adelante)
+            # Extraer sólo los países pronosticados en la columna G en adelante
             pronosticos_jugador = extraer_arbol_ganadores(df_part)
             
-            # Intersección: ¿A cuáles de la columna G en adelante les atinó?
+            # Comparación exacta de aciertos reales de países
             aciertos = pronosticos_jugador.intersection(ganadores_reales)
             puntos = len(aciertos)
             
@@ -179,15 +181,15 @@ if df_ranking is not None:
             p_info = detalles[participante_sel]
             
             if p_info['aciertos']:
-                st.success(f"✔️ **Aciertos en playoffs ({len(p_info['aciertos'])}):**")
+                st.success(f"✔️ **Aciertos reales ({len(p_info['aciertos'])}):**")
                 st.write(", ".join(sorted([a.title() for a in p_info['aciertos']])))
             else:
                 st.warning("0 aciertos al momento frente a los resultados asentados.")
                 
-            with st.expander("Ver árbol completo elegido por este participante (Columna G+)"):
+            with st.expander("Ver países detectados en su árbol (Columna G+)"):
                 if p_info['pronosticos']:
                     st.write(", ".join(sorted([pr.title() for pr in p_info['pronosticos']])))
                 else:
-                    st.write("No se detectaron elecciones en las columnas de juego.")
+                    st.write("No se detectaron selecciones de equipos válidas.")
 else:
     st.error("Error al procesar el archivo. Asegúrate de que las hojas mantengan la columna G como el inicio del árbol.")
