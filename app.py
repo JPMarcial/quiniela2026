@@ -100,7 +100,7 @@ with st.spinner("🔄 Cargando y limpiando datos desde Google Drive..."):
     df_base = procesar_bloque_resumen(df_base_raw)
 
 if df_base is None or df_base.empty:
-    st.error("⚠️ No se pudo conectar correctamente con la pestaña 'BASE' in Google Drive.")
+    st.error("⚠️ No se pudo conectar correctamente con la pestaña 'BASE' en Google Drive.")
 else:
     datos_ranking = []
     mapeo_nombres_df = {}  
@@ -120,15 +120,12 @@ else:
             
             lista_pronosticos = df_jugador["16vos"].dropna().astype(str).str.strip().str.upper().tolist()
             
-            # Buscador inteligente por palabras clave de hoy
             for p in PARTIDOS_HOY:
                 encontrado = "Ninguno"
                 for pronostico in lista_pronosticos:
-                    # Comprobar si el texto ingresado coincide con alguna de las palabras clave del Rival 1
                     if any(k in pronostico for k in p["Keys 1"]):
                         encontrado = p["Rival 1"].title()
                         break
-                    # Comprobar para el Rival 2 (Ej. si dice 'BOSNIA' y la clave incluye 'BOSNIA')
                     elif any(k in pronostico for k in p["Keys 2"]):
                         encontrado = p["Rival 2"].title()
                         break
@@ -140,7 +137,6 @@ else:
                 
         pronosticos_hoy_lista.append(elecciones_hoy)
             
-    # Estructurar tablas generales ordenadas
     df_ranking = pd.DataFrame(datos_ranking).sort_values(by="Aciertos Totales", ascending=False).reset_index(drop=True)
     df_ranking.index = df_ranking.index + 1
     
@@ -204,37 +200,8 @@ else:
         st.write("Visualiza de un vistazo la selección a ganar de cada persona para los juegos de esta fecha.")
         st.dataframe(df_pronosticos_hoy, use_container_width=True, hide_index=True)
 
-    # --- PESTAÑA 3: VISOR DE PARTICIPANTES ---
+    # --- PESTAÑA 3: VISOR DE PARTICIPANTES (CERRADO TEMPORALMENTE) ---
     with tab_participantes:
-        st.subheader("🔍 Desglose individual de predicciones")
-        lista_nombres_reales = sorted(list(mapeo_nombres_df.keys()))
-        nombre_seleccionado = st.selectbox("Selecciona un participante para revisar sus aciertos:", lista_nombres_reales)
-        
-        if nombre_seleccionado:
-            df_jugador = mapeo_nombres_df.get(nombre_seleccionado)
-            if df_jugador is None or df_jugador.empty:
-                st.warning(f"⚠️ No se encontraron predicciones válidas para {nombre_seleccionado}.")
-            else:
-                col1, col2 = st.columns(2)
-                with col1:
-                    st.markdown(f"📋 **Predicciones de {nombre_seleccionado}:**")
-                    st.dataframe(df_jugador, use_container_width=True)
-                with col2:
-                    st.markdown("🎯 **Resultados Reales Oficiales (BASE):**")
-                    st.dataframe(df_base, use_container_width=True)
-                    
-                st.markdown("### 📊 Coincidencias Detectadas")
-                if "16vos" in df_jugador.columns and "16vos" in df_base.columns:
-                    set_jugador = set(df_jugador["16vos"].dropna().astype(str).str.strip().str.upper())
-                    set_base = set(df_base["16vos"].dropna().astype(str).str.strip().str.upper())
-                    set_jugador.discard("")
-                    set_base.discard("")
-                    
-                    coincidencias = set_jugador.intersection(set_base)
-                    aciertos = len(coincidencias)
-                    
-                    if aciertos > 0:
-                        st.success(f"🔹 **16vos de Final**: {aciertos} aciertos correctos obtenidos.")
-                        st.write(f"👉 *{', '.join(sorted(coincidencias))}*")
-                    else:
-                        st.write("🔹 **16vos de Final**: 0 aciertos por el momento.")
+        st.write("")
+        st.error("### 🤖 Temporalmente fuera de servicio y un robot enojado")
+        st.image("https://fonts.gstatic.com/s/e/notoemoji/latest/1f916/512.webp", width=120)
