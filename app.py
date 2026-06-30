@@ -4,331 +4,290 @@ import requests
 from io import BytesIO
 
 # ==============================================================================
-# 1. CONFIGURACIÓN DE PÁGINA Y ESTILOS CSS (ÁRBOL CON LÍNEAS CONECTORAS REALES)
+# 1. CONFIGURACIÓN DE PÁGINA Y ESTILOS CSS (ÁRBOL SIMÉTRICO ESTILO COPA)
 # ==============================================================================
-st.set_page_config(page_title="Quiniela 2026 - Bracket Oficial", page_icon="🏆", layout="wide")
+st.set_page_config(page_title="Quiniela 2026 - Árbol Fase Final", page_icon="🏆", layout="wide")
 
 st.markdown("""
     <style>
-    .main-title { font-size: 30px; font-weight: 800; color: #1E3A8A; text-align: center; margin-bottom: 25px; }
-    
-    /* Contenedor Flexbox del Torneo */
-    .tournament-bracket {
-        display: flex;
-        flex-direction: row;
-        justify-content: space-between;
-        align-items: stretch;
-        width: 100%;
+    .bracket-wrapper {
         background-color: #F8FAFC;
-        padding: 30px 15px;
-        border-radius: 12px;
+        padding: 30px 20px;
+        border-radius: 16px;
+        box-shadow: inset 0 2px 8px rgba(0,0,0,0.02);
+    }
+    .bracket-header {
+        text-align: center;
+        margin-bottom: 35px;
+    }
+    .bracket-header h1 { font-size: 28px; font-weight: 800; color: #1E3A8A; margin-bottom: 5px; }
+    .bracket-header p { font-size: 14px; color: #64748B; }
+
+    /* Contenedor Grid Principal de 9 Columnas Sincronizadas */
+    .bracket-container {
+        display: grid;
+        grid-template-columns: repeat(9, minmax(130px, 1fr));
+        align-items: center;
+        gap: 10px;
+        width: 100%;
         overflow-x: auto;
     }
-    
+
     /* Columnas de Rondas */
-    .bracket-round {
+    .bracket-column {
         display: flex;
         flex-direction: column;
         justify-content: space-around;
-        flex-grow: 1;
-        width: 300px;
-        min-width: 280px;
-        padding: 0 25px;
-        position: relative;
+        height: 720px; /* Altura fija para balancear las filas verticalmente */
     }
-    
-    /* Estructura de cada Partido */
-    .bracket-matchup {
-        display: flex;
-        flex-direction: column;
-        background-color: #FFFFFF;
-        border: 1px solid #CBD5E1;
-        border-radius: 6px;
-        margin: 10px 0;
-        box-shadow: 0 2px 4px rgba(0,0,0,0.04);
-        position: relative;
-        z-index: 2;
-    }
-    
-    .matchup-header {
-        font-size: 10px;
+
+    /* Cajas de Partido */
+    .match-meta {
+        font-size: 9px;
         font-weight: 700;
-        color: #64748B;
-        background-color: #F1F5F9;
-        padding: 4px 8px;
-        border-bottom: 1px solid #E2E8F0;
-        border-top-left-radius: 5px;
-        border-top-right-radius: 5px;
+        color: #94A3B8;
+        text-transform: uppercase;
+        margin-bottom: 3px;
+        text-align: center;
     }
-    
-    /* Filas de Equipos */
-    .bracket-team {
+    .match-box {
+        background-color: #FFFFFF;
+        border: 1px solid #E2E8F0;
+        border-radius: 8px;
+        box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05);
+        overflow: hidden;
+    }
+    .team-row {
         display: flex;
         justify-content: space-between;
         align-items: center;
-        padding: 7px 10px;
-        font-size: 12px;
+        padding: 8px 12px;
+        font-size: 11px;
+        font-weight: 600;
+        color: #334155;
         border-bottom: 1px solid #F1F5F9;
     }
-    .bracket-team:last-child { border-bottom: none; }
+    .team-row:last-child { border-bottom: none; }
     
-    .team-name-text { font-weight: 700; color: #334155; }
-    .team-winner-official { color: #10B981 !important; font-weight: 800; }
-    
-    /* Iniciales de los Participantes */
-    .avatar-list { display: flex; flex-wrap: wrap; gap: 3px; max-width: 130px; }
-    .user-chip {
-        background-color: #DBEAFE;
-        color: #1E40AF;
-        font-size: 9px;
+    /* Resaltado de Ganador Oficial */
+    .winner-highlight {
+        background-color: #ECFDF5;
+        color: #065F46 !important;
         font-weight: 800;
-        padding: 1px 4px;
-        border-radius: 3px;
-        border: 1px solid #93C5FD;
     }
 
-    /* ==========================================================================
-       CONECTORES DE LÍNEAS DEL ÁRBOLES (DISEÑO BRACKET DE COMPETENCIA)
-       ========================================================================== */
-    /* Línea saliente a la derecha del partido */
-    .bracket-round:not(:last-child) .bracket-matchup::after {
-        content: "";
-        position: absolute;
-        right: -25px;
-        top: 50%;
-        width: 25px;
-        height: 2px;
-        background-color: #94A3B8;
-        z-index: 1;
-    }
-
-    /* Línea entrante por la izquierda en rondas avanzadas */
-    .bracket-round:not(:first-child) .bracket-matchup::before {
-        content: "";
-        position: absolute;
-        left: -25px;
-        top: 50%;
-        width: 25px;
-        height: 2px;
-        background-color: #94A3B8;
-        z-index: 1;
-    }
-
-    /* Conectores verticales para unir llaves pares con impares */
-    .bracket-round:nth-child(1) .bracket-matchup:nth-child(odd)::after {
-        height: 55px;
-        border-right: 2px solid #94A3B8;
-    }
-    
-    .bracket-round:nth-child(2) .bracket-matchup:nth-child(odd)::after {
-        height: 112px;
-        border-right: 2px solid #94A3B8;
-    }
-    
-    /* Contenedor del título de fase para no romper los selectores css de los partidos */
-    .phase-header-container {
-        position: absolute;
-        top: -35px;
-        left: 0;
-        right: 0;
+    /* Centro del Árbol (Trofco y Final) */
+    .center-trophy {
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        align-items: center;
         text-align: center;
+        height: 100%;
     }
-    .phase-title {
+    .trophy-title {
+        font-size: 10px;
         font-weight: 800;
-        font-size: 13px;
-        color: #1E3A8A;
-        border-bottom: 2px solid #3B82F6;
-        padding-bottom: 3px;
-        text-transform: uppercase;
-        display: inline-block;
-        width: 80%;
+        color: #B45309;
+        margin-bottom: 8px;
+    }
+    .champion-display {
+        margin-top: 20px;
+        background: linear-gradient(135deg, #FEF3C7 0%, #FDE68A 100%);
+        border: 2px solid #F59E0B;
+        padding: 12px 15px;
+        border-radius: 10px;
+        box-shadow: 0 10px 15px -3px rgba(245, 158, 11, 0.2);
     }
     </style>
 """, unsafe_allow_html=True)
 
-# URL pública del archivo en Google Drive
+# URL pública de tu Google Drive
 FILE_ID = "1NSjLaSgIodnTtk2iFQFvlBkw7wOyqAOe"
 URL_DRIVE = f"https://docs.google.com/uc?export=download&id={FILE_ID}"
 
-# Cruces Estructurados de 16vos (Línea de base fija)
-CRUCES_INICIALES = [
+# Mapeo exacto de los Cruces Oficiales de 16vos distribuidos geográficamente (Izquierda y Derecha)
+CRUCES_IZQUIERDA = [
     ("Alemania", "Paraguay"), ("Francia", "Suecia"), ("Sudáfrica", "Canadá"), ("Países Bajos", "Marruecos"),
-    ("Portugal", "Croacia"), ("España", "Austria"), ("Estados Unidos", "Bosnia-Herz"), ("Bélgica", "Senegal"),
+    ("Portugal", "Croacia"), ("España", "Austria"), ("Estados Unidos", "Bosnia-Herz"), ("Bélgica", "Senegal")
+]
+
+CRUCES_DERECHA = [
     ("Brasil", "Japón"), ("Costa Marfil", "Noruega"), ("México", "Ecuador"), ("Inglaterra", "Congo"),
     ("Argentina", "Cabo Verde"), ("Australia", "Egipto"), ("Suiza", "Argelia"), ("Colombia", "Ghana")
 ]
 
-def obtener_iniciales(nombre):
-    partes = nombre.split()
-    if len(partes) >= 2: return (partes[0][0] + partes[1][0]).upper()
-    return nombre[:2].upper()
-
-def extraer_set_columna(df, num_columna):
+def extraer_set_resultados(df, num_columna):
     if len(df.columns) > num_columna:
         return set(df.iloc[:, num_columna].dropna().astype(str).str.strip().str.lower())
     return set()
 
 @st.cache_data(ttl=10)
-def procesar_toda_la_data():
+def cargar_datos_reales():
     try:
         respuesta = requests.get(URL_DRIVE, timeout=12)
         xls = pd.ExcelFile(BytesIO(respuesta.content))
-        
-        # 1. CARGA DE RESULTADOS OFICIALES
         df_res = pd.read_excel(xls, sheet_name='RESULTADOS', header=None)
-        res_r1 = extraer_set_columna(df_res, 6)   # Columna G (16vos)
-        res_r2 = extraer_set_columna(df_res, 8)   # Columna I (Octavos)
-        res_r3 = extraer_set_columna(df_res, 10)  # Columna K (Cuartos)
         
-        # 2. RESOLUCIÓN DE LLAVE DE AVANCE POSICIONAL
-        # Mapeo exacto de los que avanzaron de 16vos
-        ganadores_r1 = []
-        for loc, vis in CRUCES_INICIALES:
-            if loc.lower() in res_r1: ganadores_r1.append(loc)
-            elif vis.lower() in res_r1: ganadores_r1.append(vis)
-            else: ganadores_r1.append("Por Definir")
+        # Extracción de sets oficiales de ganadores de cada fase
+        res_16vos = extraer_set_resultados(df_res, 6)   # Columna G
+        res_octavos = extraer_set_resultados(df_res, 8) # Columna I
+        res_cuartos = extraer_set_resultados(df_res, 10) # Columna K
+        
+        # Armar base de datos real del árbol
+        arbol = {}
+        
+        # --- PROCESAR 16VOS ---
+        # Bloque Izquierdo
+        for idx, (loc, vis) in enumerate(CRUCES_IZQUIERDA):
+            gan = loc if loc.lower() in res_16vos else (vis if vis.lower() in res_16vos else "⌛")
+            arbol[f"IZQ_D16_{idx+1}"] = {"local": loc, "visitante": vis, "ganador": gan}
+        # Bloque Derecho
+        for idx, (loc, vis) in enumerate(CRUCES_DERECHA):
+            gan = loc if loc.lower() in res_16vos else (vis if vis.lower() in res_16vos else "⌛")
+            arbol[f"DER_D16_{idx+1}"] = {"local": loc, "visitante": vis, "ganador": gan}
             
-        # Mapeo exacto de los que avanzaron de Octavos
-        ganadores_r2 = []
-        for i in range(0, 16, 2):
-            eq1, eq2 = ganadores_r1[i], ganadores_r1[i+1]
-            if eq1 != "Por Definir" and eq1.lower() in res_r2: ganadores_r2.append(eq1)
-            elif eq2 != "Por Definir" and eq2.lower() in res_r2: ganadores_r2.append(eq2)
-            else: ganadores_r2.append("Por Definir")
+        # --- PROCESAR OCTAVOS DE FINAL ---
+        for i in range(1, 5):
+            l1, v1 = arbol[f"IZQ_D16_{2*i-1}"]["ganador"], arbol[f"IZQ_D16_{2*i}"]["ganador"]
+            arbol[f"IZQ_OCT_{i}"] = {"local": l1 if l1 != "⌛" else "Por Definir", "visitante": v1 if v1 != "⌛" else "Por Definir"}
+            arbol[f"IZQ_OCT_{i}"]["ganador"] = arbol[f"IZQ_OCT_{i}"]["local"] if arbol[f"IZQ_OCT_{i}"]["local"].lower() in res_octavos else (arbol[f"IZQ_OCT_{i}"]["visitante"] if arbol[f"IZQ_OCT_{i}"]["visitante"].lower() in res_octavos else "⌛")
+            
+        for i in range(1, 5):
+            l2, v2 = arbol[f"DER_D16_{2*i-1}"]["ganador"], arbol[f"DER_D16_{2*i}"]["ganador"]
+            arbol[f"DER_OCT_{i}"] = {"local": l2 if l2 != "⌛" else "Por Definir", "visitante": v2 if v2 != "⌛" else "Por Definir"}
+            arbol[f"DER_OCT_{i}"]["ganador"] = arbol[f"DER_OCT_{i}"]["local"] if arbol[f"DER_OCT_{i}"]["local"].lower() in res_octavos else (arbol[f"DER_OCT_{i}"]["visitante"] if arbol[f"DER_OCT_{i}"]["visitante"].lower() in res_octavos else "⌛")
 
-        reales_mapeados = {
-            "r16vos_ganadores": ganadores_r1,
-            "octavos_ganadores": ganadores_r2,
-            "raw_r1": res_r1, "raw_r2": res_r2, "raw_r3": res_r3
-        }
+        # --- PROCESAR CUARTOS DE FINAL ---
+        for i in range(1, 3):
+            l, v = arbol[f"IZQ_OCT_{2*i-1}"]["ganador"], arbol[f"IZQ_OCT_{2*i}"]["ganador"]
+            arbol[f"IZQ_CRT_{i}"] = {"local": l if l != "⌛" else "Por Definir", "visitante": v if v != "⌛" else "Por Definir"}
+            arbol[f"IZQ_CRT_{i}"]["ganador"] = arbol[f"IZQ_CRT_{i}"]["local"] if arbol[f"IZQ_CRT_{i}"]["local"].lower() in res_cuartos else (arbol[f"IZQ_CRT_{i}"]["visitante"] if arbol[f"IZQ_CRT_{i}"]["visitante"].lower() in res_cuartos else "⌛")
+
+        for i in range(1, 3):
+            l, v = arbol[f"DER_OCT_{2*i-1}"]["ganador"], arbol[f"DER_OCT_{2*i}"]["ganador"]
+            arbol[f"DER_CRT_{i}"] = {"local": l if l != "⌛" else "Por Definir", "visitante": v if v != "⌛" else "Por Definir"}
+            arbol[f"DER_CRT_{i}"]["ganador"] = arbol[f"DER_CRT_{i}"]["local"] if arbol[f"DER_CRT_{i}"]["local"].lower() in res_cuartos else (arbol[f"DER_CRT_{i}"]["visitante"] if arbol[f"DER_CRT_{i}"]["visitante"].lower() in res_cuartos else "⌛")
+
+        # --- SEMIFINALES ---
+        l_semi_izq, v_semi_izq = arbol["IZQ_CRT_1"]["ganador"], arbol["IZQ_CRT_2"]["ganador"]
+        arbol["IZQ_SEM"] = {"local": l_semi_izq if l_semi_izq != "⌛" else "Por Definir", "visitante": v_semi_izq if v_semi_izq != "⌛" else "Por Definir", "ganador": "⌛"}
         
-        # 3. EXTRACCIÓN DE PRONÓSTICOS DE PARTICIPANTES
-        participantes_datos = []
-        hojas_excluidas = ['RESULTADOS', 'MURO', 'CALENDARIO']
-        pestanas_jugadores = [p for p in xls.sheet_names if p.upper() not in hojas_excluidas and p.strip() != '']
+        l_semi_der, v_semi_der = arbol["DER_CRT_1"]["ganador"], arbol["DER_CRT_2"]["ganador"]
+        arbol["DER_SEM"] = {"local": l_semi_der if l_semi_der != "⌛" else "Por Definir", "visitante": v_semi_der if v_semi_der != "⌛" else "Por Definir", "ganador": "⌛"}
+
+        # --- GRAN FINAL ---
+        arbol["FIN"] = {"local": "Por Definir", "visitante": "Por Definir", "ganador": "⌛"}
         
-        for p in pestanas_jugadores:
-            df_part = pd.read_excel(xls, sheet_name=p, header=None)
-            nombre_mostrar = p
-            try:
-                celda = str(df_part.iloc[1, 1]).strip()
-                if celda and celda.lower() != 'nan' and len(celda) > 3: nombre_mostrar = celda
-            except: pass
-            
-            p_r1 = extraer_set_columna(df_part, 6)
-            p_r2 = extraer_set_columna(df_part, 8)
-            p_r3 = extraer_set_columna(df_part, 10)
-            
-            puntos = len(p_r1.intersection(res_r1)) + len(p_r2.intersection(res_r2)) * 2
-            
-            participantes_datos.append({
-                "nombre": nombre_mostrar, "iniciales": obtener_iniciales(nombre_mostrar),
-                "pronosticos": {"r1": p_r1, "r2": p_r2, "r3": p_r3}, "puntos": puntos
-            })
-            
-        return participantes_datos, reales_mapeados, None
+        return arbol, None
     except Exception as e:
-        return [], {}, f"Error de sincronización con Excel: {str(e)}"
+        return {}, f"Error al procesar datos: {str(e)}"
 
-# ==============================================================================
-# 2. RENDERIZACIÓN DE LA INTERFAZ
-# ==============================================================================
-st.markdown('<div class="main-title">🏆 Árbol del Torneo en Tiempo Real 🏆</div>', unsafe_allow_html=True)
-
-participantes, reales, error = procesar_toda_la_data()
+arbol_real, error = cargar_datos_reales()
 
 if error:
     st.error(error)
-elif participantes:
-    
-    html_bracket = '<div class="tournament-bracket">'
-    
-    # --------------------------------------------------------------------------
-    # COLUMNA 1: 16VOS DE FINAL
-    # --------------------------------------------------------------------------
-    html_bracket += '<div class="bracket-round">'
-    html_bracket += '<div class="phase-header-container"><div class="phase-title">16vos de Final</div></div>'
-    for idx, (loc, vis) in enumerate(CRUCES_INICIALES):
-        win_loc = "team-winner-official" if loc.lower() in reales["raw_r1"] else ""
-        win_vis = "team-winner-official" if vis.lower() in reales["raw_r1"] else ""
+else:
+    # Función para renderizar cajas HTML usando los datos leídos en tiempo real
+    def render_match_html(id_partido, meta_text=""):
+        p = arbol_real.get(id_partido, {"local": "⌛ Pending", "visitante": "⌛ Pending", "ganador": "⌛"})
+        loc, vis, gan = p["local"], p["visitante"], p["ganador"]
         
-        v_loc = "".join([f'<span class="user-chip">{p["iniciales"]}</span>' for p in participantes if loc.lower() in p["pronosticos"]["r1"]])
-        v_vis = "".join([f'<span class="user-chip">{p["iniciales"]}</span>' for p in participantes if vis.lower() in p["pronosticos"]["r1"]])
+        c_loc = "winner-highlight" if gan == loc and loc != "Por Definir" else ""
+        c_vis = "winner-highlight" if gan == vis and vis != "Por Definir" else ""
         
-        html_bracket += f"""
-        <div class="bracket-matchup">
-            <div class="matchup-header">Partido {idx+1}</div>
-            <div class="bracket-team">
-                <span class="team-name-text {win_loc}">{loc}</span>
-                <div class="avatar-list">{v_loc}</div>
-            </div>
-            <div class="bracket-team">
-                <span class="team-name-text {win_vis}">{vis}</span>
-                <div class="avatar-list">{v_vis}</div>
+        return f"""
+        <div>
+            <div class="match-meta">{meta_text}</div>
+            <div class="match-box">
+                <div class="team-row {c_loc}"><span>{loc}</span></div>
+                <div class="team-row {c_vis}"><span>{vis}</span></div>
             </div>
         </div>
         """
-    html_bracket += '</div>'
-    
-    # --------------------------------------------------------------------------
-    # COLUMNA 2: OCTAVOS DE FINAL
-    # --------------------------------------------------------------------------
-    html_bracket += '<div class="bracket-round">'
-    html_bracket += '<div class="phase-header-container"><div class="phase-title">Octavos de Final</div></div>'
-    for idx in range(0, 16, 2):
-        eq1 = reales["r16vos_ganadores"][idx]
-        eq2 = reales["r16vos_ganadores"][idx+1]
+
+    campeon_final = arbol_real.get("FIN", {}).get("ganador", "⌛")
+
+    st.markdown('<div class="bracket-wrapper">', unsafe_allow_html=True)
+    st.markdown(
+        """
+        <div class="bracket-header">
+            <h1>🏆 ARBOL OFICIAL DE LA QUINIELA 🏆</h1>
+            <p>Estructura de fase final actualizada dinámicamente con los resultados ingresados en la hoja de cálculo</p>
+        </div>
+        """, 
+        unsafe_allow_html=True
+    )
+
+    # Inyección estructurada de las 9 columnas balanceadas
+    html_llave = f"""
+    <div class="bracket-container">
         
-        win_eq1 = "team-winner-official" if eq1 != "Por Definir" and eq1.lower() in reales["raw_r2"] else ""
-        win_eq2 = "team-winner-official" if eq2 != "Por Definir" and eq2.lower() in reales["raw_r2"] else ""
+        <div class="bracket-column">
+            {render_match_html("IZQ_D16_1", "28/06 Los Ángeles")}
+            {render_match_html("IZQ_D16_2", "29/06 Boston")}
+            {render_match_html("IZQ_D16_3", "29/06 Monterrey")}
+            {render_match_html("IZQ_D16_4", "29/06 Houston")}
+            {render_match_html("IZQ_D16_5", "30/06 NY/NJ")}
+            {render_match_html("IZQ_D16_6", "30/06 Dallas")}
+            {render_match_html("IZQ_D16_7", "30/06 CDMX")}
+            {render_match_html("IZQ_D16_8", "01/07 Atlanta")}
+        </div>
         
-        v_eq1 = "".join([f'<span class="user-chip">{p["iniciales"]}</span>' for p in participantes if eq1 != "Por Definir" and eq1.lower() in p["pronosticos"]["r2"]])
-        v_eq2 = "".join([f'<span class="user-chip">{p["iniciales"]}</span>' for p in participantes if eq2 != "Por Definir" and eq2.lower() in p["pronosticos"]["r2"]])
+        <div class="bracket-column">
+            {render_match_html("IZQ_OCT_1", "04/07 Filadelfia")}
+            {render_match_html("IZQ_OCT_2", "04/07 Houston")}
+            {render_match_html("IZQ_OCT_3", "06/07 Dallas")}
+            {render_match_html("IZQ_OCT_4", "06/07 CDMX")}
+        </div>
         
-        html_bracket += f"""
-        <div class="bracket-matchup">
-            <div class="matchup-header">Octavos M{ (idx//2)+1 }</div>
-            <div class="bracket-team">
-                <span class="team-name-text {win_eq1}">{eq1}</span>
-                <div class="avatar-list">{v_eq1}</div>
-            </div>
-            <div class="bracket-team">
-                <span class="team-name-text {win_eq2}">{eq2}</span>
-                <div class="avatar-list">{v_eq2}</div>
+        <div class="bracket-column">
+            {render_match_html("IZQ_CRT_1", "09/07 Boston")}
+            {render_match_html("IZQ_CRT_2", "10/07 Los Ángeles")}
+        </div>
+        
+        <div class="bracket-column">
+            {render_match_html("IZQ_SEM", "14/07 Dallas")}
+        </div>
+        
+        <div class="center-trophy">
+            <div class="trophy-title">19/07 Nueva York</div>
+            {render_match_html("FIN", "GRAN FINAL")}
+            <div class="champion-display">
+                <div style="font-size: 10px; font-weight: bold; opacity: 0.9; letter-spacing: 1px;">CAMPEÓN MUNDIAL</div>
+                <div>🏆 {campeon_final}</div>
             </div>
         </div>
-        """
-    html_bracket += '</div>'
-    
-    # --------------------------------------------------------------------------
-    # COLUMNA 3: CUARTOS DE FINAL
-    # --------------------------------------------------------------------------
-    html_bracket += '<div class="bracket-round">'
-    html_bracket += '<div class="phase-header-container"><div class="phase-title">Cuartos de Final</div></div>'
-    for idx in range(0, 8, 2):
-        eq1 = reales["octavos_ganadores"][idx]
-        eq2 = reales["octavos_ganadores"][idx+1]
         
-        win_eq1 = "team-winner-official" if eq1 != "Por Definir" and eq1.lower() in reales["raw_r3"] else ""
-        win_eq2 = "team-winner-official" if eq2 != "Por Definir" and eq2.lower() in reales["raw_r3"] else ""
-        
-        v_eq1 = "".join([f'<span class="user-chip">{p["iniciales"]}</span>' for p in participantes if eq1 != "Por Definir" and eq1.lower() in p["pronosticos"]["r3"]])
-        v_eq2 = "".join([f'<span class="user-chip">{p["iniciales"]}</span>' for p in participantes if eq2 != "Por Definir" and eq2.lower() in p["pronosticos"]["r3"]])
-        
-        html_bracket += f"""
-        <div class="bracket-matchup">
-            <div class="matchup-header">Cuartos C{ (idx//2)+1 }</div>
-            <div class="bracket-team">
-                <span class="team-name-text {win_eq1}">{eq1}</span>
-                <div class="avatar-list">{v_eq1}</div>
-            </div>
-            <div class="bracket-team">
-                <span class="team-name-text {win_eq2}">{eq2}</span>
-                <div class="avatar-list">{v_eq2}</div>
-            </div>
+        <div class="bracket-column">
+            {render_match_html("DER_SEM", "15/07 Atlanta")}
         </div>
-        """
-    html_bracket += '</div>'
+        
+        <div class="bracket-column">
+            {render_match_html("DER_CRT_1", "11/07 Miami")}
+            {render_match_html("DER_CRT_2", "11/07 Kansas City")}
+        </div>
+        
+        <div class="bracket-column">
+            {render_match_html("DER_OCT_1", "05/07 CDMX")}
+            {render_match_html("DER_OCT_2", "05/07 Nueva York")}
+            {render_match_html("DER_OCT_3", "07/07 Atlanta")}
+            {render_match_html("DER_OCT_4", "07/07 Vancouver")}
+        </div>
+        
+        <div class="bracket-column">
+            {render_match_html("DER_D16_1", "01/07 S. Francisco")}
+            {render_match_html("DER_D16_2", "01/07 Seattle")}
+            {render_match_html("DER_D16_3", "02/07 Toronto")}
+            {render_match_html("DER_D16_4", "02/07 Los Ángeles")}
+            {render_match_html("DER_D16_5", "02/07 Vancouver")}
+            {render_match_html("DER_D16_6", "03/07 Miami")}
+            {render_match_html("DER_D16_7", "03/07 Kansas City")}
+            {render_match_html("DER_D16_8", "03/07 Dallas")}
+        </div>
+
+    </div>
+    """
     
-    html_bracket += '</div>'
-    st.write(html_bracket, unsafe_allow_html=True)
+    st.markdown(html_llave, unsafe_allow_html=True)
+    st.markdown('</div>', unsafe_allow_html=True)
