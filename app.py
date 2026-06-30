@@ -14,21 +14,20 @@ st.title("⚽ Quiniela - Fase Final 2026")
 fecha_actual_mx = datetime.utcnow() - timedelta(hours=6)
 fecha_formateada = fecha_actual_mx.strftime("%d/%m") 
 
-# Nota: Agregamos la clave "Ganador" para marcar quién ganó el partido cuando termine.
-# Deja "Ganador": "" si aún no se juega. El sistema usará esto para los checks (✅).
+# Calendario base para identificar los partidos y sus llaves de búsqueda
 CALENDARIO_COMPLETO = [
-    {"Fecha": "30/06", "Rival 1": "COSTA DE MARFIL", "Rival 2": "NORUEGA", "Texto": "Costa de Marfil 🆚 Noruega", "Hora": "11:00 AM", "Keys 1": ["COSTA DE MARFIL", "MARFIL", "CIV"], "Keys 2": ["NORUEGA", "NOR"], "Ganador": "COSTA DE MARFIL", "Resultado": "2 - 1 FINAL"},
-    {"Fecha": "30/06", "Rival 1": "FRANCIA", "Rival 2": "SUECIA", "Texto": "Francia 🆚 Suecia", "Hora": "03:00 PM", "Keys 1": ["FRANCIA", "FRA"], "Keys 2": ["SUECIA", "SUE"], "Ganador": "", "Resultado": ""},
-    {"Fecha": "30/06", "Rival 1": "MÉXICO", "Rival 2": "ECUADOR", "Texto": "México 🆚 Ecuador", "Hora": "07:00 PM", "Keys 1": ["MEXICO", "MÉXICO", "MEX"], "Keys 2": ["ECUADOR", "ECU"], "Ganador": "", "Resultado": ""},
-    {"Fecha": "01/07", "Rival 1": "INGLATERRA", "Rival 2": "RD CONGO", "Texto": "Inglaterra 🆚 RD Congo", "Hora": "10:00 AM", "Keys 1": ["INGLATERRA", "ENG"], "Keys 2": ["CONGO", "RD CONGO", "RDC"], "Ganador": "", "Resultado": ""},
-    {"Fecha": "01/07", "Rival 1": "BÉLGICA", "Rival 2": "SENEGAL", "Texto": "Bélgica 🆚 Senegal", "Hora": "02:00 PM", "Keys 1": ["BELGICA", "BÉLGICA", "BEL"], "Keys 2": ["SENEGAL", "SEN"], "Ganador": "", "Resultado": ""},
-    {"Fecha": "01/07", "Rival 1": "ESTADOS UNIDOS", "Rival 2": "BOSNIA", "Texto": "Estados Unidos 🆚 Bosnia", "Hora": "06:00 PM", "Keys 1": ["ESTADOS UNIDOS", "USA", "EEUU"], "Keys 2": ["BOSNIA", "HERZEGOVINA", "BOSNIA-HERZ"], "Ganador": "", "Resultado": ""},
-    {"Fecha": "02/07", "Rival 1": "ESPAÑA", "Rival 2": "AUSTRIA", "Texto": "España 🆚 Austria", "Hora": "01:00 PM", "Keys 1": ["ESPAÑA", "ESP"], "Keys 2": ["AUSTRIA", "AUT"], "Ganador": "", "Resultado": ""},
-    {"Fecha": "02/07", "Rival 1": "PORTUGAL", "Rival 2": "CROACIA", "Texto": "Portugal 🆚 Croacia", "Hora": "05:00 PM", "Keys 1": ["PORTUGAL", "POR"], "Keys 2": ["CROACIA", "CRO"], "Ganador": "", "Resultado": ""},
-    {"Fecha": "02/07", "Rival 1": "SUIZA", "Rival 2": "ARGELIA", "Texto": "Suiza 🆚 Argelia", "Hora": "09:00 PM", "Keys 1": ["SUIZA", "SUI"], "Keys 2": ["ARGELIA", "ALG"], "Ganador": "", "Resultado": ""},
-    {"Fecha": "03/07", "Rival 1": "AUSTRALIA", "Rival 2": "EGIPTO", "Texto": "Australia 🆚 Egipto", "Hora": "12:00 PM", "Keys 1": ["AUSTRALIA", "AUS"], "Keys 2": ["EGIPTO", "EGY"], "Ganador": "", "Resultado": ""},
-    {"Fecha": "03/07", "Rival 1": "ARGENTINA", "Rival 2": "CABO VERDE", "Texto": "Argentina 🆚 Cabo Verde", "Hora": "04:00 PM", "Keys 1": ["ARGENTINA", "ARG"], "Keys 2": ["CABO VERDE", "CPV"], "Ganador": "", "Resultado": ""},
-    {"Fecha": "03/07", "Rival 1": "COLOMBIA", "Rival 2": "GHANA", "Texto": "Colombia 🆚 Ghana", "Hora": "07:30 PM", "Keys 1": ["COLOMBIA", "COL"], "Keys 2": ["GHANA", "GHA"], "Ganador": "", "Resultado": ""},
+    {"Fecha": "30/06", "Rival 1": "COSTA DE MARFIL", "Rival 2": "NORUEGA", "Texto": "Costa de Marfil 🆚 Noruega", "Hora": "11:00 AM", "Keys 1": ["COSTA DE MARFIL", "MARFIL", "CIV"], "Keys 2": ["NORUEGA", "NOR"]},
+    {"Fecha": "30/06", "Rival 1": "FRANCIA", "Rival 2": "SUECIA", "Texto": "Francia 🆚 Suecia", "Hora": "03:00 PM", "Keys 1": ["FRANCIA", "FRA"], "Keys 2": ["SUECIA", "SUE"]},
+    {"Fecha": "30/06", "Rival 1": "MÉXICO", "Rival 2": "ECUADOR", "Texto": "México 🆚 Ecuador", "Hora": "07:00 PM", "Keys 1": ["MEXICO", "MÉXICO", "MEX"], "Keys 2": ["ECUADOR", "ECU"]},
+    {"Fecha": "01/07", "Rival 1": "INGLATERRA", "Rival 2": "RD CONGO", "Texto": "Inglaterra 🆚 RD Congo", "Hora": "10:00 AM", "Keys 1": ["INGLATERRA", "ENG"], "Keys 2": ["CONGO", "RD CONGO", "RDC"]},
+    {"Fecha": "01/07", "Rival 1": "BÉLGICA", "Rival 2": "SENEGAL", "Texto": "Bélgica 🆚 Senegal", "Hora": "02:00 PM", "Keys 1": ["BELGICA", "BÉLGICA", "BEL"], "Keys 2": ["SENEGAL", "SEN"]},
+    {"Fecha": "01/07", "Rival 1": "ESTADOS UNIDOS", "Rival 2": "BOSNIA", "Texto": "Estados Unidos 🆚 Bosnia", "Hora": "06:00 PM", "Keys 1": ["ESTADOS UNIDOS", "USA", "EEUU"], "Keys 2": ["BOSNIA", "HERZEGOVINA", "BOSNIA-HERZ"]},
+    {"Fecha": "02/07", "Rival 1": "ESPAÑA", "Rival 2": "AUSTRIA", "Texto": "España 🆚 Austria", "Hora": "01:00 PM", "Keys 1": ["ESPAÑA", "ESP"], "Keys 2": ["AUSTRIA", "AUT"]},
+    {"Fecha": "02/07", "Rival 1": "PORTUGAL", "Rival 2": "CROACIA", "Texto": "Portugal 🆚 Croacia", "Hora": "05:00 PM", "Keys 1": ["PORTUGAL", "POR"], "Keys 2": ["CROACIA", "CRO"]},
+    {"Fecha": "02/07", "Rival 1": "SUIZA", "Rival 2": "ARGELIA", "Texto": "Suiza 🆚 Argelia", "Hora": "09:00 PM", "Keys 1": ["SUIZA", "SUI"], "Keys 2": ["ARGELIA", "ALG"]},
+    {"Fecha": "03/07", "Rival 1": "AUSTRALIA", "Rival 2": "EGIPTO", "Texto": "Australia 🆚 Egipto", "Hora": "12:00 PM", "Keys 1": ["AUSTRALIA", "AUS"], "Keys 2": ["EGIPTO", "EGY"]},
+    {"Fecha": "03/07", "Rival 1": "ARGENTINA", "Rival 2": "CABO VERDE", "Texto": "Argentina 🆚 Cabo Verde", "Hora": "04:00 PM", "Keys 1": ["ARGENTINA", "ARG"], "Keys 2": ["CABO VERDE", "CPV"]},
+    {"Fecha": "03/07", "Rival 1": "COLOMBIA", "Rival 2": "GHANA", "Texto": "Colombia 🆚 Ghana", "Hora": "07:30 PM", "Keys 1": ["COLOMBIA", "COL"], "Keys 2": ["GHANA", "GHA"]},
 ]
 
 PARTIDOS_HOY = [partido for partido in CALENDARIO_COMPLETO if partido["Fecha"] == fecha_formateada]
@@ -103,21 +102,66 @@ def cargar_y_procesar_todo_el_torneo(spreadsheet_id, pestañas_jugadores, partid
     try:
         respuesta = requests.get(url, timeout=15)
         if respuesta.status_code != 200:
-            return None, None
+            return None, None, partidos_hoy
             
         excel_file = pd.ExcelFile(io.BytesIO(respuesta.content), engine='openpyxl')
         nombres_pestañas = excel_file.sheet_names
         
         if "BASE" not in nombres_pestañas:
-            return None, None
+            return None, None, partidos_hoy
         df_base_raw = excel_file.parse("BASE", header=None, dtype=str)
         df_base = procesar_bloque_resumen(df_base_raw)
         if df_base is None:
-            return None, None
+            return None, None, partidos_hoy
             
         set_base = set(df_base["16vos"].dropna().apply(limpiar_texto))
         set_base.discard("")
+
+        # --- LEER RESULTADOS DESDE LA PESTAÑA DE CALENDARIO ---
+        # Buscamos si existe una pestaña llamada "CALENDARIO" o similar en tu archivo
+        pestaña_cal = [n for n in nombres_pestañas if "CALENDARIO" in n.upper()]
         
+        for p in partidos_hoy:
+            p["Resultado"] = ""
+            p["Ganador"] = ""
+            
+            if pestaña_cal:
+                df_cal_excel = excel_file.parse(pestaña_cal[0], dtype=str)
+                # Normalizamos las columnas a minúsculas para evitar fallos por espacios
+                df_cal_excel.columns = [str(c).strip().lower() for c in df_cal_excel.columns]
+                
+                # Buscamos la fila del partido usando el nombre de los rivales
+                fila_partido = df_cal_excel[
+                    df_cal_excel.astype(str).apply(lambda x: x.str.contains(p["Rival 1"], case=False, na=False)).any(axis=1) &
+                    df_cal_excel.astype(str).apply(lambda x: x.str.contains(p["Rival 2"], case=False, na=False)).any(axis=1)
+                ]
+                
+                if not fila_partido.empty:
+                    # Buscamos si existe una columna llamada 'marcador', 'resultado' o 'goles'
+                    cols_marcador = [c for c in df_cal_excel.columns if 'marcador' in c or 'resultado' in c or 'goles' in c]
+                    if cols_marcador:
+                        marcador_crudo = str(fila_partido.iloc[0][cols_marcador[0]]).strip()
+                        
+                        # Si el campo tiene datos y contiene números (ej. "2 - 1")
+                        if pd.notna(marcador_crudo) and marcador_crudo != "" and re.search(r'\d', marcador_crudo):
+                            p["Resultado"] = f"{marcador_crudo} FINAL"
+                            
+                            # Extraemos los números para saber quién ganó de forma automática
+                            goles = [int(g) for g in re.findall(r'\d+', marcador_crudo)]
+                            if len(goles) >= 2:
+                                if goles[0] > goles[1]:
+                                    p["Ganador"] = p["Rival 1"]
+                                elif goles[1] > goles[0]:
+                                    p["Ganador"] = p["Rival 2"]
+                                else:
+                                    # Si hay empate pero hay info de penales en el texto: "0-0 (4-3 PEN)"
+                                    if "PEN" in marcador_crudo.upper() and len(goles) >= 4:
+                                        if goles[2] > goles[3]:
+                                            p["Ganador"] = p["Rival 1"]
+                                        else:
+                                            p["Ganador"] = p["Rival 2"]
+        
+        # --- PROCESAR PARTICIPANTES ---
         for pestaña in pestañas_jugadores:
             df_jugador = None
             nombre_real = pestaña
@@ -146,17 +190,15 @@ def cargar_y_procesar_todo_el_torneo(spreadsheet_id, pestañas_jugadores, partid
                             encontrado = p["Rival 2"].title()
                             break
                     
-                    # --- VALIDACIÓN NO INVASIVA DE ACIERTOS ---
-                    # Si el partido ya tiene un ganador definido en el calendario:
+                    # Validación sutil con el ganador extraído del Excel
                     if p["Ganador"] != "":
                         ganador_limpio = limpiar_texto(p["Ganador"])
                         eleccion_limpia = limpiar_texto(encontrado)
                         
-                        # Si coincide con lo que eligió, le agregamos un check sutil
                         if ganador_limpio == eleccion_limpia:
                             elecciones_hoy[p["Texto"]] = f"✅ {encontrado}"
                         else:
-                            elecciones_hoy[p["Texto"]] = f"❌ {encontrado}"
+                            elecciones_hoy[p["Texto"]] = f"• {encontrado}"
                     else:
                         elecciones_hoy[p["Texto"]] = encontrado
             else:
@@ -171,14 +213,14 @@ def cargar_y_procesar_todo_el_torneo(spreadsheet_id, pestañas_jugadores, partid
         df_ranking.index = df_ranking.index + 1
         df_pronosticos_hoy = pd.DataFrame(pronosticos_hoy_lista).reset_index(drop=True) if pronosticos_hoy_lista else pd.DataFrame(columns=["Participante"])
         
-        return df_ranking, df_pronosticos_hoy
+        return df_ranking, df_pronosticos_hoy, partidos_hoy
 
     except Exception as e:
-        return None, None
+        return None, None, partidos_hoy
 
 # Ejecución de la carga de datos masiva
 with st.spinner("🚀 Sincronizando archivo Excel..."):
-    df_ranking, df_pronosticos_hoy = cargar_y_procesar_todo_el_torneo(SPREADSHEET_ID, ID_PESTAÑAS, PARTIDOS_HOY)
+    df_ranking, df_pronosticos_hoy, PARTIDOS_HOY = cargar_y_procesar_todo_el_torneo(SPREADSHEET_ID, ID_PESTAÑAS, PARTIDOS_HOY)
 
 if df_ranking is None:
     st.error("⚠️ Error crítico al descargar o procesar el archivo Excel.")
@@ -199,8 +241,7 @@ else:
             columnas_juegos = st.columns(len(PARTIDOS_HOY))
             for i, partido in enumerate(PARTIDOS_HOY):
                 with columnas_juegos[i]:
-                    # Validación sutil de estatus o resultado final
-                    if partido["Resultado"] != "":
+                    if partido.get("Resultado", "") != "":
                         sub_badge = f'<span style="font-size: 11px; font-weight: bold; color: #10B981; background-color: #D1FAE5; padding: 2px 6px; border-radius: 4px;">🏁 {partido["Resultado"]}</span>'
                     else:
                         sub_badge = f'<span style="font-size: 11px; font-weight: bold; color: #3B82F6; text-transform: uppercase;">⏰ {partido["Hora"]} MX</span>'
@@ -230,7 +271,7 @@ else:
         if not PARTIDOS_HOY:
             st.info("No hay pronósticos que mostrar porque hoy no se juegan partidos.")
         else:
-            st.markdown("Marcación sutil: **✅ Acertado** | **❌ Errado** | Sin marca = En juego.")
+            st.markdown("Marcación sutil: **✅ Acertado** | **• Errado** | Sin marca = En juego.")
             st.dataframe(df_pronosticos_hoy, use_container_width=True, hide_index=True)
 
     # --- PESTAÑA 3: VISOR DE PARTICIPANTES ---
