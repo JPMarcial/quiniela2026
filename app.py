@@ -237,5 +237,5 @@ else:
     # --- PESTAÑA 3: VISOR DE PARTICIPANTES (CERRADO TEMPORALMENTE) ---
     with tab_participantes:
         st.write("")
-        st.error("### 🤖 Temporalmente fuera de servicio y un robot enojado")
+        st.error("### 🤖 Temporalmente fuera de servicio")
         st.image("https://fonts.gstatic.com/s/e/notoemoji/latest/1f916/512.webp", width=120)
