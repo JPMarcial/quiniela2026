@@ -3,8 +3,8 @@ import pandas as pd
 import requests
 import io
 
-st.set_page_config(page_title="Quiniela en Vivo", page_icon="⚽", layout="wide")
-st.title("🏆 Control de Aciertos en Tiempo Real - Quiniela 2026")
+st.set_page_config(page_title="Quiniela Fase Final", page_icon="⚽", layout="wide")
+st.title("⚽ Quiniela - Fase Final 2026")
 
 # ==============================================================================
 # 1. CONFIGURACIÓN DE CONEXIÓN Y JUGADORES
@@ -18,7 +18,7 @@ ID_PESTAÑAS = [
     "JMG", "JV", "CAAM", "DSR", "SLO"
 ]
 
-@st.cache_data(ttl=120)
+@st.cache_data(ttl=60)
 def cargar_pestaña_desde_drive(spreadsheet_id, nombre_hoja):
     url = f"https://docs.google.com/spreadsheets/d/{spreadsheet_id}/gviz/tq?tqx=out:csv&sheet={nombre_hoja}"
     try:
@@ -45,6 +45,7 @@ def procesar_bloque_resumen(df_raw):
         return None
     try:
         inicio_tabla = None
+        # Buscar la fila exacta donde inicia el bloque de fases
         for idx, row in df_raw.iterrows():
             if row.astype(str).str.contains('16vos', case=False, na=False).any():
                 inicio_tabla = idx
@@ -52,9 +53,12 @@ def procesar_bloque_resumen(df_raw):
         if inicio_tabla is None:
             return None
             
+        # Extraer el sub-dataframe a partir de esa fila
         df_resumen = df_raw.iloc[inicio_tabla:].copy()
         df_resumen.columns = df_resumen.iloc[0]
         df_resumen = df_resumen[1:]
+        
+        # Limpiar nombres de columnas
         df_resumen.columns = [str(c).strip().lower() if pd.notna(c) else "" for c in df_resumen.columns]
         
         mapeo_columnas = {
@@ -65,6 +69,8 @@ def procesar_bloque_resumen(df_raw):
         columnas_existentes = [c for c in mapeo_columnas.keys() if c in df_resumen.columns]
         df_final = df_resumen[columnas_existentes].copy()
         df_final = df_final.rename(columns=mapeo_columnas)
+        
+        # Limpiar filas vacías y resetear índice
         df_final = df_final.dropna(how="all").reset_index(drop=True)
         return df_final
     except Exception:
@@ -87,7 +93,7 @@ def calcular_puntos(df_jugador, df_base):
 # ==============================================================================
 # 2. PROCESAMIENTO EN VIVO
 # ==============================================================================
-with st.spinner("🔄 Procesando datos y nombres desde Google Drive..."):
+with st.spinner("🔄 Cargando y emparejando participantes desde las pestañas..."):
     df_base_raw = cargar_pestaña_desde_drive(SPREADSHEET_ID, "BASE")
     df_base = procesar_bloque_resumen(df_base_raw)
 
@@ -95,15 +101,12 @@ if df_base is None or df_base.empty:
     st.error("⚠️ No se pudo conectar correctamente con la pestaña 'BASE' en Google Drive.")
 else:
     datos_ranking = []
-    mapeo_nombres_df = {}  # Guardará { Nombre Real: df_procesado }
-    mapeo_id_a_nombre = {} # Guardará { ID_Pestaña: Nombre Real }
+    mapeo_nombres_df = {}  
     
     for pestaña in ID_PESTAÑAS:
         df_jugador_raw = cargar_pestaña_desde_drive(SPREADSHEET_ID, pestaña)
         nombre_real = obtener_nombre_real(df_jugador_raw, pestaña)
         df_jugador = procesar_bloque_resumen(df_jugador_raw)
-        
-        mapeo_id_a_nombre[pestaña] = nombre_real
         
         if df_jugador is not None:
             mapeo_nombres_df[nombre_real] = df_jugador
@@ -127,7 +130,7 @@ else:
         st.subheader("🏅 Clasificación General")
         st.write("Posiciones calculadas de acuerdo a los pronosticos individuales.")
         
-        # Lógica inteligente de Líder: Solo si hay máximo 2 personas con el puntaje más alto
+        # Lógica de Líder Máximo 2 personas
         if not df_ranking.empty:
             max_puntos_actual = df_ranking.iloc[0]["Aciertos Totales"]
             empates_primer_lugar = df_ranking[df_ranking["Aciertos Totales"] == max_puntos_actual]
@@ -142,7 +145,6 @@ else:
     with tab_participantes:
         st.subheader("🔍 Desglose individual de predicciones")
         
-        # Lista ordenada de nombres reales para el selector
         lista_nombres_reales = sorted(list(mapeo_nombres_df.keys()))
         nombre_seleccionado = st.selectbox("Selecciona un participante para revisar sus aciertos:", lista_nombres_reales)
         
