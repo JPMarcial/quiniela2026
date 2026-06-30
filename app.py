@@ -26,7 +26,7 @@ fecha_formateada = fecha_actual_mx.strftime("%d/%m")
 CALENDARIO_COMPLETO = [
     {"Fecha": "30/06", "Rival 1": "COSTA DE MARFIL", "Rival 2": "NORUEGA", "Texto": "Costa de Marfil 🆚 Noruega", "Hora": "11:00 AM", "Keys 1": ["COSTA DE MARFIL", "MARFIL", "CIV"], "Keys 2": ["NORUEGA", "NOR"]},
     {"Fecha": "30/06", "Rival 1": "FRANCIA", "Rival 2": "SUECIA", "Texto": "Francia 🆚 Suecia", "Hora": "03:00 PM", "Keys 1": ["FRANCIA", "FRA"], "Keys 2": ["SUECIA", "SUE"]},
-    {"Fecha": "30/06", "Rival 1": "MÉXICO", "Rival 2": "ECUADOR", "Texto": "México 🆚 Ecuador", "Hora": "07:00 PM", "Keys 1": ["MEXICO", "MÉXICO", "MEX"], "Keys 2": ["ECUADOR", "ECU"]},
+    {"Fecha": "30/06", "Rival 1": "MÉXICO 🇲🇽", "Rival 2": "ECUADOR", "Texto": "México 🇲🇽 🆚 Ecuador", "Hora": "07:00 PM", "Keys 1": ["MEXICO", "MÉXICO", "MEX"], "Keys 2": ["ECUADOR", "ECU"]},
     {"Fecha": "01/07", "Rival 1": "INGLATERRA", "Rival 2": "RD CONGO", "Texto": "Inglaterra 🆚 RD Congo", "Hora": "10:00 AM", "Keys 1": ["INGLATERRA", "ENG"], "Keys 2": ["CONGO", "RD CONGO", "RDC"]},
     {"Fecha": "01/07", "Rival 1": "BÉLGICA", "Rival 2": "SENEGAL", "Texto": "Bélgica 🆚 Senegal", "Hora": "02:00 PM", "Keys 1": ["BELGICA", "BÉLGICA", "BEL"], "Keys 2": ["SENEGAL", "SEN"]},
     {"Fecha": "01/07", "Rival 1": "ESTADOS UNIDOS", "Rival 2": "BOSNIA", "Texto": "Estados Unidos 🆚 Bosnia", "Hora": "06:00 PM", "Keys 1": ["ESTADOS UNIDOS", "USA", "EEUU"], "Keys 2": ["BOSNIA", "HERZEGOVINA", "BOSNIA-HERZ"]},
@@ -136,7 +136,10 @@ def cargar_y_procesar_todo_el_torneo(spreadsheet_id, pestañas_jugadores, partid
                 fila_idx = None
                 for idx, row in df_cal_excel.iterrows():
                     fila_str = " ".join(row.astype(str).fillna("").tolist()).upper()
-                    if p["Rival 1"] in fila_str and p["Rival 2"] in fila_str:
+                    # Validación flexible que ignore emojis en los nombres clave
+                    rival1_limpio = re.sub(r'[^\w\s]', '', p["Rival 1"]).strip().upper()
+                    rival2_limpio = re.sub(r'[^\w\s]', '', p["Rival 2"]).strip().upper()
+                    if rival1_limpio in fila_str and rival2_limpio in fila_str:
                         fila_idx = idx
                         break
                 
@@ -253,7 +256,7 @@ else:
             
         st.write("---")
         
-        # --- NUEVA LISTA DE CLASIFICACIÓN UNIFICADA ---
+        # --- TABLA DE POSICIONES GENERAL UNIFICADA ---
         st.subheader("🏅 Tabla de Posiciones General")
         
         if not df_ranking.empty:
