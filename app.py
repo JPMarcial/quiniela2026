@@ -4,135 +4,71 @@ import requests
 from io import BytesIO
 
 # ==============================================================================
-# 1. CONFIGURACIÓN DE PÁGINA Y ESTILOS CSS PARA DIBUJAR LAS LÍNEAS DE LA LLAVE
+# 1. CONFIGURACIÓN DE LA PÁGINA Y ESTILOS CSS CORREGIDOS (ALTO CONTRASTE)
 # ==============================================================================
-st.set_page_config(page_title="Quiniela 2026 - Bracket Real", page_icon="🏆", layout="wide")
+st.set_page_config(
+    page_title="Quiniela Mundial 2026 - Árbol de Llaves",
+    page_icon="🏆",
+    layout="wide"
+)
 
+# Estilos CSS corregidos para que las iniciales sean perfectamente legibles
 st.markdown("""
     <style>
-    .main-title { font-size: 30px; font-weight: 800; color: #1E3A8A; text-align: center; margin-bottom: 20px; }
+    .main-title { font-size: 32px; font-weight: 800; color: #1E3A8A; text-align: center; margin-bottom: 5px; }
+    .subtitle { font-size: 14px; color: #64748B; text-align: center; margin-bottom: 25px; }
     
-    /* Contenedor del Torneo en Flexbox */
-    .tournament-bracket {
-        display: flex;
-        flex-direction: row;
-        justify-content: space-between;
-        align-items: stretch;
-        width: 100%;
-        background-color: #F8FAFC;
-        padding: 20px;
-        border-radius: 12px;
-        overflow-x: auto;
-    }
-    
-    /* Columnas de Rondas */
-    .bracket-round {
-        display: flex;
-        flex-direction: column;
-        justify-content: space-around;
-        flex-grow: 1;
-        width: 280px;
-        min-width: 260px;
-        padding: 0 10px;
-        position: relative;
-    }
-    
-    /* Estructura de cada Partido */
-    .bracket-matchup {
-        display: flex;
-        flex-direction: column;
+    /* Contenedores de Partidos de la Llave */
+    .match-box {
         background-color: #FFFFFF;
-        border: 1px solid #CBD5E1;
-        border-radius: 6px;
-        margin: 10px 0;
-        box-shadow: 0 2px 4px rgba(0,0,0,0.04);
-        position: relative;
-        z-index: 2;
+        border: 1px solid #E2E8F0;
+        border-radius: 8px;
+        padding: 12px;
+        margin-bottom: 15px;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.02);
     }
-    
-    .matchup-header {
-        font-size: 9px;
+    .match-box-header {
+        font-size: 11px;
         font-weight: 700;
         color: #64748B;
-        background-color: #F1F5F9;
-        padding: 3px 8px;
-        border-bottom: 1px solid #E2E8F0;
-        border-top-left-radius: 5px;
-        border-top-right-radius: 5px;
+        text-transform: uppercase;
+        margin-bottom: 8px;
+        border-bottom: 1px solid #F1F5F9;
+        padding-bottom: 4px;
     }
-    
-    /* Filas de Equipos */
-    .bracket-team {
+    .team-row {
         display: flex;
         justify-content: space-between;
         align-items: center;
-        padding: 6px 10px;
-        font-size: 12px;
-        border-bottom: 1px solid #F1F5F9;
+        padding: 6px 0;
+        font-size: 13px;
     }
-    .bracket-team:last-child { border-bottom: none; }
+    .team-name { font-weight: 700; color: #0F172A; }
+    .team-winner { color: #10B981; font-weight: 800; }
     
-    .team-name-text { font-weight: 700; color: #334155; }
-    .team-winner-official { color: #10B981 !important; font-weight: 800; }
-    
-    /* Chips de Iniciales de los Participantes (Legibles) */
-    .avatar-list { display: flex; flex-wrap: wrap; gap: 3px; max-width: 120px; }
-    .user-chip {
-        background-color: #DBEAFE;
-        color: #1E40AF;
-        font-size: 9px;
+    /* CORRECCIÓN: Micro-avatares con alto contraste (Letras oscuras sobre fondo suave) */
+    .avatar-container {
+        margin-top: 2px;
+        display: flex;
+        flex-wrap: wrap;
+        gap: 4px;
+    }
+    .avatar-chip {
+        background-color: #DBEAFE; /* Fondo azul claro */
+        color: #1E40AF;            /* Letras azul marino oscuro (Legible) */
+        font-size: 10px;
         font-weight: 800;
-        padding: 1px 4px;
-        border-radius: 3px;
+        padding: 2px 6px;
+        border-radius: 4px;
         border: 1px solid #93C5FD;
-    }
-
-    /* ==========================================================================
-       CONECTORES REALES: LÍNEAS DEL ÁRBOL
-       ========================================================================== */
-    /* Línea saliente horizontal del partido actual hacia la derecha */
-    .bracket-round:not(:last-child) .bracket-matchup::after {
-        content: "";
-        position: absolute;
-        right: -10px;
-        top: 50%;
-        width: 10px;
-        height: 2px;
-        background-color: #94A3B8;
-        z-index: 1;
-    }
-
-    /* Línea vertical de unión para partidos pares/impares en la siguiente columna */
-    .bracket-round:first-child .bracket-matchup:nth-child(odd)::before {
-        content: "";
-        position: absolute;
-        right: -10px;
-        top: 50%;
-        width: 2px;
-        height: 65px; /* Distancia aproximada entre cajas */
-        background-color: #94A3B8;
-        z-index: 1;
-    }
-    
-    /* Encabezados de Fase */
-    .phase-title {
-        text-align: center;
-        font-weight: 800;
-        font-size: 14px;
-        color: #1E3A8A;
-        border-bottom: 2px solid #3B82F6;
-        padding-bottom: 5px;
-        margin-bottom: 15px;
-        text-transform: uppercase;
+        display: inline-block;
     }
     </style>
 """, unsafe_allow_html=True)
 
-# URL pública de descarga del archivo de quiniela
 FILE_ID = "1NSjLaSgIodnTtk2iFQFvlBkw7wOyqAOe"
 URL_DRIVE = f"https://docs.google.com/uc?export=download&id={FILE_ID}"
 
-# Lista para el mapeo estricto
 PAISES_VALIDOS = {
     "alemania", "paraguay", "francia", "suecia", "sudafrica", "canada", 
     "paises bajos", "marruecos", "portugal", "croacia", "españa", "austria", 
@@ -144,19 +80,24 @@ PAISES_VALIDOS = {
 
 def obtener_iniciales(nombre):
     partes = nombre.split()
-    if len(partes) >= 2: return (partes[0][0] + partes[1][0]).upper()
+    if len(partes) >= 2:
+        return (partes[0][0] + partes[1][0]).upper()
     return nombre[:2].upper()
 
-def extraer_lista_por_columna(df, num_columna):
-    """Extrae secuencialmente los equipos de una columna específica del árbol."""
-    lista = []
-    if len(df.columns) > num_columna:
-        for val in df.iloc[:, num_columna].dropna().astype(str).str.strip():
-            if val.lower() in PAISES_VALIDOS:
-                lista.append(val.lower())
-    return lista
+def extraer_arbol_por_columnas(df):
+    rondas = {"ronda1": set(), "ronda2": set(), "ronda3": set()}
+    if len(df.columns) > 6:
+        for val in df.iloc[:, 6].dropna().astype(str).str.strip():
+            if val.lower() in PAISES_VALIDOS: rondas["ronda1"].add(val.lower())
+    if len(df.columns) > 8:
+        for val in df.iloc[:, 8].dropna().astype(str).str.strip():
+            if val.lower() in PAISES_VALIDOS: rondas["ronda2"].add(val.lower())
+    if len(df.columns) > 10:
+        for val in df.iloc[:, 10].dropna().astype(str).str.strip():
+            if val.lower() in PAISES_VALIDOS: rondas["ronda3"].add(val.lower())
+    return rondas
 
-# Cruces Fijos de 16vos sacados de la plantilla original
+# Cruces iniciales basados en la estructura del torneo
 CRUCES_INICIALES = [
     ("Alemania", "Paraguay"), ("Francia", "Suecia"), ("Sudáfrica", "Canadá"), ("Países Bajos", "Marruecos"),
     ("Portugal", "Croacia"), ("España", "Austria"), ("Estados Unidos", "Bosnia-Herz"), ("Bélgica", "Senegal"),
@@ -164,21 +105,15 @@ CRUCES_INICIALES = [
     ("Argentina", "Cabo Verde"), ("Australia", "Egipto"), ("Suiza", "Argelia"), ("Colombia", "Ghana")
 ]
 
-@st.cache_data(ttl=10)
-def procesar_toda_la_data():
+@st.cache_data(ttl=15)
+def procesar_datos_torneo():
     try:
         respuesta = requests.get(URL_DRIVE, timeout=12)
         xls = pd.ExcelFile(BytesIO(respuesta.content))
         
-        # 1. ACTUALIZACIÓN AUTOMÁTICA DESDE RESULTADOS REALES
         df_res = pd.read_excel(xls, sheet_name='RESULTADOS', header=None)
-        resultados_reales = {
-            "r16vos": extraer_lista_por_columna(df_res, 6), # Columna G
-            "octavos": extraer_lista_por_columna(df_res, 8), # Columna I
-            "cuartos": extraer_lista_por_columna(df_res, 10) # Columna K
-        }
+        reales_por_ronda = extraer_arbol_por_columnas(df_res)
         
-        # 2. Extracción de Quinielas de Usuarios
         participantes_datos = []
         hojas_excluidas = ['RESULTADOS', 'MURO', 'CALENDARIO']
         pestanas_jugadores = [p for p in xls.sheet_names if p.upper() not in hojas_excluidas and p.strip() != '']
@@ -192,126 +127,101 @@ def procesar_toda_la_data():
                 if celda and celda.lower() != 'nan' and len(celda) > 3: nombre_mostrar = celda
             except: pass
             
-            p_pronos = {
-                "r16vos": extraer_lista_por_columna(df_part, 6),
-                "octavos": extraer_lista_por_columna(df_part, 8),
-                "cuartos": extraer_lista_por_columna(df_part, 10)
-            }
-            
-            # Cálculo dinámico de puntajes por aciertos reales
-            puntos = len(set(p_pronos["r16vos"]).intersection(set(resultados_reales["r16vos"]))) + \
-                     len(set(p_pronos["octavos"]).intersection(set(resultados_reales["octavos"]))) * 2
+            pronosticos = extraer_arbol_por_columnas(df_part)
+            puntos = len(pronosticos["ronda1"].intersection(reales_por_ronda["ronda1"])) + \
+                     len(pronosticos["ronda2"].intersection(reales_por_ronda["ronda2"]))
             
             participantes_datos.append({
-                "nombre": nombre_mostrar, "iniciales": obtener_iniciales(nombre_mostrar),
-                "pronosticos": p_pronos, "puntos": puntos
+                "id": p, "nombre": nombre_mostrar, "iniciales": obtener_iniciales(nombre_mostrar),
+                "pronosticos": pronosticos, "puntos": puntos
             })
             
-        return participantes_datos, resultados_reales, None
+        return participantes_datos, reales_por_ronda, None
     except Exception as e:
-        return [], {}, f"Error de sincronización: {str(e)}"
+        return [], {}, f"Error al leer el archivo: {str(e)}"
 
 # ==============================================================================
-# 3. CONSTRUCCIÓN DE LA INTERFAZ DE USUARIO
+# INTERFAZ GRÁFICA DE LAS LLAVES
 # ==============================================================================
-st.markdown('<div class="main-title">🏆 Árbol del Torneo en Tiempo Real 🏆</div>', unsafe_allow_html=True)
+st.markdown('<div class="main-title">🏆 Árbol de Eliminación Directa 🏆</div>', unsafe_allow_html=True)
+st.markdown('<div class="subtitle">Seguimiento Visual de Cruces e Iniciales de los Participantes</div>', unsafe_allow_html=True)
 
-participantes, reales, error = procesar_toda_la_data()
+participantes, reales, error = procesar_datos_torneo()
 
 if error:
     st.error(error)
 elif participantes:
     
-    # Renderizador del árbol usando el contenedor CSS inyectado
-    html_bracket = '<div class="tournament-bracket">'
+    tab_llave, tab_tabla = st.tabs(["🔀 Ver Árbol de la Llave", "📊 Tabla de Posiciones"])
     
-    # --------------------------------------------------------------------------
-    # FASE 1: 16VOS DE FINAL (Fija de base, marca ganadores oficiales de Columna G)
-    # --------------------------------------------------------------------------
-    html_bracket += '<div class="bracket-round"><div class="phase-title">16vos de Final</div>'
-    for idx, (loc, vis) in enumerate(CRUCES_INICIALES):
-        # Verificar cuál avanzó según tu pestaña RESULTADOS
-        win_loc = "team-winner-official" if loc.lower() in reales["r16vos"] else ""
-        win_vis = "team-winner-official" if vis.lower() in reales["r16vos"] else ""
+    with tab_tabla:
+        df_ranking = pd.DataFrame([{ "Pos": i+1, "Nombre": p["nombre"], "Iniciales": f"[{p['iniciales']}]", "Aciertos": p["puntos"] } for i, p in enumerate(sorted(participantes, key=lambda x: x["puntos"], reverse=True))])
+        st.dataframe(df_ranking, use_container_width=True, hide_index=True)
         
-        # Buscar qué iniciales votaron por cada uno en esta casilla
-        v_loc = "".join([f'<span class="user-chip">{p["iniciales"]}</span>' for p in participantes if loc.lower() in p["pronosticos"]["r16vos"]])
-        v_vis = "".join([f'<span class="user-chip">{p["iniciales"]}</span>' for p in participantes if vis.lower() in p["pronosticos"]["r16vos"]])
+    with tab_llave:
+        st.info("💡 Cada casilla representa un partido. Adentro verás las iniciales de los participantes que apostaron por ese equipo en su quiniela.")
         
-        html_bracket += f"""
-        <div class="bracket-matchup">
-            <div class="matchup-header">Partido {idx+1}</div>
-            <div class="bracket-team">
-                <span class="team-name-text {win_loc}">{loc}</span>
-                <div class="avatar-list">{v_loc}</div>
-            </div>
-            <div class="bracket-team">
-                <span class="team-name-text {win_vis}">{vis}</span>
-                <div class="avatar-list">{v_vis}</div>
-            </div>
-        </div>
-        """
-    html_bracket += '</div>'
-    
-    # --------------------------------------------------------------------------
-    # FASE 2: OCTAVOS DE FINAL (Se alimenta en cascada de los resultados oficiales de la R1)
-    # --------------------------------------------------------------------------
-    html_bracket += '<div class="bracket-round"><div class="phase-title">Octavos de Final</div>'
-    
-    # Generamos los 8 partidos de octavos agrupando los ganadores en parejas correlativas
-    for idx in range(0, 16, 2):
-        # Trae de manera automática el ganador oficial desde el Excel
-        eq1 = reales["r16vos"][idx].upper() if idx < len(reales["r16vos"]) else "Por definir"
-        eq2 = reales["r16vos"][idx+1].upper() if (idx+1) < len(reales["r16vos"]) else "Por definir"
+        # Tres columnas representando el avance oficial de las fases
+        col_ronda1, col_ronda2, col_ronda3 = st.columns([4, 4, 4])
         
-        win_eq1 = "team-winner-official" if eq1.lower() in reales["octavos"] else ""
-        win_eq2 = "team-winner-official" if eq2.lower() in reales["octavos"] else ""
-        
-        v_eq1 = "".join([f'<span class="user-chip">{p["iniciales"]}</span>' for p in participantes if eq1.lower() in p["pronosticos"]["octavos"]])
-        v_eq2 = "".join([f'<span class="user-chip">{p["iniciales"]}</span>' for p in participantes if eq2.lower() in p["pronosticos"]["octavos"]])
-        
-        html_bracket += f"""
-        <div class="bracket-matchup">
-            <div class="matchup-header">Octavos M{ (idx//2)+1 }</div>
-            <div class="bracket-team">
-                <span class="team-name-text {win_eq1}">{eq1.title()}</span>
-                <div class="avatar-list">{v_eq1}</div>
-            </div>
-            <div class="bracket-team">
-                <span class="team-name-text {win_eq2}">{eq2.title()}</span>
-                <div class="avatar-list">{v_eq2}</div>
-            </div>
-        </div>
-        """
-    html_bracket += '</div>'
-    
-    # --------------------------------------------------------------------------
-    # FASE 3: CUARTOS DE FINAL (Se alimenta en cascada del resultado oficial de Octavos)
-    # --------------------------------------------------------------------------
-    html_bracket += '<div class="bracket-round"><div class="phase-title">Cuartos de Final</div>'
-    for idx in range(0, 8, 2):
-        eq1 = reales["octavos"][idx].upper() if idx < len(reales["octavos"]) else "Por definir"
-        eq2 = reales["octavos"][idx+1].upper() if (idx+1) < len(reales["octavos"]) else "Por definir"
-        
-        v_eq1 = "".join([f'<span class="user-chip">{p["iniciales"]}</span>' for p in participantes if eq1.lower() in p["pronosticos"]["cuartos"]])
-        v_eq2 = "".join([f'<span class="user-chip">{p["iniciales"]}</span>' for p in participantes if eq2.lower() in p["pronosticos"]["cuartos"]])
-        
-        html_bracket += f"""
-        <div class="bracket-matchup">
-            <div class="matchup-header">Cuartos C{ (idx//2)+1 }</div>
-            <div class="bracket-team">
-                <span class="team-name-text">{eq1.title()}</span>
-                <div class="avatar-list">{v_eq1}</div>
-            </div>
-            <div class="bracket-team">
-                <span class="team-name-text">{eq2.title()}</span>
-                <div class="avatar-list">{v_eq2}</div>
-            </div>
-        </div>
-        """
-    html_bracket += '</div>'
-    
-    html_bracket += '</div>'
-    
-    # Renderizar el HTML final sanitizado dentro de Streamlit
-    st.write(html_bracket, unsafe_allow_html=True)
+        # --- COLUMNA 1: 16VOS DE FINAL ---
+        with col_ronda1:
+            st.markdown('<div class="section-title">⚽ 16vos de Final</div>', unsafe_allow_html=True)
+            
+            for m_idx, (local, visitante) in enumerate(CRUCES_INICIALES):
+                ganador_real = None
+                if local.lower() in reales["ronda1"]: ganador_real = local
+                elif visitante.lower() in reales["ronda1"]: ganador_real = visitante
+                
+                # Renderizar los micro-avatares con la clase corregida '.avatar-chip'
+                votos_local = [f'<span class="avatar-chip">{p["iniciales"]}</span>' for p in participantes if local.lower() in p["pronosticos"]["ronda1"]]
+                votos_vis = [f'<span class="avatar-chip">{p["iniciales"]}</span>' for p in participantes if visitante.lower() in p["pronosticos"]["ronda1"]]
+                
+                st.markdown(f"""
+                <div class="match-box">
+                    <div class="match-box-header">Partido {m_idx + 1}</div>
+                    <div class="team-row">
+                        <span class="team-name {'team-winner' if ganador_real == local else ''}">{local}</span>
+                        <div class="avatar-container">{" ".join(votos_local)}</div>
+                    </div>
+                    <div class="team-row">
+                        <span class="team-name {'team-winner' if ganador_real == visitante else ''}">{visitante}</span>
+                        <div class="avatar-container">{" ".join(votos_vis)}</div>
+                    </div>
+                </div>
+                """, unsafe_allow_html=True)
+                
+        # --- COLUMNA 2: OCTAVOS DE FINAL ---
+        with col_ronda2:
+            st.markdown('<div class="section-title">🎯 Octavos de Final</div>', unsafe_allow_html=True)
+            
+            todos_r2 = set()
+            for p in participantes: todos_r2.update(p["pronosticos"]["ronda2"])
+            
+            for equipo_r2 in sorted(list(todos_r2)):
+                votos_r2 = [f'<span class="avatar-chip">{p["iniciales"]}</span>' for p in participantes if equipo_r2 in p["pronosticos"]["ronda2"]]
+                es_real_r2 = " (✔️ Avanzó)" if equipo_r2 in reales["ronda2"] else ""
+                
+                st.markdown(f"""
+                <div class="match-box" style="border-left: 4px solid #2563EB;">
+                    <div class="team-name" style="color: #1E3A8A;">{equipo_r2.title()}<span style="color:#10B981;">{es_real_r2}</span></div>
+                    <div class="avatar-container" style="margin-top:6px;">{" ".join(votos_r2)}</div>
+                </div>
+                """, unsafe_allow_html=True)
+
+        # --- COLUMNA 3: CUARTOS DE FINAL ---
+        with col_ronda3:
+            st.markdown('<div class="section-title">🔥 Cuartos de Final</div>', unsafe_allow_html=True)
+            
+            todos_r3 = set()
+            for p in participantes: todos_r3.update(p["pronosticos"]["ronda3"])
+            
+            for equipo_r3 in sorted(list(todos_r3)):
+                votos_r3 = [f'<span class="avatar-chip">{p["iniciales"]}</span>' for p in participantes if equipo_r3 in p["pronosticos"]["ronda3"]]
+                
+                st.markdown(f"""
+                <div class="match-box" style="border-left: 4px solid #D97706; background-color: #FFFBEB;">
+                    <div class="team-name" style="color: #B45309;">{equipo_r3.title()}</div>
+                    <div class="avatar-container" style="margin-top:6px;">{" ".join(votos_r3)}</div>
+                </div>
+                """, unsafe_allow_html=True)
