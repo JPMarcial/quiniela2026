@@ -3,26 +3,39 @@ import pandas as pd
 import requests
 import io
 import re
-from datetime import datetime
-import pytz
+from datetime import datetime, timedelta
 
 st.set_page_config(page_title="Quiniela Fase Final", page_icon="⚽", layout="wide")
 st.title("⚽ Quiniela - Fase Final 2026")
 
 # ==============================================================================
-# 1. DETECCIÓN AUTOMÁTICA DE FECHA (ZONA HORARIA MÉXICO)
+# 1. DETECCIÓN AUTOMÁTICA DE FECHA (ZONA HORARIA MÉXICO SIN PYTZ)
 # ==============================================================================
-zona_mx = pytz.timezone('America/Mexico_City')
-fecha_actual_mx = datetime.now(zona_mx)
-fecha_formateada = fecha_actual_mx.strftime("%d/%m") # Ejemplo: "30/06"
+# Ajustamos con base al servidor UTC (-6 horas para obtener la hora de México)
+fecha_actual_mx = datetime.utcnow() - timedelta(hours=6)
+fecha_formateada = fecha_actual_mx.strftime("%d/%m") # Formato: "30/06"
 
-# Base de datos completa de partidos de 16vos con sus fechas reales
+# Base de datos real del calendario de 16vos
 CALENDARIO_COMPLETO = [
-    {"Fecha": "30/06", "Rival 1": "PORTUGAL", "Rival 2": "CROACIA", "Texto": "Portugal 🆚 Croacia", "Hora": "11:00 AM", "Keys 1": ["PORTUGAL", "POR"], "Keys 2": ["CROACIA", "CRO"]},
-    {"Fecha": "30/06", "Rival 1": "ESPAÑA", "Rival 2": "AUSTRIA", "Texto": "España 🆚 Austria", "Hora": "02:00 PM", "Keys 1": ["ESPAÑA", "ESP"], "Keys 2": ["AUSTRIA", "AUT"]},
-    {"Fecha": "30/06", "Rival 1": "ESTADOS UNIDOS", "Rival 2": "BOSNIA-HERZ", "Texto": "Estados Unidos 🆚 Bosnia-Herz", "Hora": "07:00 PM", "Keys 1": ["ESTADOS UNIDOS", "USA", "EEUU"], "Keys 2": ["BOSNIA", "HERZEGOVINA", "BOSNIA-HERZ"]},
-    {"Fecha": "01/07", "Rival 1": "BÉLGICA", "Rival 2": "SENEGAL", "Texto": "Bélgica 🆚 Senegal", "Hora": "11:00 AM", "Keys 1": ["BELGICA", "BEL"], "Keys 2": ["SENEGAL", "SEN"]},
-    # Puedes seguir agregando el resto de días aquí abajo con el mismo formato...
+    # 30 de Junio
+    {"Fecha": "30/06", "Rival 1": "COSTA DE MARFIL", "Rival 2": "NORUEGA", "Texto": "Costa de Marfil 🆚 Noruega", "Hora": "11:00 AM", "Keys 1": ["COSTA DE MARFIL", "MARFIL", "CIV"], "Keys 2": ["NORUEGA", "NOR"]},
+    {"Fecha": "30/06", "Rival 1": "FRANCIA", "Rival 2": "SUECIA", "Texto": "Francia 🆚 Suecia", "Hora": "03:00 PM", "Keys 1": ["FRANCIA", "FRA"], "Keys 2": ["SUECIA", "SUE"]},
+    {"Fecha": "30/06", "Rival 1": "MÉXICO", "Rival 2": "ECUADOR", "Texto": "México 🆚 Ecuador", "Hora": "07:00 PM", "Keys 1": ["MEXICO", "MÉXICO", "MEX"], "Keys 2": ["ECUADOR", "ECU"]},
+    
+    # 01 de Julio
+    {"Fecha": "01/07", "Rival 1": "INGLATERRA", "Rival 2": "RD CONGO", "Texto": "Inglaterra 🆚 RD Congo", "Hora": "10:00 AM", "Keys 1": ["INGLATERRA", "ENG"], "Keys 2": ["CONGO", "RD CONGO", "RDC"]},
+    {"Fecha": "01/07", "Rival 1": "BÉLGICA", "Rival 2": "SENEGAL", "Texto": "Bélgica 🆚 Senegal", "Hora": "02:00 PM", "Keys 1": ["BELGICA", "BÉLGICA", "BEL"], "Keys 2": ["SENEGAL", "SEN"]},
+    {"Fecha": "01/07", "Rival 1": "ESTADOS UNIDOS", "Rival 2": "BOSNIA", "Texto": "Estados Unidos 🆚 Bosnia", "Hora": "06:00 PM", "Keys 1": ["ESTADOS UNIDOS", "USA", "EEUU"], "Keys 2": ["BOSNIA", "HERZEGOVINA", "BOSNIA-HERZ"]},
+    
+    # 02 de Julio
+    {"Fecha": "02/07", "Rival 1": "ESPAÑA", "Rival 2": "AUSTRIA", "Texto": "España 🆚 Austria", "Hora": "01:00 PM", "Keys 1": ["ESPAÑA", "ESP"], "Keys 2": ["AUSTRIA", "AUT"]},
+    {"Fecha": "02/07", "Rival 1": "PORTUGAL", "Rival 2": "CROACIA", "Texto": "Portugal 🆚 Croacia", "Hora": "05:00 PM", "Keys 1": ["PORTUGAL", "POR"], "Keys 2": ["CROACIA", "CRO"]},
+    {"Fecha": "02/07", "Rival 1": "SUIZA", "Rival 2": "ARGELIA", "Texto": "Suiza 🆚 Argelia", "Hora": "09:00 PM", "Keys 1": ["SUIZA", "SUI"], "Keys 2": ["ARGELIA", "ALG"]},
+    
+    # 03 de Julio
+    {"Fecha": "03/07", "Rival 1": "AUSTRALIA", "Rival 2": "EGIPTO", "Texto": "Australia 🆚 Egipto", "Hora": "12:00 PM", "Keys 1": ["AUSTRALIA", "AUS"], "Keys 2": ["EGIPTO", "EGY"]},
+    {"Fecha": "03/07", "Rival 1": "ARGENTINA", "Rival 2": "CABO VERDE", "Texto": "Argentina 🆚 Cabo Verde", "Hora": "04:00 PM", "Keys 1": ["ARGENTINA", "ARG"], "Keys 2": ["CABO VERDE", "CPV"]},
+    {"Fecha": "03/07", "Rival 1": "COLOMBIA", "Rival 2": "GHANA", "Texto": "Colombia 🆚 Ghana", "Hora": "07:30 PM", "Keys 1": ["COLOMBIA", "COL"], "Keys 2": ["GHANA", "GHA"]}
 ]
 
 # Filtrar dinámicamente los partidos que juegan estrictamente HOY
@@ -98,8 +111,14 @@ def calcular_puntos(df_jugador, df_base):
         return 0
     puntos = 0
     if "16vos" in df_jugador.columns and "16vos" in df_base.columns:
-        set_jugador = set(df_jugador["16vos"].dropna().astype(str).str.strip().str.upper())
-        set_base = set(df_base["16vos"].dropna().astype(str).str.strip().str.upper())
+        # Convertir a texto limpio sin acentos para evitar fallos de coincidencia parcial
+        def limpiar_texto(s):
+            s = str(s).strip().upper()
+            s = re.sub(r'[ÁÉÍÓÚ]', lambda m: {'Á':'A','É':'E','Í':'I','Ó':'O','Ú':'U'}[m.group(0)], s)
+            return s
+
+        set_jugador = set(df_jugador["16vos"].dropna().apply(limpiar_texto))
+        set_base = set(df_base["16vos"].dropna().apply(limpiar_texto))
         set_jugador.discard("")
         set_base.discard("")
         puntos += len(set_jugador.intersection(set_base))
@@ -108,7 +127,7 @@ def calcular_puntos(df_jugador, df_base):
 # ==============================================================================
 # 3. PROCESAMIENTO Y CARGA DE DATOS EN VIVO
 # ==============================================================================
-with st.spinner("🔄 Cargando y sincronizando con la hora de México..."):
+with st.spinner("🔄 Actualizando calendario y procesando quinielas..."):
     df_base_raw = cargar_pestaña_desde_drive(SPREADSHEET_ID, "BASE")
     df_base = procesar_bloque_resumen(df_base_raw)
 
@@ -131,9 +150,15 @@ else:
             puntos = calcular_puntos(df_jugador, df_base)
             datos_ranking.append({"Participante": nombre_real, "Aciertos Totales": puntos})
             
-            lista_pronosticos = df_jugador["16vos"].dropna().astype(str).str.strip().str.upper().tolist()
+            # Limpiar acentos y estandarizar la lista para el comparador de hoy
+            def normalizar(txt):
+                txt = str(txt).strip().upper()
+                txt = re.sub(r'[ÁÉÍÓÚ]', lambda m: {'Á':'A','É':'E','Í':'I','Ó':'O','Ú':'U'}[m.group(0)], txt)
+                return txt
+                
+            lista_pronosticos = df_jugador["16vos"].dropna().apply(normalizar).tolist()
             
-            # Evaluar partidos filtrados para hoy
+            # Evaluar los partidos programados para hoy
             for p in PARTIDOS_HOY:
                 encontrado = "Ninguno"
                 for pronostico in lista_pronosticos:
@@ -149,7 +174,6 @@ else:
             for p in PARTIDOS_HOY:
                 elecciones_hoy[p["Texto"]] = "Sin Datos"
                 
-        # Solo agregar si hay partidos programados para la fecha actual
         if PARTIDOS_HOY:
             pronosticos_hoy_lista.append(elecciones_hoy)
             
@@ -177,7 +201,6 @@ else:
         if not PARTIDOS_HOY:
             st.info("⚽ No hay partidos agendados para el día de hoy.")
         else:
-            # Crear columnas dinámicas según la cantidad de partidos del día
             columnas_juegos = st.columns(len(PARTIDOS_HOY))
             for i, partido in enumerate(PARTIDOS_HOY):
                 with columnas_juegos[i]:
