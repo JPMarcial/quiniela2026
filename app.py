@@ -7,18 +7,18 @@ st.set_page_config(page_title="Quiniela en Vivo", page_icon="⚽", layout="wide"
 st.title("🏆 Control de Aciertos en Tiempo Real - Quiniela 2026")
 
 # ==============================================================================
-# 1. ENLACE DE TU GOOGLE DRIVE Y CONFIGURACIÓN DE CONEXIÓN
+# 1. CONFIGURACIÓN DE CONEXIÓN Y JUGADORES
 # ==============================================================================
 SPREADSHEET_ID = "1FTUtzXd-ODXBB0QxIf-68FKf0ZQzVnWM"
 
-# Lista completa de todas las pestañas de tus jugadores
-JUGADORES = [
+# Identificadores de las pestañas en Drive
+ID_PESTAÑAS = [
     "HAAM", "CA", "HR", "JAG", "FB", "PM", "JLJF", 
     "MASM", "CAVL", "AMG", "CAER", "VAVA", "JAMP", "VCBH", 
     "JMG", "JV", "CAAM", "DSR", "SLO"
 ]
 
-@st.cache_data(ttl=120)  # Bajamos a 2 minutos para que el ranking se actualice más rápido si cambias la BASE
+@st.cache_data(ttl=120)
 def cargar_pestaña_desde_drive(spreadsheet_id, nombre_hoja):
     url = f"https://docs.google.com/spreadsheets/d/{spreadsheet_id}/gviz/tq?tqx=out:csv&sheet={nombre_hoja}"
     try:
@@ -28,6 +28,17 @@ def cargar_pestaña_desde_drive(spreadsheet_id, nombre_hoja):
     except Exception:
         pass
     return None
+
+def obtener_nombre_real(df_raw, id_pestaña):
+    """Extrae el nombre real de la celda B1 (Fila 0, Columna 1)"""
+    try:
+        if df_raw is not None and df_raw.shape[0] > 0 and df_raw.shape[1] > 1:
+            nombre = df_raw.iloc[0, 1]
+            if pd.notna(nombre) and str(nombre).strip() != "":
+                return str(nombre).strip()
+    except Exception:
+        pass
+    return id_pestaña
 
 def procesar_bloque_resumen(df_raw):
     if df_raw is None or df_raw.empty:
@@ -74,69 +85,76 @@ def calcular_puntos(df_jugador, df_base):
     return puntos
 
 # ==============================================================================
-# 2. PROCESAMIENTO GENERAL DE DATOS (EN VIVO)
+# 2. PROCESAMIENTO EN VIVO
 # ==============================================================================
-with st.spinner("🔄 Calculando posiciones y aciertos desde Google Drive..."):
+with st.spinner("🔄 Procesando datos y nombres desde Google Drive..."):
     df_base_raw = cargar_pestaña_desde_drive(SPREADSHEET_ID, "BASE")
     df_base = procesar_bloque_resumen(df_base_raw)
 
 if df_base is None or df_base.empty:
     st.error("⚠️ No se pudo conectar correctamente con la pestaña 'BASE' en Google Drive.")
 else:
-    # Calculamos los puntos de cada uno para el Ranking
     datos_ranking = []
-    diccionario_jugadores_df = {} # Guardamos los dfs para no volver a pedirlos en la otra pestaña
+    mapeo_nombres_df = {}  # Guardará { Nombre Real: df_procesado }
+    mapeo_id_a_nombre = {} # Guardará { ID_Pestaña: Nombre Real }
     
-    for jugador in JUGADORES:
-        df_jugador_raw = cargar_pestaña_desde_drive(SPREADSHEET_ID, jugador)
+    for pestaña in ID_PESTAÑAS:
+        df_jugador_raw = cargar_pestaña_desde_drive(SPREADSHEET_ID, pestaña)
+        nombre_real = obtener_nombre_real(df_jugador_raw, pestaña)
         df_jugador = procesar_bloque_resumen(df_jugador_raw)
         
+        mapeo_id_a_nombre[pestaña] = nombre_real
+        
         if df_jugador is not None:
-            diccionario_jugadores_df[jugador] = df_jugador
+            mapeo_nombres_df[nombre_real] = df_jugador
             puntos = calcular_puntos(df_jugador, df_base)
-            datos_ranking.append({"Participante": jugador, "Aciertos Totales": puntos})
+            datos_ranking.append({"Participante": nombre_real, "Aciertos Totales": puntos})
         else:
-            datos_ranking.append({"Participante": jugador, "Aciertos Totales": 0})
+            datos_ranking.append({"Participante": nombre_real, "Aciertos Totales": 0})
             
-    # Crear DataFrame del Ranking y ordenarlo de mayor a menor
+    # Crear DataFrame del Ranking
     df_ranking = pd.DataFrame(datos_ranking)
     df_ranking = df_ranking.sort_values(by="Aciertos Totales", ascending=False).reset_index(drop=True)
-    df_ranking.index = df_ranking.index + 1 # Que empiece en posición 1, 2, 3...
+    df_ranking.index = df_ranking.index + 1
 
     # ==============================================================================
-    # 3. DISEÑO DE PESTAÑAS AL CENTRO DE LA PANTALLA
+    # 3. INTERFAZ GRÁFICA (PESTAÑAS CENTRALES)
     # ==============================================================================
-    # Definimos las pestañas principales en el centro de la aplicación
-    tab_ranking, tab_auditoria = st.tabs(["📊 Tabla de Posiciones (Ranking)", "👤 Auditoría por Participante"])
+    tab_ranking, tab_participantes = st.tabs(["📊 Tabla de Posiciones (Ranking)", "👤 Participantes"])
 
-    # --- PESTAÑA 1: RANKING (VISTA PRINCIPAL) ---
+    # --- PESTAÑA 1: RANKING ---
     with tab_ranking:
         st.subheader("🏅 Clasificación General")
-        st.write("Posiciones calculadas en tiempo real comparando las matrices contra la pestaña **BASE**.")
+        st.write("Posiciones calculadas de acuerdo a los pronosticos individuales.")
         
-        # Resaltar al líder con una tarjeta métrica
+        # Lógica inteligente de Líder: Solo si hay máximo 2 personas con el puntaje más alto
         if not df_ranking.empty:
-            lider = df_ranking.iloc[0]["Participante"]
-            max_puntos = df_ranking.iloc[0]["Aciertos Totales"]
-            st.metric(label=f"🔥 Líder Actual de la Quiniela", value=f"{lider}", delta=f"{max_puntos} pts")
+            max_puntos_actual = df_ranking.iloc[0]["Aciertos Totales"]
+            empates_primer_lugar = df_ranking[df_ranking["Aciertos Totales"] == max_puntos_actual]
+            
+            if len(empates_primer_lugar) <= 2:
+                nombres_lideres = " y ".join(empates_primer_lugar["Participante"].tolist())
+                st.metric(label="🔥 Líder(es) de la Quiniela", value=nombres_lideres, delta=f"{max_puntos_actual} pts")
             
         st.dataframe(df_ranking, use_container_width=True)
 
-    # --- PESTAÑA 2: AUDITORÍA (DETALLE DE JUGADAS) ---
-    with tab_auditoria:
+    # --- PESTAÑA 2: PARTICIPANTES ---
+    with tab_participantes:
         st.subheader("🔍 Desglose individual de predicciones")
         
-        jugador_seleccionado = st.selectbox("Selecciona un participante para revisar sus aciertos:", JUGADORES)
+        # Lista ordenada de nombres reales para el selector
+        lista_nombres_reales = sorted(list(mapeo_nombres_df.keys()))
+        nombre_seleccionado = st.selectbox("Selecciona un participante para revisar sus aciertos:", lista_nombres_reales)
         
-        if jugador_seleccionado:
-            df_jugador = diccionario_jugadores_df.get(jugador_seleccionado)
+        if nombre_seleccionado:
+            df_jugador = mapeo_nombres_df.get(nombre_seleccionado)
             
             if df_jugador is None or df_jugador.empty:
-                st.warning(f"⚠️ No se encontraron predicciones en formato válido para {jugador_seleccionado}.")
+                st.warning(f"⚠️ No se encontraron predicciones válidas para {nombre_seleccionado}.")
             else:
                 col1, col2 = st.columns(2)
                 with col1:
-                    st.markdown(f"📋 **Predicciones de {jugador_seleccionado}:**")
+                    st.markdown(f"📋 **Predicciones de {nombre_seleccionado}:**")
                     st.dataframe(df_jugador, use_container_width=True)
                 with col2:
                     st.markdown("🎯 **Resultados Reales Oficiales (BASE):**")
