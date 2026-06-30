@@ -37,7 +37,7 @@ def cargar_pestaña_desde_drive(spreadsheet_id, nombre_hoja):
     return None
 
 def obtener_nombre_real(df_raw, id_pestaña):
-    """Extrae el nombre real estrictamente de la celda B1"""
+    """Extrae el nombre real estrictamente de la celda B1 (Fila 0, Columna 1 del CSV crudo)"""
     try:
         if df_raw is not None and df_raw.shape[0] > 0 and df_raw.shape[1] > 1:
             nombre = df_raw.iloc[0, 1]
@@ -52,6 +52,7 @@ def procesar_bloque_resumen(df_raw):
         return None
     try:
         inicio_tabla = None
+        # Buscar la fila exacta donde se encuentra el encabezado de las fases
         for idx, row in df_raw.iterrows():
             if row.astype(str).str.contains('16vos', case=False, na=False).any():
                 inicio_tabla = idx
@@ -59,17 +60,25 @@ def procesar_bloque_resumen(df_raw):
         if inicio_tabla is None:
             return None
             
+        # Extraer las filas correspondientes al bloque
         df_resumen = df_raw.iloc[inicio_tabla:].copy()
-        df_resumen.columns = [str(c).strip().lower() if pd.notna(c) else "" for c in df_resumen.iloc[0]]
+        
+        # Guardamos la primera fila como nombres de columna limpios
+        cabeceras = [str(c).strip().lower() if pd.notna(c) else "" for c in df_resumen.iloc[0]]
+        df_resumen.columns = cabeceras
         df_resumen = df_resumen[1:]
         
-        mapeo_columnas = {"16vos": "16vos"}
-        columnas_existentes = [c for c in mapeo_columnas.keys() if c in df_resumen.columns]
+        # Encontrar la posición exacta de la columna '16vos' por índice para no confundir datos
+        idx_16vos = [i for i, x in enumerate(cabeceras) if x == '16vos']
+        if not idx_16vos:
+            return None
+        col_pos = idx_16vos[0]
         
-        df_final = df_resumen[columnas_existentes].copy()
-        df_final = df_final.rename(columns=mapeo_columnas)
+        # Extraer exclusivamente esa columna por posición de índice
+        df_final = pd.DataFrame()
+        df_final["16vos"] = df_resumen.iloc[:, col_pos].astype(str).str.strip()
         
-        df_final["16vos"] = df_final["16vos"].astype(str).str.strip()
+        # Limpiar filas vacías o nulas
         df_final = df_final[df_final["16vos"].notna() & (df_final["16vos"] != "") & (df_final["16vos"] != "nan")]
         return df_final.reset_index(drop=True)
     except Exception:
@@ -90,7 +99,7 @@ def calcular_puntos(df_jugador, df_base):
 # ==============================================================================
 # 2. PROCESAMIENTO Y CARGA DE DATOS EN VIVO
 # ==============================================================================
-with st.spinner("🔄 Cargando datos y emparejando pronósticos desde Google Drive..."):
+with st.spinner("🔄 Cargando y procesando datos desde Google Drive..."):
     df_base_raw = cargar_pestaña_desde_drive(SPREADSHEET_ID, "BASE")
     df_base = procesar_bloque_resumen(df_base_raw)
 
@@ -106,7 +115,6 @@ else:
         nombre_real = obtener_nombre_real(df_jugador_raw, pestaña)
         df_jugador = procesar_bloque_resumen(df_jugador_raw)
         
-        # Diccionario para guardar qué eligió esta persona para cada partido de hoy
         elecciones_hoy = {"Participante": nombre_real}
         
         if df_jugador is not None:
@@ -114,20 +122,18 @@ else:
             puntos = calcular_puntos(df_jugador, df_base)
             datos_ranking.append({"Participante": nombre_real, "Aciertos Totales": puntos})
             
-            # Extraer pronósticos para los partidos de hoy
-            if "16vos" in df_jugador.columns:
-                lista_pronosticos = df_jugador["16vos"].dropna().astype(str).str.strip().str.upper().tolist()
-                
-                for p in PARTIDOS_HOY:
-                    r1 = p["Rival 1"]
-                    r2 = p["Rival 2"]
-                    # Validar cuál de los dos equipos del partido fue seleccionado por el usuario
-                    if r1 in lista_pronosticos:
-                        elecciones_hoy[p["Texto"]] = r1.title()
-                    elif r2 in lista_pronosticos:
-                        elecciones_hoy[p["Texto"]] = r2.title()
-                    else:
-                        elecciones_hoy[p["Texto"]] = "Ninguno"
+            # Extraer los pronósticos específicos del día evaluando la columna limpia
+            lista_pronosticos = df_jugador["16vos"].dropna().astype(str).str.strip().str.upper().tolist()
+            
+            for p in PARTIDOS_HOY:
+                r1 = p["Rival 1"]
+                r2 = p["Rival 2"]
+                if r1 in lista_pronosticos:
+                    elecciones_hoy[p["Texto"]] = r1.title()
+                elif r2 in lista_pronosticos:
+                    elecciones_hoy[p["Texto"]] = r2.title()
+                else:
+                    elecciones_hoy[p["Texto"]] = "Ninguno"
         else:
             datos_ranking.append({"Participante": nombre_real, "Aciertos Totales": 0})
             for p in PARTIDOS_HOY:
@@ -135,7 +141,7 @@ else:
                 
         pronosticos_hoy_lista.append(elecciones_hoy)
             
-    # Estructurar las tablas
+    # Estructurar tablas generales
     df_ranking = pd.DataFrame(datos_ranking).sort_values(by="Aciertos Totales", ascending=False).reset_index(drop=True)
     df_ranking.index = df_ranking.index + 1
     
@@ -144,16 +150,15 @@ else:
     # ==============================================================================
     # 3. INTERFAZ GRÁFICA CENTRALIZADA (TABS)
     # ==============================================================================
-    tab_calendario, tab_hoy, tab_ranking, tab_participantes = st.tabs([
-        "📅 Partidos del Día", 
+    tab_principal, tab_hoy, tab_participantes = st.tabs([
+        "📊 Clasificación Principal", 
         "🔮 Pronósticos del Día", 
-        "📊 Tabla de Posiciones", 
         "👤 Participantes"
     ])
 
-    # --- PESTAÑA 1: CALENDARIO DEL DIÁ ---
-    with tab_calendario:
-        st.subheader("📅 Calendario de Partidos - Hoy")
+    # --- PESTAÑA 1: CALENDARIO Y RANKING JUNTOS ---
+    with tab_principal:
+        st.subheader("📅 Partidos del Día - 16vos de Final")
         col_m1, col_m2 = st.columns(2)
         with col_m1:
             st.markdown("""
@@ -182,16 +187,12 @@ else:
                 <span style="font-size: 14px; font-weight: 600; color: #334155;">Bélgica 🆚 Senegal</span>
             </div>
             """, unsafe_allow_html=True)
-
-    # --- PESTAÑA 2: PRONÓSTICOS DEL DIA ---
-    with tab_hoy:
-        st.subheader("🔮 ¿Qué eligió cada participante para hoy?")
-        st.write("Visualiza de un vistazo la selección a ganar de cada persona para los juegos de esta fecha.")
-        st.dataframe(df_pronosticos_hoy, use_container_width=True, hide_index=True)
-
-    # --- PESTAÑA 3: RANKING ---
-    with tab_ranking:
+            
+        st.write("---")
+        
         st.subheader("🏅 Clasificación General")
+        st.write("Posiciones calculadas de acuerdo a los pronosticos individuales.")
+        
         if not df_ranking.empty:
             max_puntos_actual = df_ranking.iloc[0]["Aciertos Totales"]
             empates_primer_lugar = df_ranking[df_ranking["Aciertos Totales"] == max_puntos_actual]
@@ -201,7 +202,13 @@ else:
                 
         st.dataframe(df_ranking, use_container_width=True)
 
-    # --- PESTAÑA 4: VISOR DE PARTICIPANTES ---
+    # --- PESTAÑA 2: PRONÓSTICOS DEL DIA ---
+    with tab_hoy:
+        st.subheader("🔮 ¿Qué eligió cada participante para hoy?")
+        st.write("Visualiza de un vistazo la selección a ganar de cada persona para los juegos de esta fecha.")
+        st.dataframe(df_pronosticos_hoy, use_container_width=True, hide_index=True)
+
+    # --- PESTAÑA 3: VISOR DE PARTICIPANTES ---
     with tab_participantes:
         st.subheader("🔍 Desglose individual de predicciones")
         lista_nombres_reales = sorted(list(mapeo_nombres_df.keys()))
@@ -219,3 +226,19 @@ else:
                 with col2:
                     st.markdown("🎯 **Resultados Reales Oficiales (BASE):**")
                     st.dataframe(df_base, use_container_width=True)
+                    
+                st.markdown("### 📊 Coincidencias Detectadas")
+                if "16vos" in df_jugador.columns and "16vos" in df_base.columns:
+                    set_jugador = set(df_jugador["16vos"].dropna().astype(str).str.strip().str.upper())
+                    set_base = set(df_base["16vos"].dropna().astype(str).str.strip().str.upper())
+                    set_jugador.discard("")
+                    set_base.discard("")
+                    
+                    coincidencias = set_jugador.intersection(set_base)
+                    aciertos = len(coincidencias)
+                    
+                    if aciertos > 0:
+                        st.success(f"🔹 **16vos de Final**: {aciertos} aciertos correctos obtenidos.")
+                        st.write(f"👉 *{', '.join(sorted(coincidencias))}*")
+                    else:
+                        st.write("🔹 **16vos de Final**: 0 aciertos por el momento.")
