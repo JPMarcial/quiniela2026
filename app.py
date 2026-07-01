@@ -15,7 +15,7 @@ st.markdown("""
     
     /* Estilos para el Bracket de Desarrollo */
     .bracket-phase { font-weight: bold; text-align: center; color: #475569; background: #e2e8f0; padding: 6px; border-radius: 6px; margin-bottom: 15px; font-size: 14px; }
-    .bracket-match { background: #ffffff; padding: 10px; border-radius: 8px; border: 1px solid #cbd5e1; box-shadow: 0 2px 4px rgba(0,0,0,0.02); margin-bottom: 20px; }
+    .bracket-match { background: #ffffff; padding: 10px; border-radius: 8px; border: 1px solid #cbd5e1; box-shadow: 0 2px 4px rgba(0,0,0,0.02); margin-bottom: 15px; }
     .bracket-team { font-size: 13px; font-weight: 600; color: #1e293b; padding: 3px 6px; display: flex; justify-content: space-between; }
     .bracket-team.winner { color: #10b981; background-color: #f0fdf4; border-radius: 4px; }
     .bracket-team.loser { color: #94a3b8; }
@@ -229,7 +229,6 @@ with st.spinner("🚀 Sincronizando archivo Excel..."):
 if df_ranking is None:
     st.error("⚠️ Error crítico al descargar o procesar el archivo Excel.")
 else:
-    # Agregada la pestaña oculta de desarrollo al final de la lista
     tab_principal, tab_hoy, tab_participantes, tab_bracket_dev = st.tabs([
         "📊 Clasificación Principal", 
         "🔮 Pronósticos del Día", 
@@ -305,19 +304,27 @@ else:
         st.write("")
         st.error("### 🤖 Temporalmente fuera de servicio")
 
-    # --- PESTAÑA 4: DESARROLLO BRACKET (OCULTO/ENTORNO DE PRUEBAS) ---
+    # --- PESTAÑA 4: DESARROLLO BRACKET (CON LOS 12 PARTIDOS COMPLETOS) ---
     with tab_bracket_dev:
         st.warning("🛠️ **Espacio de Trabajo Técnico:** Esta pestaña sirve para ajustar los diseños antes de inyectarlos en la vista principal.")
-        st.subheader("🌲 Estructura del Árbol de Eliminación Directa")
+        st.subheader("🌲 Estructura Completa del Árbol de Eliminación Directa")
         
-        # Grid responsive de columnas para simular las fases consecutivas
+        # Grid simétrico para la visualización del Torneo
         col_16_izq, col_4_izq, col_semi_izq, col_final, col_semi_der, col_4_der, col_16_der = st.columns([2, 2, 2, 2.5, 2, 2, 2])
         
-        # --- LADO IZQUIERDO: 16VOS ---
+        # --- LADO IZQUIERDO: 16VOS (6 partidos) ---
         with col_16_izq:
-            st.markdown('<div class="bracket-phase">16vos de Final</div>', unsafe_allow_html=True)
+            st.markdown('<div class="bracket-phase">16vos (Izq)</div>', unsafe_allow_html=True)
             
-            # Partido 1
+            # P1: Costa de Marfil vs Noruega
+            st.markdown("""
+            <div class="bracket-match">
+                <div class="bracket-team"><span>Costa de Marfil</span> <span class="bracket-score">-</span></div>
+                <div class="bracket-team"><span>Noruega</span> <span class="bracket-score">-</span></div>
+            </div>
+            """, unsafe_allow_html=True)
+            
+            # P2: Francia vs Suecia
             st.markdown("""
             <div class="bracket-match">
                 <div class="bracket-team winner"><span>Francia</span> <span class="bracket-score">2</span></div>
@@ -325,32 +332,67 @@ else:
             </div>
             """, unsafe_allow_html=True)
             
-            # Partido 2
+            # P3: Bélgica vs Senegal
             st.markdown("""
             <div class="bracket-match">
-                <div class="bracket-team"><span>Costa de Marfil</span> <span class="bracket-score">-</span></div>
-                <div class="bracket-team"><span>Noruega</span> <span class="bracket-score">-</span></div>
+                <div class="bracket-team"><span>Bélgica</span> <span class="bracket-score">-</span></div>
+                <div class="bracket-team"><span>Senegal</span> <span class="bracket-score">-</span></div>
+            </div>
+            """, unsafe_allow_html=True)
+            
+            # P4: Estados Unidos vs Bosnia
+            st.markdown("""
+            <div class="bracket-match">
+                <div class="bracket-team"><span>Estados Unidos</span> <span class="bracket-score">-</span></div>
+                <div class="bracket-team"><span>Bosnia</span> <span class="bracket-score">-</span></div>
+            </div>
+            """, unsafe_allow_html=True)
+            
+            # P5: España vs Austria
+            st.markdown("""
+            <div class="bracket-match">
+                <div class="bracket-team"><span>España</span> <span class="bracket-score">-</span></div>
+                <div class="bracket-team"><span>Austria</span> <span class="bracket-score">-</span></div>
+            </div>
+            """, unsafe_allow_html=True)
+            
+            # P6: Portugal vs Croacia
+            st.markdown("""
+            <div class="bracket-match">
+                <div class="bracket-team"><span>Portugal</span> <span class="bracket-score">-</span></div>
+                <div class="bracket-team"><span>Croacia</span> <span class="bracket-score">-</span></div>
             </div>
             """, unsafe_allow_html=True)
 
-        # --- LADO IZQUIERDO: CUARTOS ---
+        # --- LADO IZQUIERDO: CUARTOS (3 bloques para recibir ganadores) ---
         with col_4_izq:
-            st.markdown('<div class="bracket-phase">Cuartos</div>', unsafe_allow_html=True)
-            st.write("") # Espaciador para centrar con las llaves de 16vos
+            st.markdown('<div class="bracket-phase">Cuartos (Izq)</div>', unsafe_allow_html=True)
+            
             st.markdown("""
-            <div class="bracket-match" style="margin-top: 15px;">
+            <div class="bracket-match" style="margin-top: 25px;">
+                <div class="bracket-team"><span>Ganador P1</span> <span class="bracket-score">-</span></div>
                 <div class="bracket-team"><span>Francia</span> <span class="bracket-score">-</span></div>
-                <div class="bracket-team loser"><span>Ganador P2</span> <span class="bracket-score">-</span></div>
+            </div>
+            <div class="bracket-match" style="margin-top: 55px;">
+                <div class="bracket-team"><span>Ganador P3</span> <span class="bracket-score">-</span></div>
+                <div class="bracket-team"><span>Ganador P4</span> <span class="bracket-score">-</span></div>
+            </div>
+            <div class="bracket-match" style="margin-top: 55px;">
+                <div class="bracket-team"><span>Ganador P5</span> <span class="bracket-score">-</span></div>
+                <div class="bracket-team"><span>Ganador P6</span> <span class="bracket-score">-</span></div>
             </div>
             """, unsafe_allow_html=True)
 
         # --- LADO IZQUIERDO: SEMIFINAL ---
         with col_semi_izq:
-            st.markdown('<div class="bracket-phase">Semifinal</div>', unsafe_allow_html=True)
-            st.write("")
+            st.markdown('<div class="bracket-phase">Semifinal (Izq)</div>', unsafe_allow_html=True)
             st.markdown("""
-            <div class="bracket-match" style="margin-top: 40px;">
-                <div class="bracket-team"><span>Por Definir</span> <span class="bracket-score">-</span></div>
+            <div class="bracket-match" style="margin-top: 75px;">
+                <div class="bracket-team"><span>Ganador Cuartos 1</span> <span class="bracket-score">-</span></div>
+                <div class="bracket-team"><span>Ganador Cuartos 2</span> <span class="bracket-score">-</span></div>
+            </div>
+            <div class="bracket-match" style="margin-top: 150px;">
+                <div class="bracket-team"><span>Ganador Cuartos 3</span> <span class="bracket-score">-</span></div>
                 <div class="bracket-team"><span>Por Definir</span> <span class="bracket-score">-</span></div>
             </div>
             """, unsafe_allow_html=True)
@@ -358,41 +400,59 @@ else:
         # --- CENTRO: GRAN FINAL ---
         with col_final:
             st.markdown('<div class="bracket-phase" style="background:#f59e0b; color:white;">🏆 GRAN FINAL</div>', unsafe_allow_html=True)
-            st.write("")
             st.markdown("""
-            <div class="bracket-match" style="margin-top: 70px; border: 2px solid #f59e0b;">
-                <div class="bracket-team" style="font-size:15px;"><span>👑 Finalista Izq</span> <span class="bracket-score">-</span></div>
-                <div class="bracket-team" style="font-size:15px;"><span>👑 Finalista Der</span> <span class="bracket-score">-</span></div>
+            <div class="bracket-match" style="margin-top: 190px; border: 2px solid #f59e0b;">
+                <div class="bracket-team" style="font-size:14px; padding: 6px 4px;"><span>👑 Finalista Izquierda</span> <span class="bracket-score">-</span></div>
+                <div class="bracket-team" style="font-size:14px; padding: 6px 4px;"><span>👑 Finalista Derecha</span> <span class="bracket-score">-</span></div>
             </div>
             """, unsafe_allow_html=True)
 
         # --- LADO DERECHO: SEMIFINAL ---
         with col_semi_der:
-            st.markdown('<div class="bracket-phase">Semifinal</div>', unsafe_allow_html=True)
-            st.write("")
+            st.markdown('<div class="bracket-phase">Semifinal (Der)</div>', unsafe_allow_html=True)
             st.markdown("""
-            <div class="bracket-match" style="margin-top: 40px;">
-                <div class="bracket-team"><span>Por Definir</span> <span class="bracket-score">-</span></div>
+            <div class="bracket-match" style="margin-top: 75px;">
+                <div class="bracket-team"><span>Ganador Cuartos 4</span> <span class="bracket-score">-</span></div>
+                <div class="bracket-team"><span>Ganador Cuartos 5</span> <span class="bracket-score">-</span></div>
+            </div>
+            <div class="bracket-match" style="margin-top: 150px;">
+                <div class="bracket-team"><span>Ganador Cuartos 6</span> <span class="bracket-score">-</span></div>
                 <div class="bracket-team"><span>Por Definir</span> <span class="bracket-score">-</span></div>
             </div>
             """, unsafe_allow_html=True)
 
-        # --- LADO DERECHO: CUARTOS ---
+        # --- LADO DERECHO: CUARTOS (3 bloques para recibir ganadores) ---
         with col_4_der:
-            st.markdown('<div class="bracket-phase">Cuartos</div>', unsafe_allow_html=True)
-            st.write("")
+            st.markdown('<div class="bracket-phase">Cuartos (Der)</div>', unsafe_allow_html=True)
+            
             st.markdown("""
-            <div class="bracket-match" style="margin-top: 15px;">
-                <div class="bracket-team loser"><span>Ganador P3</span> <span class="bracket-score">-</span></div>
+            <div class="bracket-match" style="margin-top: 25px;">
                 <div class="bracket-team"><span>México 🇲🇽</span> <span class="bracket-score">-</span></div>
+                <div class="bracket-team"><span>Ganador P8</span> <span class="bracket-score">-</span></div>
+            </div>
+            <div class="bracket-match" style="margin-top: 55px;">
+                <div class="bracket-team"><span>Ganador P9</span> <span class="bracket-score">-</span></div>
+                <div class="bracket-team"><span>Ganador P10</span> <span class="bracket-score">-</span></div>
+            </div>
+            <div class="bracket-match" style="margin-top: 55px;">
+                <div class="bracket-team"><span>Ganador P11</span> <span class="bracket-score">-</span></div>
+                <div class="bracket-team"><span>Ganador P12</span> <span class="bracket-score">-</span></div>
             </div>
             """, unsafe_allow_html=True)
 
-        # --- LADO DERECHO: 16VOS ---
+        # --- LADO DERECHO: 16VOS (6 partidos restantes) ---
         with col_16_der:
-            st.markdown('<div class="bracket-phase">16vos de Final</div>', unsafe_allow_html=True)
+            st.markdown('<div class="bracket-phase">16vos (Der)</div>', unsafe_allow_html=True)
             
-            # Partido 3
+            # P7: México vs Ecuador
+            st.markdown("""
+            <div class="bracket-match">
+                <div class="bracket-team"><span>México 🇲🇽</span> <span class="bracket-score">-</span></div>
+                <div class="bracket-team"><span>Ecuador</span> <span class="bracket-score">-</span></div>
+            </div>
+            """, unsafe_allow_html=True)
+            
+            # P8: Inglaterra vs RD Congo
             st.markdown("""
             <div class="bracket-match">
                 <div class="bracket-team"><span>Inglaterra</span> <span class="bracket-score">-</span></div>
@@ -400,10 +460,34 @@ else:
             </div>
             """, unsafe_allow_html=True)
             
-            # Partido 4 (México)
+            # P9: Suiza vs Argelia
             st.markdown("""
             <div class="bracket-match">
-                <div class="bracket-team"><span>México 🇲🇽</span> <span class="bracket-score">-</span></div>
-                <div class="bracket-team"><span>Ecuador</span> <span class="bracket-score">-</span></div>
+                <div class="bracket-team"><span>Suiza</span> <span class="bracket-score">-</span></div>
+                <div class="bracket-team"><span>Argelia</span> <span class="bracket-score">-</span></div>
+            </div>
+            """, unsafe_allow_html=True)
+            
+            # P10: Australia vs Egipto
+            st.markdown("""
+            <div class="bracket-match">
+                <div class="bracket-team"><span>Australia</span> <span class="bracket-score">-</span></div>
+                <div class="bracket-team"><span>Egipto</span> <span class="bracket-score">-</span></div>
+            </div>
+            """, unsafe_allow_html=True)
+            
+            # P11: Argentina vs Cabo Verde
+            st.markdown("""
+            <div class="bracket-match">
+                <div class="bracket-team"><span>Argentina</span> <span class="bracket-score">-</span></div>
+                <div class="bracket-team"><span>Cabo Verde</span> <span class="bracket-score">-</span></div>
+            </div>
+            """, unsafe_allow_html=True)
+            
+            # P12: Colombia vs Ghana
+            st.markdown("""
+            <div class="bracket-match">
+                <div class="bracket-team"><span>Colombia</span> <span class="bracket-score">-</span></div>
+                <div class="bracket-team"><span>Ghana</span> <span class="bracket-score">-</span></div>
             </div>
             """, unsafe_allow_html=True)
