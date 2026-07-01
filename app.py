@@ -14,9 +14,9 @@ st.markdown("""
     div[data-testid="stMetric"] { background-color: #f8fafc; padding: 15px; border-radius: 10px; border: 1px solid #e2e8f0; }
     
     /* Estilos para el Bracket de Desarrollo */
-    .bracket-phase { font-weight: bold; text-align: center; color: #475569; background: #e2e8f0; padding: 6px; border-radius: 6px; margin-bottom: 15px; font-size: 14px; }
-    .bracket-match { background: #ffffff; padding: 10px; border-radius: 8px; border: 1px solid #cbd5e1; box-shadow: 0 2px 4px rgba(0,0,0,0.02); margin-bottom: 15px; }
-    .bracket-team { font-size: 13px; font-weight: 600; color: #1e293b; padding: 3px 6px; display: flex; justify-content: space-between; }
+    .bracket-phase { font-weight: bold; text-align: center; color: #475569; background: #e2e8f0; padding: 6px; border-radius: 6px; margin-bottom: 15px; font-size: 13px; }
+    .bracket-match { background: #ffffff; padding: 8px; border-radius: 8px; border: 1px solid #cbd5e1; box-shadow: 0 2px 4px rgba(0,0,0,0.02); margin-bottom: 12px; }
+    .bracket-team { font-size: 12px; font-weight: 600; color: #1e293b; padding: 2px 4px; display: flex; justify-content: space-between; }
     .bracket-team.winner { color: #10b981; background-color: #f0fdf4; border-radius: 4px; }
     .bracket-team.loser { color: #94a3b8; }
     .bracket-score { font-weight: bold; color: #0f172a; }
@@ -31,23 +31,30 @@ st.title("⚽ Quiniela - Fase Final 2026")
 fecha_actual_mx = datetime.utcnow() - timedelta(hours=6)
 fecha_formateada = fecha_actual_mx.strftime("%d/%m/%Y") 
 
-# Calendario oficial corregido con los 16 partidos en orden cronológico
+# Calendario oficial reordenado al 100% según el flujo visual de image_272bf4.jpg
 CALENDARIO_COMPLETO = [
-    {"Id": "P1", "Fecha": "28/06/2026", "Rival 1": "SUDÁFRICA", "Rival 2": "CANADÁ", "Texto": "Sudáfrica 🆚 Canadá", "Hora": "13:00", "Keys 1": ["SUDAFRICA", "SUDÁFRICA", "RSA"], "Keys 2": ["CANADA", "CANADÁ", "CAN"]},
-    {"Id": "P2", "Fecha": "29/06/2026", "Rival 1": "BRASIL", "Rival 2": "JAPÓN", "Texto": "Brasil 🆚 Japón", "Hora": "11:00", "Keys 1": ["BRASIL", "BRA"], "Keys 2": ["JAPON", "JAPÓN", "JPN"]},
-    {"Id": "P3", "Fecha": "29/06/2026", "Rival 1": "ALEMANIA", "Rival 2": "PARAGUAY", "Texto": "Alemania 🆚 Paraguay", "Hora": "14:00", "Keys 1": ["ALEMANIA", "GER"], "Keys 2": ["PARAGUAY", "PAR"]},
+    # --- LADO IZQUIERDO: Bloque Superior (Feeds W74, W77, W73, W75) ---
+    {"Id": "P1", "Fecha": "29/06/2026", "Rival 1": "ALEMANIA", "Rival 2": "PARAGUAY", "Texto": "Alemania 🆚 Paraguay", "Hora": "14:00", "Keys 1": ["ALEMANIA", "GER"], "Keys 2": ["PARAGUAY", "PAR"]},
+    {"Id": "P2", "Fecha": "30/06/2026", "Rival 1": "FRANCIA", "Rival 2": "SUECIA", "Texto": "Francia 🆚 Suecia", "Hora": "15:00", "Keys 1": ["FRANCIA", "FRA"], "Keys 2": ["SUECIA", "SUE"]},
+    {"Id": "P3", "Fecha": "28/06/2026", "Rival 1": "SUDÁFRICA", "Rival 2": "CANADÁ", "Texto": "Sudáfrica 🆚 Canadá", "Hora": "13:00", "Keys 1": ["SUDAFRICA", "SUDÁFRICA", "RSA"], "Keys 2": ["CANADA", "CANADÁ", "CAN"]},
     {"Id": "P4", "Fecha": "29/06/2026", "Rival 1": "PAÍSES BAJOS", "Rival 2": "MARRUECOS", "Texto": "Países Bajos 🆚 Marruecos", "Hora": "20:00", "Keys 1": ["PAISES BAJOS", "PAÍSES BAJOS", "NED", "HOLANDA"], "Keys 2": ["MARRUECOS", "MAR"]},
-    {"Id": "P5", "Fecha": "30/06/2026", "Rival 1": "COSTA DE MARFIL", "Rival 2": "NORUEGA", "Texto": "Costa de Marfil 🆚 Noruega", "Hora": "11:00", "Keys 1": ["COSTA DE MARFIL", "MARFIL", "CIV"], "Keys 2": ["NORUEGA", "NOR"]},
-    {"Id": "P6", "Fecha": "30/06/2026", "Rival 1": "FRANCIA", "Rival 2": "SUECIA", "Texto": "Francia 🆚 Suecia", "Hora": "15:00", "Keys 1": ["FRANCIA", "FRA"], "Keys 2": ["SUECIA", "SUE"]},
-    {"Id": "P7", "Fecha": "30/06/2026", "Rival 1": "MÉXICO", "Rival 2": "ECUADOR", "Texto": "México 🇲🇽 🆚 Ecuador", "Hora": "19:00", "Keys 1": ["MEXICO", "MÉXICO", "MEX"], "Keys 2": ["ECUADOR", "ECU"]},
-    {"Id": "P8", "Fecha": "01/07/2026", "Rival 1": "INGLATERRA", "Rival 2": "RD CONGO", "Texto": "Inglaterra 🆚 RD Congo", "Hora": "10:00", "Keys 1": ["INGLATERRA", "ENG"], "Keys 2": ["CONGO", "RD CONGO", "RDC"]},
-    {"Id": "P9", "Fecha": "01/07/2026", "Rival 1": "BÉLGICA", "Rival 2": "SENEGAL", "Texto": "Bélgica 🆚 Senegal", "Hora": "14:00", "Keys 1": ["BELGICA", "BÉLGICA", "BEL"], "Keys 2": ["SENEGAL", "SEN"]},
-    {"Id": "P10", "Fecha": "01/07/2026", "Rival 1": "ESTADOS UNIDOS", "Rival 2": "BOSNIA", "Texto": "Estados Unidos 🆚 Bosnia", "Hora": "18:00", "Keys 1": ["ESTADOS UNIDOS", "USA", "EEUU"], "Keys 2": ["BOSNIA", "HERZEGOVINA", "BOSNIA-HERZ"]},
-    {"Id": "P11", "Fecha": "02/07/2026", "Rival 1": "ESPAÑA", "Rival 2": "AUSTRIA", "Texto": "España 🆚 Austria", "Hora": "13:00", "Keys 1": ["ESPAÑA", "ESP"], "Keys 2": ["AUSTRIA", "AUT"]},
-    {"Id": "P12", "Fecha": "02/07/2026", "Rival 1": "PORTUGAL", "Rival 2": "CROACIA", "Texto": "Portugal 🆚 Croacia", "Hora": "17:00", "Keys 1": ["PORTUGAL", "POR"], "Keys 2": ["CROACIA", "CRO"]},
-    {"Id": "P13", "Fecha": "02/07/2026", "Rival 1": "SUIZA", "Rival 2": "ARGELIA", "Texto": "Suiza 🆚 Argelia", "Hora": "21:00", "Keys 1": ["SUIZA", "SUI"], "Keys 2": ["ARGELIA", "ALG"]},
+    
+    # --- LADO IZQUIERDO: Bloque Inferior (Feeds W83, W84, W81, W82) ---
+    {"Id": "P5", "Fecha": "02/07/2026", "Rival 1": "PORTUGAL", "Rival 2": "CROACIA", "Texto": "Portugal 🆚 Croacia", "Hora": "17:00", "Keys 1": ["PORTUGAL", "POR"], "Keys 2": ["CROACIA", "CRO"]},
+    {"Id": "P6", "Fecha": "02/07/2026", "Rival 1": "ESPAÑA", "Rival 2": "AUSTRIA", "Texto": "España 🆚 Austria", "Hora": "13:00", "Keys 1": ["ESPAÑA", "ESP"], "Keys 2": ["AUSTRIA", "AUT"]},
+    {"Id": "P7", "Fecha": "01/07/2026", "Rival 1": "ESTADOS UNIDOS", "Rival 2": "BOSNIA", "Texto": "Estados Unidos 🆚 Bosnia", "Hora": "18:00", "Keys 1": ["ESTADOS UNIDOS", "USA", "EEUU"], "Keys 2": ["BOSNIA", "HERZEGOVINA", "BOSNIA-HERZ"]},
+    {"Id": "P8", "Fecha": "01/07/2026", "Rival 1": "BÉLGICA", "Rival 2": "SENEGAL", "Texto": "Bélgica 🆚 Senegal", "Hora": "14:00", "Keys 1": ["BELGICA", "BÉLGICA", "BEL"], "Keys 2": ["SENEGAL", "SEN"]},
+    
+    # --- LADO DERECHO: Bloque Superior (Feeds W76, W78, W79, W80) ---
+    {"Id": "P9", "Fecha": "29/06/2026", "Rival 1": "BRASIL", "Rival 2": "JAPÓN", "Texto": "Brasil 🆚 Japón", "Hora": "11:00", "Keys 1": ["BRASIL", "BRA"], "Keys 2": ["JAPON", "JAPÓN", "JPN"]},
+    {"Id": "P10", "Fecha": "30/06/2026", "Rival 1": "COSTA DE MARFIL", "Rival 2": "NORUEGA", "Texto": "Costa de Marfil 🆚 Noruega", "Hora": "11:00", "Keys 1": ["COSTA DE MARFIL", "MARFIL", "CIV"], "Keys 2": ["NORUEGA", "NOR"]},
+    {"Id": "P11", "Fecha": "30/06/2026", "Rival 1": "MÉXICO", "Rival 2": "ECUADOR", "Texto": "México 🇲🇽 🆚 Ecuador", "Hora": "19:00", "Keys 1": ["MEXICO", "MÉXICO", "MEX"], "Keys 2": ["ECUADOR", "ECU"]},
+    {"Id": "P12", "Fecha": "01/07/2026", "Rival 1": "INGLATERRA", "Rival 2": "RD CONGO", "Texto": "Inglaterra 🆚 RD Congo", "Hora": "10:00", "Keys 1": ["INGLATERRA", "ENG"], "Keys 2": ["CONGO", "RD CONGO", "RDC"]},
+    
+    # --- LADO DERECHO: Bloque Inferior (Feeds W86, W88, W85, W87) ---
+    {"Id": "P13", "Fecha": "03/07/2026", "Rival 1": "ARGENTINA", "Rival 2": "CABO VERDE", "Texto": "Argentina 🆚 Cabo Verde", "Hora": "16:00", "Keys 1": ["ARGENTINA", "ARG"], "Keys 2": ["CABO VERDE", "CPV"]},
     {"Id": "P14", "Fecha": "03/07/2026", "Rival 1": "AUSTRALIA", "Rival 2": "EGIPTO", "Texto": "Australia 🆚 Egipto", "Hora": "12:00", "Keys 1": ["AUSTRALIA", "AUS"], "Keys 2": ["EGIPTO", "EGY"]},
-    {"Id": "P15", "Fecha": "03/07/2026", "Rival 1": "ARGENTINA", "Rival 2": "CABO VERDE", "Texto": "Argentina 🆚 Cabo Verde", "Hora": "16:00", "Keys 1": ["ARGENTINA", "ARG"], "Keys 2": ["CABO VERDE", "CPV"]},
+    {"Id": "P15", "Fecha": "02/07/2026", "Rival 1": "SUIZA", "Rival 2": "ARGELIA", "Texto": "Suiza 🆚 Argelia", "Hora": "21:00", "Keys 1": ["SUIZA", "SUI"], "Keys 2": ["ARGELIA", "ALG"]},
     {"Id": "P16", "Fecha": "03/07/2026", "Rival 1": "COLOMBIA", "Rival 2": "GHANA", "Texto": "Colombia 🆚 Ghana", "Hora": "19:30", "Keys 1": ["COLOMBIA", "COL"], "Keys 2": ["GHANA", "GHA"]}
 ]
 
@@ -147,7 +154,6 @@ def cargar_y_procesar_todo_el_torneo(spreadsheet_id, pestañas_jugadores, partid
 
         pestaña_cal = [n for n in nombres_pestañas if "CALENDARIO" in n.upper()]
         
-        # PROCESAR TODOS LOS PARTIDOS DEL TORNEO DESDE LA PESTAÑA CALENDARIO
         if pestaña_cal:
             df_cal_excel = excel_file.parse(pestaña_cal[0], header=None, dtype=str)
             
@@ -191,7 +197,6 @@ def cargar_y_procesar_todo_el_torneo(spreadsheet_id, pestañas_jugadores, partid
                 p["Resultado"] = f"{bracket_data[id_p]['Goles 1']} - {bracket_data[id_p]['Goles 2']}"
                 p["Ganador"] = bracket_data[id_p]["Ganador"]
 
-        # PROCESAR JUGADORES
         for pestaña in pestañas_jugadores:
             df_jugador = None
             nombre_real = pestaña
@@ -320,9 +325,9 @@ else:
         st.write("")
         st.error("### 🤖 Temporalmente fuera de servicio")
 
-    # --- PESTAÑA 4: BRACKET OFICIAL AUTOMATIZADO ---
+    # --- PESTAÑA 4: BRACKET COMPLETO (9 COLUMNAS BASADO EN LA IMAGEN DE ESPN) ---
     with tab_bracket_dev:
-        st.warning("🛠️ **Espacio de Trabajo Automatizado:** Las llaves de 16vos se pintan solas basándose en la hoja `CALENDARIO` de tu Drive.")
+        st.warning("🛠️ **Estructura Corregida:** Flujo visual mapeado directamente desde la imagen de ESPN (image_272bf4.jpg).")
         
         def render_match_html(match_id, data_dict):
             m = data_dict[match_id]
@@ -340,122 +345,136 @@ else:
             </div>
             """
 
-        col_16_izq, col_4_izq, col_semi_izq, col_final, col_semi_der, col_4_der, col_16_der = st.columns([2, 2, 2, 2.5, 2, 2, 2])
+        # Creamos las 9 columnas simétricas exactas
+        (col_16_izq, col_8_izq, col_4_izq, col_semi_izq, 
+         col_final, 
+         col_semi_der, col_4_der, col_8_der, col_16_der) = st.columns([1.5, 1.3, 1.3, 1.3, 1.6, 1.3, 1.3, 1.3, 1.5])
         
-        # --- LADO IZQUIERDO: 16VOS IMPARES (P1, P3, P5, P7, P9, P11, P13, P15) ---
+        # --- CÁLCULOS AUTOMÁTICOS DE GANADORES INTERMEDIOS ---
+        # 8vos Izquierda
+        w74 = BRACKET["P1"]["Ganador"].title() if BRACKET["P1"]["Ganador"] != "Por Definir" else "W74 (P1)"
+        w77 = BRACKET["P2"]["Ganador"].title() if BRACKET["P2"]["Ganador"] != "Por Definir" else "W77 (P2)"
+        w73 = BRACKET["P3"]["Ganador"].title() if BRACKET["P3"]["Ganador"] != "Por Definir" else "W73 (P3)"
+        w75 = BRACKET["P4"]["Ganador"].title() if BRACKET["P4"]["Ganador"] != "Por Definir" else "W75 (P4)"
+        w83 = BRACKET["P5"]["Ganador"].title() if BRACKET["P5"]["Ganador"] != "Por Definir" else "W83 (P5)"
+        w84 = BRACKET["P6"]["Ganador"].title() if BRACKET["P6"]["Ganador"] != "Por Definir" else "W84 (P6)"
+        w81 = BRACKET["P7"]["Ganador"].title() if BRACKET["P7"]["Ganador"] != "Por Definir" else "W81 (P7)"
+        w82 = BRACKET["P8"]["Ganador"].title() if BRACKET["P8"]["Ganador"] != "Por Definir" else "W82 (P8)"
+
+        # 8vos Derecha
+        w76 = BRACKET["P9"]["Ganador"].title() if BRACKET["P9"]["Ganador"] != "Por Definir" else "W76 (P9)"
+        w78 = BRACKET["P10"]["Ganador"].title() if BRACKET["P10"]["Ganador"] != "Por Definir" else "W78 (P10)"
+        w79 = BRACKET["P11"]["Ganador"].title() if BRACKET["P11"]["Ganador"] != "Por Definir" else "W79 (P11)"
+        w80 = BRACKET["P12"]["Ganador"].title() if BRACKET["P12"]["Ganador"] != "Por Definir" else "W80 (P12)"
+        w86 = BRACKET["P13"]["Ganador"].title() if BRACKET["P13"]["Ganador"] != "Por Definir" else "W86 (P13)"
+        w88 = BRACKET["P14"]["Ganador"].title() if BRACKET["P14"]["Ganador"] != "Por Definir" else "W88 (P14)"
+        w85 = BRACKET["P15"]["Ganador"].title() if BRACKET["P15"]["Ganador"] != "Por Definir" else "W85 (P15)"
+        w87 = BRACKET["P16"]["Ganador"].title() if BRACKET["P16"]["Ganador"] != "Por Definir" else "W87 (P16)"
+        
+        if "México" in w79: w79 += " 🇲🇽"
+
+        # ==========================================
+        # COLUMNAS LADO IZQUIERDO
+        # ==========================================
         with col_16_izq:
-            st.markdown('<div class="bracket-phase">16vos (Izq)</div>', unsafe_allow_html=True)
-            partidos_izq = ["P1", "P3", "P5", "P7", "P9", "P11", "P13", "P15"]
-            for pid in partidos_izq:
+            st.markdown('<div class="bracket-phase">16vos</div>', unsafe_allow_html=True)
+            for pid in ["P1", "P2", "P3", "P4"]:
+                st.markdown(render_match_html(pid, BRACKET), unsafe_allow_html=True)
+            st.markdown('<div style="margin-top: 40px;"></div>', unsafe_allow_html=True)
+            for pid in ["P5", "P6", "P7", "P8"]:
                 st.markdown(render_match_html(pid, BRACKET), unsafe_allow_html=True)
 
-        # --- LADO IZQUIERDO: CUARTOS (CRUCES ENTRE IZQ Y DER SIMÉTRICOS) ---
+        with col_8_izq:
+            st.markdown('<div class="bracket-phase">8vos</div>', unsafe_allow_html=True)
+            st.markdown(f"""
+            <div class="bracket-match" style="margin-top: 25px;">
+                <div class="bracket-team"><span>{w74}</span></div><div class="bracket-team"><span>{w77}</span></div>
+            </div>
+            <div class="bracket-match" style="margin-top: 45px;">
+                <div class="bracket-team"><span>{w73}</span></div><div class="bracket-team"><span>{w75}</span></div>
+            </div>
+            <div class="bracket-match" style="margin-top: 105px;">
+                <div class="bracket-team"><span>{w83}</span></div><div class="bracket-team"><span>{w84}</span></div>
+            </div>
+            <div class="bracket-match" style="margin-top: 45px;">
+                <div class="bracket-team"><span>{w81}</span></div><div class="bracket-team"><span>{w82}</span></div>
+            </div>
+            """, unsafe_allow_html=True)
+
         with col_4_izq:
-            st.markdown('<div class="bracket-phase">Cuartos (Izq)</div>', unsafe_allow_html=True)
-            
-            g_c1_1 = BRACKET["P1"]["Ganador"].title() if BRACKET["P1"]["Ganador"] != "Por Definir" else "Ganador P1"
-            g_c1_2 = BRACKET["P2"]["Ganador"].title() if BRACKET["P2"]["Ganador"] != "Por Definir" else "Ganador P2"
-            g_c2_1 = BRACKET["P3"]["Ganador"].title() if BRACKET["P3"]["Ganador"] != "Por Definir" else "Ganador P3"
-            g_c2_2 = BRACKET["P4"]["Ganador"].title() if BRACKET["P4"]["Ganador"] != "Por Definir" else "Ganador P4"
-            g_c3_1 = BRACKET["P5"]["Ganador"].title() if BRACKET["P5"]["Ganador"] != "Por Definir" else "Ganador P5"
-            g_c3_2 = BRACKET["P6"]["Ganador"].title() if BRACKET["P6"]["Ganador"] != "Por Definir" else "Ganador P6"
-            g_c4_1 = BRACKET["P7"]["Ganador"].title() if BRACKET["P7"]["Ganador"] != "Por Definir" else "Ganador P7"
-            g_c4_2 = BRACKET["P8"]["Ganador"].title() if BRACKET["P8"]["Ganador"] != "Por Definir" else "Ganador P8"
-
-            if "México" in g_c4_1: g_c4_1 += " 🇲🇽"
-
-            st.markdown(f"""
-            <div class="bracket-match" style="margin-top: 25px;">
-                <div class="bracket-team"><span>{g_c1_1}</span> <span class="bracket-score">-</span></div>
-                <div class="bracket-team"><span>{g_c1_2}</span> <span class="bracket-score">-</span></div>
+            st.markdown('<div class="bracket-phase">4tos</div>', unsafe_allow_html=True)
+            st.markdown("""
+            <div class="bracket-match" style="margin-top: 60px;">
+                <div class="bracket-team"><span>W89</span></div><div class="bracket-team"><span>W90</span></div>
             </div>
-            <div class="bracket-match" style="margin-top: 55px;">
-                <div class="bracket-team"><span>{g_c2_1}</span> <span class="bracket-score">-</span></div>
-                <div class="bracket-team"><span>{g_c2_2}</span> <span class="bracket-score">-</span></div>
-            </div>
-            <div class="bracket-match" style="margin-top: 55px;">
-                <div class="bracket-team"><span>{g_c3_1}</span> <span class="bracket-score">-</span></div>
-                <div class="bracket-team"><span>{g_c3_2}</span> <span class="bracket-score">-</span></div>
-            </div>
-            <div class="bracket-match" style="margin-top: 55px;">
-                <div class="bracket-team"><span>{g_c4_1}</span> <span class="bracket-score">-</span></div>
-                <div class="bracket-team"><span>{g_c4_2}</span> <span class="bracket-score">-</span></div>
+            <div class="bracket-match" style="margin-top: 200px;">
+                <div class="bracket-team"><span>W93</span></div><div class="bracket-team"><span>W94</span></div>
             </div>
             """, unsafe_allow_html=True)
 
-        # --- LADO IZQUIERDO: SEMIFINAL ---
         with col_semi_izq:
-            st.markdown('<div class="bracket-phase">Semifinal (Izq)</div>', unsafe_allow_html=True)
+            st.markdown('<div class="bracket-phase">Semifinal</div>', unsafe_allow_html=True)
             st.markdown("""
-            <div class="bracket-match" style="margin-top: 75px;">
-                <div class="bracket-team"><span>Ganador C1</span> <span class="bracket-score">-</span></div>
-                <div class="bracket-team"><span>Ganador C2</span> <span class="bracket-score">-</span></div>
-            </div>
-            <div class="bracket-match" style="margin-top: 180px;">
-                <div class="bracket-team"><span>Ganador C3</span> <span class="bracket-score">-</span></div>
-                <div class="bracket-team"><span>Ganador C4</span> <span class="bracket-score">-</span></div>
+            <div class="bracket-match" style="margin-top: 150px;">
+                <div class="bracket-team"><span>W97</span></div><div class="bracket-team"><span>W98</span></div>
             </div>
             """, unsafe_allow_html=True)
 
-        # --- CENTRO: GRAN FINAL ---
+        # ==========================================
+        # COLUMNA CENTRAL: GRAN FINAL
+        # ==========================================
         with col_final:
-            st.markdown('<div class="bracket-phase" style="background:#f59e0b; color:white;">🏆 GRAN FINAL</div>', unsafe_allow_html=True)
+            st.markdown('<div class="bracket-phase" style="background:#f59e0b; color:white;">🏆 FINAL</div>', unsafe_allow_html=True)
             st.markdown("""
-            <div class="bracket-match" style="margin-top: 240px; border: 2px solid #f59e0b;">
-                <div class="bracket-team" style="font-size:14px; padding: 6px 4px;"><span>👑 Finalista Izquierda</span> <span class="bracket-score">-</span></div>
-                <div class="bracket-team" style="font-size:14px; padding: 6px 4px;"><span>👑 Finalista Derecha</span> <span class="bracket-score">-</span></div>
+            <div class="bracket-match" style="margin-top: 145px; border: 2px solid #f59e0b;">
+                <div class="bracket-team" style="font-weight:700;"><span>W101</span></div>
+                <div class="bracket-team" style="font-weight:700;"><span>W102</span></div>
             </div>
             """, unsafe_allow_html=True)
 
-        # --- LADO DERECHO: SEMIFINAL ---
+        # ==========================================
+        # COLUMNAS LADO DERECHO
+        # ==========================================
         with col_semi_der:
-            st.markdown('<div class="bracket-phase">Semifinal (Der)</div>', unsafe_allow_html=True)
+            st.markdown('<div class="bracket-phase">Semifinal</div>', unsafe_allow_html=True)
             st.markdown("""
-            <div class="bracket-match" style="margin-top: 75px;">
-                <div class="bracket-team"><span>Ganador C5</span> <span class="bracket-score">-</span></div>
-                <div class="bracket-team"><span>Ganador C6</span> <span class="bracket-score">-</span></div>
-            </div>
-            <div class="bracket-match" style="margin-top: 180px;">
-                <div class="bracket-team"><span>Ganador C7</span> <span class="bracket-score">-</span></div>
-                <div class="bracket-team"><span>Ganador C8</span> <span class="bracket-score">-</span></div>
+            <div class="bracket-match" style="margin-top: 150px;">
+                <div class="bracket-team"><span>W99</span></div><div class="bracket-team"><span>W100</span></div>
             </div>
             """, unsafe_allow_html=True)
 
-        # --- LADO DERECHO: CUARTOS (CRUCES ENTRE IZQ Y DER SIMÉTRICOS) ---
         with col_4_der:
-            st.markdown('<div class="bracket-phase">Cuartos (Der)</div>', unsafe_allow_html=True)
-            
-            g_c5_1 = BRACKET["P9"]["Ganador"].title() if BRACKET["P9"]["Ganador"] != "Por Definir" else "Ganador P9"
-            g_c5_2 = BRACKET["P10"]["Ganador"].title() if BRACKET["P10"]["Ganador"] != "Por Definir" else "Ganador P10"
-            g_c6_1 = BRACKET["P11"]["Ganador"].title() if BRACKET["P11"]["Ganador"] != "Por Definir" else "Ganador P11"
-            g_c6_2 = BRACKET["P12"]["Ganador"].title() if BRACKET["P12"]["Ganador"] != "Por Definir" else "Ganador P12"
-            g_c7_1 = BRACKET["P13"]["Ganador"].title() if BRACKET["P13"]["Ganador"] != "Por Definir" else "Ganador P13"
-            g_c7_2 = BRACKET["P14"]["Ganador"].title() if BRACKET["P14"]["Ganador"] != "Por Definir" else "Ganador P14"
-            g_c8_1 = BRACKET["P15"]["Ganador"].title() if BRACKET["P15"]["Ganador"] != "Por Definir" else "Ganador P15"
-            g_c8_2 = BRACKET["P16"]["Ganador"].title() if BRACKET["P16"]["Ganador"] != "Por Definir" else "Ganador P16"
+            st.markdown('<div class="bracket-phase">4tos</div>', unsafe_allow_html=True)
+            st.markdown("""
+            <div class="bracket-match" style="margin-top: 60px;">
+                <div class="bracket-team"><span>W91</span></div><div class="bracket-team"><span>W92</span></div>
+            </div>
+            <div class="bracket-match" style="margin-top: 200px;">
+                <div class="bracket-team"><span>W95</span></div><div class="bracket-team"><span>W96</span></div>
+            </div>
+            """, unsafe_allow_html=True)
 
+        with col_8_der:
+            st.markdown('<div class="bracket-phase">8vos</div>', unsafe_allow_html=True)
             st.markdown(f"""
             <div class="bracket-match" style="margin-top: 25px;">
-                <div class="bracket-team"><span>{g_c5_1}</span> <span class="bracket-score">-</span></div>
-                <div class="bracket-team"><span>{g_c5_2}</span> <span class="bracket-score">-</span></div>
+                <div class="bracket-team"><span>{w76}</span></div><div class="bracket-team"><span>{w78}</span></div>
             </div>
-            <div class="bracket-match" style="margin-top: 55px;">
-                <div class="bracket-team"><span>{g_c6_1}</span> <span class="bracket-score">-</span></div>
-                <div class="bracket-team"><span>{g_c6_2}</span> <span class="bracket-score">-</span></div>
+            <div class="bracket-match" style="margin-top: 45px;">
+                <div class="bracket-team"><span>{w79}</span></div><div class="bracket-team"><span>{w80}</span></div>
             </div>
-            <div class="bracket-match" style="margin-top: 55px;">
-                <div class="bracket-team"><span>{g_c7_1}</span> <span class="bracket-score">-</span></div>
-                <div class="bracket-team"><span>{g_c7_2}</span> <span class="bracket-score">-</span></div>
+            <div class="bracket-match" style="margin-top: 105px;">
+                <div class="bracket-team"><span>{w86}</span></div><div class="bracket-team"><span>{w88}</span></div>
             </div>
-            <div class="bracket-match" style="margin-top: 55px;">
-                <div class="bracket-team"><span>{g_c8_1}</span> <span class="bracket-score">-</span></div>
-                <div class="bracket-team"><span>{g_c8_2}</span> <span class="bracket-score">-</span></div>
+            <div class="bracket-match" style="margin-top: 45px;">
+                <div class="bracket-team"><span>{w85}</span></div><div class="bracket-team"><span>{w87}</span></div>
             </div>
             """, unsafe_allow_html=True)
 
-        # --- LADO DERECHO: 16VOS PARES (P2, P4, P6, P8, P10, P12, P14, P16) ---
         with col_16_der:
-            st.markdown('<div class="bracket-phase">16vos (Der)</div>', unsafe_allow_html=True)
-            partidos_der = ["P2", "P4", "P6", "P8", "P10", "P12", "P14", "P16"]
-            for pid in partidos_der:
+            st.markdown('<div class="bracket-phase">16vos</div>', unsafe_allow_html=True)
+            for pid in ["P9", "P10", "P11", "P12"]:
+                st.markdown(render_match_html(pid, BRACKET), unsafe_allow_html=True)
+            st.markdown('<div style="margin-top: 40px;"></div>', unsafe_allow_html=True)
+            for pid in ["P13", "P14", "P15", "P16"]:
                 st.markdown(render_match_html(pid, BRACKET), unsafe_allow_html=True)
