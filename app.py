@@ -240,7 +240,7 @@ if df_ranking is not None:
 
    # --- PESTAÑA BRACKET (9 COLUMNAS AUTOMÁTICAS Y ALINEADAS CORRECTAMENTE) ---
     with tab_bracket_dev:
-        st.info("💡 **Mundial 2026**")
+        st.info("💡  En construcción ")
         
         def render_match_html(match_id, data_dict):
             m = data_dict[match_id]
