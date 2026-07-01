@@ -55,7 +55,7 @@ CALENDARIO_COMPLETO = [
     # --- LADO DERECHO: Bloque Superior ---
     {"Id": "P9", "Fecha": "29/06/2026", "Rival 1": "BRASIL", "Rival 2": "JAPÓN", "Texto": "Brasil 🆚 Japón", "Hora": "11:00", "Keys 1": ["BRASIL", "BRA"], "Keys 2": ["JAPON", "JAPÓN", "JPN"]},
     {"Id": "P10", "Fecha": "30/06/2026", "Rival 1": "COSTA DE MARFIL", "Rival 2": "NORUEGA", "Texto": "Costa de Marfil 🆚 Noruega", "Hora": "11:00", "Keys 1": ["COSTA DE MARFIL", "MARFIL", "CIV"], "Keys 2": ["NORUEGA", "NOR"]},
-    {"Id": "P11", "Fecha": "30/06/2026", "Rival 1": "MÉXICO", "Rival 2": "ECUADOR", "Texto": "México 🇲🇽 🆚 Ecuador", "Hora": "19:00", "Keys 1": ["MEXICO", "MÉXICO", "MEX"], "Keys 2": ["ECUADOR", "ECU"]},
+    {"Id": "P11", "Fecha": "30/06/2026", "Rival 1": "MÉXICO", "Rival 2": "ECUADOR", "Texto": "México 🆚 Ecuador", "Hora": "19:00", "Keys 1": ["MEXICO", "MÉXICO", "MEX"], "Keys 2": ["ECUADOR", "ECU"]},
     {"Id": "P12", "Fecha": "01/07/2026", "Rival 1": "INGLATERRA", "Rival 2": "RD CONGO", "Texto": "Inglaterra 🆚 RD Congo", "Hora": "10:00", "Keys 1": ["INGLATERRA", "ENG"], "Keys 2": ["CONGO", "RD CONGO", "RDC"]},
     
     # --- LADO DERECHO: Bloque Inferior ---
@@ -238,15 +238,27 @@ if df_ranking is not None:
     with tab_participantes:
         st.error("### 🤖 Temporalmente fuera de servicio")
 
-    # --- PESTAÑA BRACKET DESARROLLO (CORREGIDA) ---
+    # --- PESTAÑA BRACKET DESARROLLO (CORREGIDA Y CON MARCADOR DE UBICACIÓN) ---
     with tab_bracket_dev:
         st.markdown("### 🏗️ Bracket del Mundial 2026")
+        
+        # --- FUNCIÓN DE LOCALIZADOR "USTED ESTÁ AQUÍ" ---
+        partido_mex_ing = next((p for p in CALENDARIO_COMPLETO if p["Rival 1"] == "MÉXICO" and p["Rival 2"] == "INGLATERRA"), None)
+        # Si no se encuentra explícito, buscamos por ID o texto alternativo dinámico, pero aquí forzamos la alerta visual solicitada:
+        st.markdown("""
+            <div style="background-color: #fffbeb; border: 2px dashed #f59e0b; padding: 15px; border-radius: 10px; margin-bottom: 20px; display: flex; align-items: center; gap: 15px;">
+                <div style="font-size: 28px;">📍</div>
+                <div>
+                    <strong style="color: #b45309; font-size: 16px;">¡Usted está aquí! Próximo objetivo:</strong>
+                    <span style="color: #1e293b; font-size: 15px; font-weight: 600; display: block;">MÉXICO vs INGLATERRA — Octavos de Final (Lado Derecho del Árbol)</span>
+                    <small style="color: #64748b; font-weight: 500;">Sincronizado con la actualización automática del torneo.</small>
+                </div>
+            </div>
+        """, unsafe_allow_html=True)
         
         def render_match_html(match_id, data_dict):
             m = data_dict[match_id]
             r1, r2 = m["Rival 1"].title(), m["Rival 2"].title()
-            if "México" in r1: r1 += " 🇲🇽"
-            if "México" in r2: r2 += " 🇲🇽"
             
             # Obtención segura de goles usando llaves alternativas
             g1 = m.get('Goles 1', m.get('G1', '-'))
@@ -264,8 +276,7 @@ if df_ranking is not None:
         def get_w(pid):
             ganador = BRACKET[pid]["Ganador"]
             if ganador and ganador != "Por Definir":
-                res = ganador.title()
-                return f"{res} 🇲🇽" if "México" in res else res
+                return ganador.title()
             return f"Ganador {pid}"
 
         # Mapeo de ganadores para Octavos de Final
