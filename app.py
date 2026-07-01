@@ -238,8 +238,8 @@ if df_ranking is not None:
     with tab_participantes:
         st.error("### 🤖 Temporalmente fuera de servicio")
 
-    # --- PESTAÑA EN CONSTRUCCIÓN (MANTENIENDO EL RESTO DE TUS PESTAÑAS INTACTAS) ---
-    with tab4: # Cambia 'tab4' por el nombre exacto de tu variable de pestaña (ej. tab_bracket_dev)
+    # --- PESTAÑA BRACKET DESARROLLO (CORREGIDA) ---
+    with tab_bracket_dev:
         st.markdown("### 🏗️ Bracket del Mundial 2026")
         
         def render_match_html(match_id, data_dict):
@@ -247,12 +247,17 @@ if df_ranking is not None:
             r1, r2 = m["Rival 1"].title(), m["Rival 2"].title()
             if "México" in r1: r1 += " 🇲🇽"
             if "México" in r2: r2 += " 🇲🇽"
-            c1 = "winner" if m["Ganador"] == m["Rival 1"] else ("loser" if m["Ganador"] != "Por Definir" else "")
-            c2 = "winner" if m["Ganador"] == m["Rival 2"] else ("loser" if m["Ganador"] != "Por Definir" else "")
+            
+            # Obtención segura de goles usando llaves alternativas
+            g1 = m.get('Goles 1', m.get('G1', '-'))
+            g2 = m.get('Goles 2', m.get('G2', '-'))
+            
+            c1 = "winner" if m["Ganador"] == m["Rival 1"] else ("loser" if m["Ganador"] != "Por Definir" and m["Ganador"] is not None else "")
+            c2 = "winner" if m["Ganador"] == m["Rival 2"] else ("loser" if m["Ganador"] != "Por Definir" and m["Ganador"] is not None else "")
             return f"""
             <div class="b-card">
-                <div class="b-team {c1}"><span>{r1}</span> <span class="score">{m['Goles 1']}</span></div>
-                <div class="b-team {c2}"><span>{r2}</span> <span class="score">{m['Goles 2']}</span></div>
+                <div class="b-team {c1}"><span>{r1}</span> <span class="score">{g1}</span></div>
+                <div class="b-team {c2}"><span>{r2}</span> <span class="score">{g2}</span></div>
             </div>
             """
 
