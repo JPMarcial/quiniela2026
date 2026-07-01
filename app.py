@@ -238,9 +238,9 @@ if df_ranking is not None:
     with tab_participantes:
         st.error("### 🤖 Temporalmente fuera de servicio")
 
-    # --- PESTAÑA BRACKET (9 COLUMNAS AUTOMÁTICAS Y CENTRADAS MEDIANTE FLEXBOX) ---
+    # --- PESTAÑA BRACKET (9 COLUMNAS AUTOMÁTICAS CON 16VOS EMPAREJADOS SIMÉTRICAMENTE) ---
     with tab_bracket_dev:
-        st.info("Mundial 2026")
+        st.info("💡 **Mundial 2026**")
         
         def render_match_html(match_id, data_dict):
             m = data_dict[match_id]
@@ -263,15 +263,35 @@ if df_ranking is not None:
         w = {pid: (BRACKET[pid]["Ganador"].title() if BRACKET[pid]["Ganador"] != "Por Definir" else f"Ganador {pid}") for pid in BRACKET}
         if "México" in w["P11"]: w["P11"] += " 🇲🇽"
 
-        # 1. 16vos Izquierda
+        # 1. 16vos Izquierda (Agrupados por parejas flexibles de igual altura que 8vos)
         with cols[0]:
             st.markdown('<div class="bracket-phase">16vos</div>', unsafe_allow_html=True)
-            st.markdown('<div class="bracket-column-flex">', unsafe_allow_html=True)
-            for pid in ["P1", "P2", "P3", "P4", "P5", "P6", "P7", "P8"]:
-                st.markdown(render_match_html(pid, BRACKET), unsafe_allow_html=True)
+            
+            # Dupla para el juego 1 de 8vos
+            st.markdown('<div class="bracket-column-flex" style="height: 170px;">', unsafe_allow_html=True)
+            st.markdown(render_match_html("P1", BRACKET), unsafe_allow_html=True)
+            st.markdown(render_match_html("P2", BRACKET), unsafe_allow_html=True)
+            st.markdown('</div>', unsafe_allow_html=True)
+            
+            # Dupla para el juego 2 de 8vos
+            st.markdown('<div class="bracket-column-flex" style="height: 170px;">', unsafe_allow_html=True)
+            st.markdown(render_match_html("P3", BRACKET), unsafe_allow_html=True)
+            st.markdown(render_match_html("P4", BRACKET), unsafe_allow_html=True)
+            st.markdown('</div>', unsafe_allow_html=True)
+            
+            # Dupla para el juego 3 de 8vos
+            st.markdown('<div class="bracket-column-flex" style="height: 170px;">', unsafe_allow_html=True)
+            st.markdown(render_match_html("P5", BRACKET), unsafe_allow_html=True)
+            st.markdown(render_match_html("P6", BRACKET), unsafe_allow_html=True)
+            st.markdown('</div>', unsafe_allow_html=True)
+            
+            # Dupla para el juego 4 de 8vos
+            st.markdown('<div class="bracket-column-flex" style="height: 170px;">', unsafe_allow_html=True)
+            st.markdown(render_match_html("P7", BRACKET), unsafe_allow_html=True)
+            st.markdown(render_match_html("P8", BRACKET), unsafe_allow_html=True)
             st.markdown('</div>', unsafe_allow_html=True)
 
-        # 2. 8vos Izquierda (Centrado automático perfecto)
+        # 2. 8vos Izquierda
         with cols[1]:
             st.markdown('<div class="bracket-phase">8vos</div>', unsafe_allow_html=True)
             st.markdown(f"""
@@ -333,7 +353,7 @@ if df_ranking is not None:
             </div>
             """, unsafe_allow_html=True)
 
-        # 8. 8vos Derecha (Centrado automático perfecto)
+        # 8. 8vos Derecha
         with cols[7]:
             st.markdown('<div class="bracket-phase">8vos</div>', unsafe_allow_html=True)
             st.markdown(f"""
@@ -345,10 +365,30 @@ if df_ranking is not None:
             </div>
             """, unsafe_allow_html=True)
 
-        # 9. 16vos Derecha
+        # 9. 16vos Derecha (Agrupados por parejas flexibles de igual altura que 8vos)
         with cols[8]:
             st.markdown('<div class="bracket-phase">16vos</div>', unsafe_allow_html=True)
-            st.markdown('<div class="bracket-column-flex">', unsafe_allow_html=True)
-            for pid in ["P9", "P10", "P11", "P12", "P13", "P14", "P15", "P16"]:
-                st.markdown(render_match_html(pid, BRACKET), unsafe_allow_html=True)
+            
+            # Dupla para el juego 1 de 8vos
+            st.markdown('<div class="bracket-column-flex" style="height: 170px;">', unsafe_allow_html=True)
+            st.markdown(render_match_html("P9", BRACKET), unsafe_allow_html=True)
+            st.markdown(render_match_html("P10", BRACKET), unsafe_allow_html=True)
+            st.markdown('</div>', unsafe_allow_html=True)
+            
+            # Dupla para el juego 2 de 8vos
+            st.markdown('<div class="bracket-column-flex" style="height: 170px;">', unsafe_allow_html=True)
+            st.markdown(render_match_html("P11", BRACKET), unsafe_allow_html=True)
+            st.markdown(render_match_html("P12", BRACKET), unsafe_allow_html=True)
+            st.markdown('</div>', unsafe_allow_html=True)
+            
+            # Dupla para el juego 3 de 8vos
+            st.markdown('<div class="bracket-column-flex" style="height: 170px;">', unsafe_allow_html=True)
+            st.markdown(render_match_html("P13", BRACKET), unsafe_allow_html=True)
+            st.markdown(render_match_html("P14", BRACKET), unsafe_allow_html=True)
+            st.markdown('</div>', unsafe_allow_html=True)
+            
+            # Dupla para el juego 4 de 8vos
+            st.markdown('<div class="bracket-column-flex" style="height: 170px;">', unsafe_allow_html=True)
+            st.markdown(render_match_html("P15", BRACKET), unsafe_allow_html=True)
+            st.markdown(render_match_html("P16", BRACKET), unsafe_allow_html=True)
             st.markdown('</div>', unsafe_allow_html=True)
