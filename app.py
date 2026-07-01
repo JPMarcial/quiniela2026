@@ -206,47 +206,47 @@ def cargar_y_procesar_todo_el_torneo(spreadsheet_id, pestañas_jugadores, partid
     except Exception: return None, None, partidos_hoy, bracket_data
 
 with st.spinner("🚀 Sincronizando datos..."):
-    df_ranking, df_pronosticos_hoy, PARTIDOS_HOY, BRACKET = cargar_y_procesar_todo_el_torneo(SPREADSHEET_ID, ID_PESTA\u00d1AS, PARTIDOS_HOY)
+    df_ranking, df_pronosticos_hoy, PARTIDOS_HOY, BRACKET = cargar_y_procesar_todo_el_torneo(SPREADSHEET_ID, ID_PESTAÑAS, PARTIDOS_HOY)
 
 if df_ranking is not None:
-    tab_principal, tab_hoy, tab_participantes, tab_bracket_dev = st.tabs(["\ud883\udcca Clasificaci\u00f3n", "\ud883\udccb Pron\u00f3sticos", "\ud883\udc64 Participantes", "\ud883\udee0 Desarrollo Bracket"])
+    tab_principal, tab_hoy, tab_participantes, tab_bracket_dev = st.tabs(["📊 Clasificación", "🔮 Pronósticos", "👤 Participantes", "🛠️ Desarrollo Bracket"])
 
-    # --- PESTA\u00d1A PRINCIPAL ---
+    # --- PESTAÑA PRINCIPAL ---
     with tab_principal:
-        st.subheader(f"\ud883\udcc5 Partidos del D\u00eda ({fecha_formateada})")
-        if not PARTIDOS_HOY: st.info("\u26bd No hay partidos agendados para hoy.")
+        st.subheader(f"📅 Partidos del Día ({fecha_formateada})")
+        if not PARTIDOS_HOY: st.info("⚽ No hay partidos agendados para hoy.")
         else:
             columnas_juegos = st.columns(len(PARTIDOS_HOY))
             for i, partido in enumerate(PARTIDOS_HOY):
                 with columnas_juegos[i]:
                     marcador = partido.get("Resultado", "")
-                    badge_html = f'<div style="text-align: center; font-size: 26px; font-weight: 800; color: #10B981; background-color: #ECFDF5; padding: 10px; border-radius: 8px; border: 2px solid #A7F3D0; margin-bottom: 10px;">{marcador} <span style="font-size:12px; font-weight:bold; display:block; color:#059669;">FINALIZADO</span></div>' if marcador != "" else f'<div style="text-align: center; font-size: 14px; font-weight: 700; color: #1D4ED8; background-color: #EFF6FF; padding: 6px; border-radius: 6px; margin-bottom: 10px;">\u23f0 {partido["Hora"]} MX</div>'
+                    badge_html = f'<div style="text-align: center; font-size: 26px; font-weight: 800; color: #10B981; background-color: #ECFDF5; padding: 10px; border-radius: 8px; border: 2px solid #A7F3D0; margin-bottom: 10px;">{marcador} <span style="font-size:12px; font-weight:bold; display:block; color:#059669;">FINALIZADO</span></div>' if marcador != "" else f'<div style="text-align: center; font-size: 14px; font-weight: 700; color: #1D4ED8; background-color: #EFF6FF; padding: 6px; border-radius: 6px; margin-bottom: 10px;">⏰ {partido["Hora"]} MX</div>'
                     st.markdown(f'<div style="background-color: #FFFFFF; padding: 20px; border-radius: 12px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.07); border: 1px solid #F1F5F9;">{badge_html}<div style="font-size: 19px; font-weight: 700; color: #1E293B; text-align: center; line-height: 1.4;">{partido["Rival 1"].title()} <br><span style="color:#94A3B8; font-size:14px; font-weight:normal;">VS</span><br> {partido["Rival 2"].title()}</div></div>', unsafe_allow_html=True)
             
         st.write("---")
-        st.subheader("\ud883\udcc6 Tabla de Posiciones General")
+        st.subheader("🏅 Tabla de Posiciones General")
         max_puntos_global = int(df_ranking["Aciertos Totales"].max()) if df_ranking["Aciertos Totales"].max() > 0 else 1
         for index, row in df_ranking.iterrows():
             pts = int(row["Aciertos Totales"])
             st.markdown(f'<div style="display: flex; align-items: center; background-color: #FFFFFF; padding: 12px 18px; margin-bottom: 8px; border-radius: 8px; box-shadow: 0 1px 2px rgba(0,0,0,0.05); border: 1px solid #F1F5F9;"><div style="width: 50px; font-size: 16px; font-weight: 700; color: #64748B;">#{index + 1}</div><div style="flex-grow: 1; font-size: 16px; font-weight: 600; color: #334155;">{row["Participante"]}</div><div style="width: 140px; margin-right: 20px;"><div style="background-color: #E2E8F0; border-radius: 10px; height: 8px; width: 100%;"><div style="background-color: #3B82F6; height: 8px; border-radius: 10px; width: {(pts / max_puntos_global) * 100}%;"></div></div></div><div style="font-size: 16px; font-weight: 700; color: #1E293B; width: 60px; text-align: right;">{pts} pts</div></div>', unsafe_allow_html=True)
 
-    # --- PESTA\u00d1A PRON\u00d3STICOS ---
+    # --- PESTAÑA PRONÓSTICOS ---
     with tab_hoy:
         st.dataframe(df_pronosticos_hoy, use_container_width=True, hide_index=True)
 
-    # --- PESTA\u00d1A PARTICIPANTES ---
+    # --- PESTAÑA PARTICIPANTES ---
     with tab_participantes:
-        st.error("### \ud883\udd16 Temporalmente fuera de servicio")
+        st.error("### 🤖 Temporalmente fuera de servicio")
 
-    # --- PESTA\u00d1A BRACKET DESARROLLO (CORREGIDA Y ACTUALIZADA) ---
+    # --- PESTAÑA BRACKET DESARROLLO (CORREGIDA Y ACTUALIZADA) ---
     with tab_bracket_dev:
-        st.markdown("### \ud883\udee4 Bracket del Mundial 2026")
+        st.markdown("### 🏗️ Bracket del Mundial 2026")
         
         def render_match_html(match_id, data_dict):
             m = data_dict[match_id]
             r1, r2 = m["Rival 1"].title(), m["Rival 2"].title()
             
-            # Obtenci\u00f3n segura de goles usando llaves alternativas
+            # Obtención segura de goles usando llaves alternativas
             g1 = m.get('Goles 1', m.get('G1', '-'))
             g2 = m.get('Goles 2', m.get('G2', '-'))
             
@@ -325,9 +325,9 @@ if df_ranking is not None:
         </style>
 
         <div class="b-container">
-            <div class="phase-title">En construcci\u00f3n</div><div class="phase-title">8vos</div><div class="phase-title">4tos</div><div class="phase-title">Semifinal</div>
-            <div class="phase-title" style="color:#f59e0b;">\ud883\udcc6 FINAL</div>
-            <div class="phase-title">Semifinal</div><div class="phase-title">4tos</div><div class="phase-title">8vos</div><div class="phase-title">En construcci\u00f3n</div>
+            <div class="phase-title">En construcción</div><div class="phase-title">8vos</div><div class="phase-title">4tos</div><div class="phase-title">Semifinal</div>
+            <div class="phase-title" style="color:#f59e0b;">🏆 FINAL</div>
+            <div class="phase-title">Semifinal</div><div class="phase-title">4tos</div><div class="phase-title">8vos</div><div class="phase-title">En construcción</div>
 
             <div class="b-column">
                 <div class="b-match">{render_match_html("P1", BRACKET)}</div>
