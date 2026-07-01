@@ -240,7 +240,7 @@ if df_ranking is not None:
 
    # --- PESTAÑA BRACKET (9 COLUMNAS AUTOMÁTICAS Y ALINEADAS CORRECTAMENTE) ---
     with tab_bracket_dev:
-        st.info("💡  En construcción ")
+        st.info("En construcción")
         
         def render_match_html(match_id, data_dict):
             m = data_dict[match_id]
@@ -250,11 +250,9 @@ if df_ranking is not None:
             c1 = "winner" if m["Ganador"] == m["Rival 1"] else ("loser" if m["Ganador"] != "Por Definir" else "")
             c2 = "winner" if m["Ganador"] == m["Rival 2"] else ("loser" if m["Ganador"] != "Por Definir" else "")
             return f"""
-            <div style="flex: 1; display: flex; flex-direction: column; justify-content: center; width: 100%;">
-                <div class="bracket-match">
-                    <div class="bracket-team {c1}"><span>{r1}</span> <span class="bracket-score">{m['Goles 1']}</span></div>
-                    <div class="bracket-team {c2}"><span>{r2}</span> <span class="bracket-score">{m['Goles 2']}</span></div>
-                </div>
+            <div class="bracket-match" style="margin: 4px 0;">
+                <div class="bracket-team {c1}"><span>{r1}</span> <span class="bracket-score">{m['Goles 1']}</span></div>
+                <div class="bracket-team {c2}"><span>{r2}</span> <span class="bracket-score">{m['Goles 2']}</span></div>
             </div>
             """
 
@@ -265,16 +263,30 @@ if df_ranking is not None:
         w = {pid: (BRACKET[pid]["Ganador"].title() if BRACKET[pid]["Ganador"] != "Por Definir" else f"Ganador {pid}") for pid in BRACKET}
         if "México" in w["P11"]: w["P11"] += " 🇲🇽"
 
-        # 1. 16vos Izquierda (Un solo contenedor maestro con distribución proporcional)
+        # 1. 16vos Izquierda (Dividido en 4 sub-bloques flexibles para espejo perfecto con 8vos)
         with cols[0]:
             st.markdown('<div class="bracket-phase">16vos</div>', unsafe_allow_html=True)
-            st.markdown('<div class="bracket-column-flex">', unsafe_allow_html=True)
+            
+            # Pareja para el primer juego de 8vos (P1 y P2)
+            st.markdown('<div style="display: flex; flex-direction: column; justify-content: center; height: 170px;">', unsafe_allow_html=True)
             st.markdown(render_match_html("P1", BRACKET), unsafe_allow_html=True)
             st.markdown(render_match_html("P2", BRACKET), unsafe_allow_html=True)
+            st.markdown('</div>', unsafe_allow_html=True)
+            
+            # Pareja para el segundo juego de 8vos (P3 y P4)
+            st.markdown('<div style="display: flex; flex-direction: column; justify-content: center; height: 170px;">', unsafe_allow_html=True)
             st.markdown(render_match_html("P3", BRACKET), unsafe_allow_html=True)
             st.markdown(render_match_html("P4", BRACKET), unsafe_allow_html=True)
+            st.markdown('</div>', unsafe_allow_html=True)
+            
+            # Pareja para el tercer juego de 8vos (P5 y P6)
+            st.markdown('<div style="display: flex; flex-direction: column; justify-content: center; height: 170px;">', unsafe_allow_html=True)
             st.markdown(render_match_html("P5", BRACKET), unsafe_allow_html=True)
             st.markdown(render_match_html("P6", BRACKET), unsafe_allow_html=True)
+            st.markdown('</div>', unsafe_allow_html=True)
+            
+            # Pareja para el cuarto juego de 8vos (P7 y P8)
+            st.markdown('<div style="display: flex; flex-direction: column; justify-content: center; height: 170px;">', unsafe_allow_html=True)
             st.markdown(render_match_html("P7", BRACKET), unsafe_allow_html=True)
             st.markdown(render_match_html("P8", BRACKET), unsafe_allow_html=True)
             st.markdown('</div>', unsafe_allow_html=True)
@@ -353,16 +365,30 @@ if df_ranking is not None:
             </div>
             """, unsafe_allow_html=True)
 
-        # 9. 16vos Derecha (Un solo contenedor maestro con distribución proporcional)
+        # 9. 16vos Derecha (Dividido en 4 sub-bloques flexibles para espejo perfecto con 8vos)
         with cols[8]:
             st.markdown('<div class="bracket-phase">16vos</div>', unsafe_allow_html=True)
-            st.markdown('<div class="bracket-column-flex">', unsafe_allow_html=True)
+            
+            # Pareja para el primer juego de 8vos de la derecha (P9 y P10)
+            st.markdown('<div style="display: flex; flex-direction: column; justify-content: center; height: 170px;">', unsafe_allow_html=True)
             st.markdown(render_match_html("P9", BRACKET), unsafe_allow_html=True)
             st.markdown(render_match_html("P10", BRACKET), unsafe_allow_html=True)
+            st.markdown('</div>', unsafe_allow_html=True)
+            
+            # Pareja para el segundo juego de 8vos de la derecha (P11 y P12)
+            st.markdown('<div style="display: flex; flex-direction: column; justify-content: center; height: 170px;">', unsafe_allow_html=True)
             st.markdown(render_match_html("P11", BRACKET), unsafe_allow_html=True)
             st.markdown(render_match_html("P12", BRACKET), unsafe_allow_html=True)
+            st.markdown('</div>', unsafe_allow_html=True)
+            
+            # Pareja para el tercer juego de 8vos de la derecha (P13 y P14)
+            st.markdown('<div style="display: flex; flex-direction: column; justify-content: center; height: 170px;">', unsafe_allow_html=True)
             st.markdown(render_match_html("P13", BRACKET), unsafe_allow_html=True)
             st.markdown(render_match_html("P14", BRACKET), unsafe_allow_html=True)
+            st.markdown('</div>', unsafe_allow_html=True)
+            
+            # Pareja para el cuarto juego de 8vos de la derecha (P15 y P16)
+            st.markdown('<div style="display: flex; flex-direction: column; justify-content: center; height: 170px;">', unsafe_allow_html=True)
             st.markdown(render_match_html("P15", BRACKET), unsafe_allow_html=True)
             st.markdown(render_match_html("P16", BRACKET), unsafe_allow_html=True)
             st.markdown('</div>', unsafe_allow_html=True)
