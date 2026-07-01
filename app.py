@@ -7,11 +7,19 @@ from datetime import datetime, timedelta
 
 st.set_page_config(page_title="Quiniela Fase Final", page_icon="⚽", layout="wide")
 
-# Estilos CSS personalizados para limpiar la interfaz y mejorar fuentes
+# Estilos CSS personalizados para limpiar la interfaz, mejorar fuentes y brackets
 st.markdown("""
     <style>
     .main .block-container { padding-top: 2rem; }
     div[data-testid="stMetric"] { background-color: #f8fafc; padding: 15px; border-radius: 10px; border: 1px solid #e2e8f0; }
+    
+    /* Estilos para el Bracket de Desarrollo */
+    .bracket-phase { font-weight: bold; text-align: center; color: #475569; background: #e2e8f0; padding: 6px; border-radius: 6px; margin-bottom: 15px; font-size: 14px; }
+    .bracket-match { background: #ffffff; padding: 10px; border-radius: 8px; border: 1px solid #cbd5e1; box-shadow: 0 2px 4px rgba(0,0,0,0.02); margin-bottom: 20px; }
+    .bracket-team { font-size: 13px; font-weight: 600; color: #1e293b; padding: 3px 6px; display: flex; justify-content: space-between; }
+    .bracket-team.winner { color: #10b981; background-color: #f0fdf4; border-radius: 4px; }
+    .bracket-team.loser { color: #94a3b8; }
+    .bracket-score { font-weight: bold; color: #0f172a; }
     </style>
 """, unsafe_allow_html=True)
 
@@ -26,7 +34,7 @@ fecha_formateada = fecha_actual_mx.strftime("%d/%m")
 CALENDARIO_COMPLETO = [
     {"Fecha": "30/06", "Rival 1": "COSTA DE MARFIL", "Rival 2": "NORUEGA", "Texto": "Costa de Marfil 🆚 Noruega", "Hora": "11:00 AM", "Keys 1": ["COSTA DE MARFIL", "MARFIL", "CIV"], "Keys 2": ["NORUEGA", "NOR"]},
     {"Fecha": "30/06", "Rival 1": "FRANCIA", "Rival 2": "SUECIA", "Texto": "Francia 🆚 Suecia", "Hora": "03:00 PM", "Keys 1": ["FRANCIA", "FRA"], "Keys 2": ["SUECIA", "SUE"]},
-    {"Fecha": "30/06", "Rival 1": "MÉXICO 🇲🇽", "Rival 2": "ECUADOR", "Texto": "México 🇲🇽 🆚 Ecuador", "Hora": "07:00 PM", "Keys 1": ["MEXICO", "MÉXICO", "MEX"], "Keys 2": ["ECUADOR", "ECU"]},
+    {"Fecha": "30/06", "Rival 1": "MÉXICO", "Rival 2": "ECUADOR", "Texto": "México 🇲🇽 🆚 Ecuador", "Hora": "07:00 PM", "Keys 1": ["MEXICO", "MÉXICO", "MEX"], "Keys 2": ["ECUADOR", "ECU"]},
     {"Fecha": "01/07", "Rival 1": "INGLATERRA", "Rival 2": "RD CONGO", "Texto": "Inglaterra 🆚 RD Congo", "Hora": "10:00 AM", "Keys 1": ["INGLATERRA", "ENG"], "Keys 2": ["CONGO", "RD CONGO", "RDC"]},
     {"Fecha": "01/07", "Rival 1": "BÉLGICA", "Rival 2": "SENEGAL", "Texto": "Bélgica 🆚 Senegal", "Hora": "02:00 PM", "Keys 1": ["BELGICA", "BÉLGICA", "BEL"], "Keys 2": ["SENEGAL", "SEN"]},
     {"Fecha": "01/07", "Rival 1": "ESTADOS UNIDOS", "Rival 2": "BOSNIA", "Texto": "Estados Unidos 🆚 Bosnia", "Hora": "06:00 PM", "Keys 1": ["ESTADOS UNIDOS", "USA", "EEUU"], "Keys 2": ["BOSNIA", "HERZEGOVINA", "BOSNIA-HERZ"]},
@@ -136,7 +144,6 @@ def cargar_y_procesar_todo_el_torneo(spreadsheet_id, pestañas_jugadores, partid
                 fila_idx = None
                 for idx, row in df_cal_excel.iterrows():
                     fila_str = " ".join(row.astype(str).fillna("").tolist()).upper()
-                    # Validación flexible que ignore emojis en los nombres clave
                     rival1_limpio = re.sub(r'[^\w\s]', '', p["Rival 1"]).strip().upper()
                     rival2_limpio = re.sub(r'[^\w\s]', '', p["Rival 2"]).strip().upper()
                     if rival1_limpio in fila_str and rival2_limpio in fila_str:
@@ -222,10 +229,12 @@ with st.spinner("🚀 Sincronizando archivo Excel..."):
 if df_ranking is None:
     st.error("⚠️ Error crítico al descargar o procesar el archivo Excel.")
 else:
-    tab_principal, tab_hoy, tab_participantes = st.tabs([
+    # Agregada la pestaña oculta de desarrollo al final de la lista
+    tab_principal, tab_hoy, tab_participantes, tab_bracket_dev = st.tabs([
         "📊 Clasificación Principal", 
         "🔮 Pronósticos del Día", 
-        "👤 Participantes"
+        "👤 Participantes",
+        "🛠️ Desarrollo Bracket"
     ])
 
     # --- PESTAÑA 1: CLASIFICACIÓN PRINCIPAL Y PARTIDOS ---
@@ -245,11 +254,14 @@ else:
                     else:
                         badge_html = f'<div style="text-align: center; font-size: 14px; font-weight: 700; color: #1D4ED8; background-color: #EFF6FF; padding: 6px; border-radius: 6px; margin-bottom: 10px;">⏰ {partido["Hora"]} MX</div>'
                     
+                    rival1_display = partido['Rival 1'].title() + " 🇲🇽" if "MÉXICO" in partido['Rival 1'].upper() else partido['Rival 1'].title()
+                    rival2_display = partido['Rival 2'].title() + " 🇲🇽" if "MÉXICO" in partido['Rival 2'].upper() else partido['Rival 2'].title()
+
                     st.markdown(f"""
                     <div style="background-color: #FFFFFF; padding: 20px; border-radius: 12px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.07), 0 2px 4px -1px rgba(0,0,0,0.06); border: 1px solid #F1F5F9;">
                         {badge_html}
                         <div style="font-size: 19px; font-weight: 700; color: #1E293B; text-align: center; line-height: 1.4;">
-                            {partido['Rival 1'].title()} <br><span style="color:#94A3B8; font-size:14px; font-weight:normal;">VS</span><br> {partido['Rival 2'].title()}
+                            {rival1_display} <br><span style="color:#94A3B8; font-size:14px; font-weight:normal;">VS</span><br> {rival2_display}
                         </div>
                     </div>
                     """, unsafe_allow_html=True)
@@ -292,3 +304,106 @@ else:
     with tab_participantes:
         st.write("")
         st.error("### 🤖 Temporalmente fuera de servicio")
+
+    # --- PESTAÑA 4: DESARROLLO BRACKET (OCULTO/ENTORNO DE PRUEBAS) ---
+    with tab_bracket_dev:
+        st.warning("🛠️ **Espacio de Trabajo Técnico:** Esta pestaña sirve para ajustar los diseños antes de inyectarlos en la vista principal.")
+        st.subheader("🌲 Estructura del Árbol de Eliminación Directa")
+        
+        # Grid responsive de columnas para simular las fases consecutivas
+        col_16_izq, col_4_izq, col_semi_izq, col_final, col_semi_der, col_4_der, col_16_der = st.columns([2, 2, 2, 2.5, 2, 2, 2])
+        
+        # --- LADO IZQUIERDO: 16VOS ---
+        with col_16_izq:
+            st.markdown('<div class="bracket-phase">16vos de Final</div>', unsafe_allow_html=True)
+            
+            # Partido 1
+            st.markdown("""
+            <div class="bracket-match">
+                <div class="bracket-team winner"><span>Francia</span> <span class="bracket-score">2</span></div>
+                <div class="bracket-team loser"><span>Suecia</span> <span class="bracket-score">1</span></div>
+            </div>
+            """, unsafe_allow_html=True)
+            
+            # Partido 2
+            st.markdown("""
+            <div class="bracket-match">
+                <div class="bracket-team"><span>Costa de Marfil</span> <span class="bracket-score">-</span></div>
+                <div class="bracket-team"><span>Noruega</span> <span class="bracket-score">-</span></div>
+            </div>
+            """, unsafe_allow_html=True)
+
+        # --- LADO IZQUIERDO: CUARTOS ---
+        with col_4_izq:
+            st.markdown('<div class="bracket-phase">Cuartos</div>', unsafe_allow_html=True)
+            st.write("") # Espaciador para centrar con las llaves de 16vos
+            st.markdown("""
+            <div class="bracket-match" style="margin-top: 15px;">
+                <div class="bracket-team"><span>Francia</span> <span class="bracket-score">-</span></div>
+                <div class="bracket-team loser"><span>Ganador P2</span> <span class="bracket-score">-</span></div>
+            </div>
+            """, unsafe_allow_html=True)
+
+        # --- LADO IZQUIERDO: SEMIFINAL ---
+        with col_semi_izq:
+            st.markdown('<div class="bracket-phase">Semifinal</div>', unsafe_allow_html=True)
+            st.write("")
+            st.markdown("""
+            <div class="bracket-match" style="margin-top: 40px;">
+                <div class="bracket-team"><span>Por Definir</span> <span class="bracket-score">-</span></div>
+                <div class="bracket-team"><span>Por Definir</span> <span class="bracket-score">-</span></div>
+            </div>
+            """, unsafe_allow_html=True)
+
+        # --- CENTRO: GRAN FINAL ---
+        with col_final:
+            st.markdown('<div class="bracket-phase" style="background:#f59e0b; color:white;">🏆 GRAN FINAL</div>', unsafe_allow_html=True)
+            st.write("")
+            st.markdown("""
+            <div class="bracket-match" style="margin-top: 70px; border: 2px solid #f59e0b;">
+                <div class="bracket-team" style="font-size:15px;"><span>👑 Finalista Izq</span> <span class="bracket-score">-</span></div>
+                <div class="bracket-team" style="font-size:15px;"><span>👑 Finalista Der</span> <span class="bracket-score">-</span></div>
+            </div>
+            """, unsafe_allow_html=True)
+
+        # --- LADO DERECHO: SEMIFINAL ---
+        with col_semi_der:
+            st.markdown('<div class="bracket-phase">Semifinal</div>', unsafe_allow_html=True)
+            st.write("")
+            st.markdown("""
+            <div class="bracket-match" style="margin-top: 40px;">
+                <div class="bracket-team"><span>Por Definir</span> <span class="bracket-score">-</span></div>
+                <div class="bracket-team"><span>Por Definir</span> <span class="bracket-score">-</span></div>
+            </div>
+            """, unsafe_allow_html=True)
+
+        # --- LADO DERECHO: CUARTOS ---
+        with col_4_der:
+            st.markdown('<div class="bracket-phase">Cuartos</div>', unsafe_allow_html=True)
+            st.write("")
+            st.markdown("""
+            <div class="bracket-match" style="margin-top: 15px;">
+                <div class="bracket-team loser"><span>Ganador P3</span> <span class="bracket-score">-</span></div>
+                <div class="bracket-team"><span>México 🇲🇽</span> <span class="bracket-score">-</span></div>
+            </div>
+            """, unsafe_allow_html=True)
+
+        # --- LADO DERECHO: 16VOS ---
+        with col_16_der:
+            st.markdown('<div class="bracket-phase">16vos de Final</div>', unsafe_allow_html=True)
+            
+            # Partido 3
+            st.markdown("""
+            <div class="bracket-match">
+                <div class="bracket-team"><span>Inglaterra</span> <span class="bracket-score">-</span></div>
+                <div class="bracket-team"><span>RD Congo</span> <span class="bracket-score">-</span></div>
+            </div>
+            """, unsafe_allow_html=True)
+            
+            # Partido 4 (México)
+            st.markdown("""
+            <div class="bracket-match">
+                <div class="bracket-team"><span>México 🇲🇽</span> <span class="bracket-score">-</span></div>
+                <div class="bracket-team"><span>Ecuador</span> <span class="bracket-score">-</span></div>
+            </div>
+            """, unsafe_allow_html=True)
