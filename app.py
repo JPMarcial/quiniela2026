@@ -173,7 +173,6 @@ def cargar_y_procesar_todo_el_torneo(spreadsheet_id, pestañas_jugadores, fecha_
                 fila_idx = None
                 for idx, row in df_cal_excel.iterrows():
                     fila_str = " ".join(row.astype(str).fillna("").tolist()).upper()
-                    # Buscar coincidencia exacta por rivales
                     if re.sub(r'[^\w\s]', '', p["Rival 1"]).strip().upper() in fila_str and re.sub(r'[^\w\s]', '', p["Rival 2"]).strip().upper() in fila_str:
                         fila_idx = idx
                         break
@@ -217,7 +216,6 @@ def cargar_y_procesar_todo_el_torneo(spreadsheet_id, pestañas_jugadores, fecha_
                         if any(k in pronostico for k in p["Keys 1"]): encontrado = p["Rival 1"].title(); break
                         elif any(k in pronostico for k in p["Keys 2"]): encontrado = p["Rival 2"].title(); break
                     
-                    # REGLA DE ORO INTERNA
                     rival_real_1 = bracket_data[p["Id"]]["Rival 1"].title()
                     rival_real_2 = bracket_data[p["Id"]]["Rival 2"].title()
                     
@@ -238,13 +236,11 @@ def cargar_y_procesar_todo_el_torneo(spreadsheet_id, pestañas_jugadores, fecha_
         return df_ranking, df_pronosticos_fecha, partidos_fecha, bracket_data
     except Exception: return None, None, partidos_fecha, bracket_data
 
-# Determinar el índice activo por defecto
 default_idx = FECHAS_DISPONIBLES.index(fecha_formateada) if fecha_formateada in FECHAS_DISPONIBLES else 0
 
-# Carga inicial simulada
 if "BASE" not in st.session_state:
     with st.spinner("🚀 Sincronizando datos del torneo..."):
-        df_ranking, _, _, BRACKET = cargar_y_processed = cargar_y_procesar_todo_el_torneo(SPREADSHEET_ID, ID_PESTAÑAS, FECHAS_DISPONIBLES[default_idx])
+        df_ranking, _, _, BRACKET = cargar_y_procesar_todo_el_torneo(SPREADSHEET_ID, ID_PESTAÑAS, FECHAS_DISPONIBLES[default_idx])
 
 if df_ranking is not None:
     tab_principal, tab_hoy, tab_bracket_dev = st.tabs(["📊 Clasificación", "🔮 Pronósticos por Fecha", "🛠️ Desarrollo Bracket"])
@@ -286,7 +282,7 @@ if df_ranking is not None:
             pts = int(row["Aciertos Totales"])
             st.markdown(f'<div style="display: flex; align-items: center; background-color: #FFFFFF; padding: 12px 18px; margin-bottom: 8px; border-radius: 8px; box-shadow: 0 1px 2px rgba(0,0,0,0.05); border: 1px solid #F1F5F9;"><div style="width: 50px; font-size: 16px; font-weight: 700; color: #64748B;">#{index + 1}</div><div style="flex-grow: 1; font-size: 16px; font-weight: 600; color: #334155;">{row["Participante"]}</div><div style="width: 140px; margin-right: 20px;"><div style="background-color: #E2E8F0; border-radius: 10px; height: 8px; width: 100%;"><div style="background-color: #3B82F6; height: 8px; border-radius: 10px; width: {(pts / max_puntos_global) * 100}%;"></div></div></div><div style="font-size: 16px; font-weight: 700; color: #1E293B; width: 60px; text-align: right;">{pts} pts</div></div>', unsafe_allow_html=True)
 
-    # --- PESTAÑA PRONÓSTICOS (DINÁMICA MEDIANTE SUB-TABS CON TODAS LAS FECHAS) ---
+    # --- PESTAÑA PRONÓSTICOS ---
     with tab_hoy:
         st.markdown("### 🔮 Consulta de Pronósticos")
         
@@ -332,10 +328,10 @@ if df_ranking is not None:
 
         bracket_html = f"""
         <style>
-            .b-container {{ display: grid; grid-template-columns: repeat(9, 1fr); gap: 12px; background-color: #0f172a; padding: 20px; border-radius: 12px; font-family: sans-serif; min-width: 1200px; }}
+            .b-container {{ display: grid; grid-template-columns: repeat(9, 1fr); gap: 12px; background-color: #0f172a; padding: 20px; border-radius: 12px; font-family: sans-serif; min-width: 1400px; }}
             .b-column {{ display: grid; grid-template-rows: repeat(8, 1fr); height: 850px; }}
             .b-match {{ display: flex; flex-direction: column; justify-content: center; padding: 2px 0; }}
-            .b-card {{ background: #1e293b; border: 1px solid #334155; border-radius: 8px; padding: 10px; color: white; font-size: 12px; }}
+            .b-card {{ background: #1e293b; border: 1px solid #334155; border-radius: 8px; padding: 10px; color: white; font-size: 11px; }}
             .b-team {{ display: flex; justify-content: space-between; margin: 3px 0; }}
             .winner {{ color: #4ade80; font-weight: bold; }}
             .score {{ font-weight: bold; color: #94a3b8; }}
@@ -344,10 +340,11 @@ if df_ranking is not None:
         </style>
 
         <div class="b-container">
-            <div class="phase-title">16vos (Izq)</div><div class="phase-title">8vos</div><div class="phase-title">4tos</div><div class="phase-title">Semifinal</div>
+            <div class="phase-title">16vos (Izq)</div><div class="phase-title">8vos (Izq)</div><div class="phase-title">4tos (Izq)</div><div class="phase-title">Semifinal</div>
             <div class="phase-title" style="color:#f59e0b;">🏆 FINAL</div>
-            <div class="phase-title">Semifinal</div><div class="phase-title">4tos</div><div class="phase-title">8vos</div><div class="phase-title">16vos (Der)</div>
+            <div class="phase-title">Semifinal</div><div class="phase-title">4tos (Der)</div><div class="phase-title">8vos (Der)</div><div class="phase-title">16vos (Der)</div>
 
+            <!-- COLUMNA 1: 16vos Lado Izquierdo -->
             <div class="b-column">
                 <div class="b-match">{render_match_html("P1", BRACKET)}</div>
                 <div class="b-match">{render_match_html("P2", BRACKET)}</div>
@@ -359,48 +356,56 @@ if df_ranking is not None:
                 <div class="b-match">{render_match_html("P8", BRACKET)}</div>
             </div>
 
+            <!-- COLUMNA 2: Octavos Lado Izquierdo -->
             <div class="b-column">
-                <div style="grid-row: span 2; display: flex; flex-direction: column; justify-content: center;"><div class="b-card"><div class="b-team"><span>{w['P1']}</span></div><div style="height:1px; background:#334155; margin:4px 0;"></div><div class="b-team"><span>{w['P2']}</span></div></div></div>
-                <div style="grid-row: span 2; display: flex; flex-direction: column; justify-content: center;"><div class="b-card"><div class="b-team"><span>{w['P3']}</span></div><div style="height:1px; background:#334155; margin:4px 0;"></div><div class="b-team"><span>{w['P4']}</span></div></div></div>
-                <div style="grid-row: span 2; display: flex; flex-direction: column; justify-content: center;"><div class="b-card"><div class="b-team"><span>{w['P5']}</span></div><div style="height:1px; background:#334155; margin:4px 0;"></div><div class="b-team"><span>{w['P6']}</span></div></div></div>
-                <div style="grid-row: span 2; display: flex; flex-direction: column; justify-content: center;"><div class="b-card"><div class="b-team"><span>{w['P7']}</span></div><div style="height:1px; background:#334155; margin:4px 0;"></div><div class="b-team"><span>{w['P8']}</span></div></div></div>
+                <div style="grid-row: span 2; display: flex; flex-direction: column; justify-content: center;">{render_match_html("P18", BRACKET)}</div>
+                <div style="grid-row: span 2; display: flex; flex-direction: column; justify-content: center;">{render_match_html("P17", BRACKET)}</div>
+                <div style="grid-row: span 2; display: flex; flex-direction: column; justify-content: center;">{render_match_html("P22", BRACKET)}</div>
+                <div style="grid-row: span 2; display: flex; flex-direction: column; justify-content: center;">{render_match_html("P21", BRACKET)}</div>
             </div>
 
+            <!-- COLUMNA 3: Cuartos Lado Izquierdo -->
             <div class="b-column">
-                <div style="grid-row: span 4; display: flex; flex-direction: column; justify-content: center;"><div class="b-card"><div class="b-team"><span>{w['P17']}</span></div><div style="height:1px; background:#334155; margin:4px 0;"></div><div class="b-team"><span>{w['P18']}</span></div></div></div>
-                <div style="grid-row: span 4; display: flex; flex-direction: column; justify-content: center;"><div class="b-card"><div class="b-team"><span>{w['P21']}</span></div><div style="height:1px; background:#334155; margin:4px 0;"></div><div class="b-team"><span>{w['P22']}</span></div></div></div>
+                <div style="grid-row: span 4; display: flex; flex-direction: column; justify-content: center;"><div class="b-card"><div class="b-team"><span>{w['P18']}</span></div><div style="height:1px; background:#334155; margin:4px 0;"></div><div class="b-team"><span>{w['P17']}</span></div></div></div>
+                <div style="grid-row: span 4; display: flex; flex-direction: column; justify-content: center;"><div class="b-card"><div class="b-team"><span>{w['P22']}</span></div><div style="height:1px; background:#334155; margin:4px 0;"></div><div class="b-team"><span>{w['P21']}</span></div></div></div>
             </div>
 
+            <!-- COLUMNA 4: Semifinal Izquierda -->
             <div class="b-column">
-                <div style="grid-row: span 8; display: flex; flex-direction: column; justify-content: center;"><div class="b-card"><div class="b-team"><span>Semifinal Izq</span></div></div></div>
+                <div style="grid-row: span 8; display: flex; flex-direction: column; justify-content: center;"><div class="b-card"><div class="b-team"><span>Ganador 4tos Izq 1</span></div><div style="height:1px; background:#334155; margin:4px 0;"></div><div class="b-team"><span>Ganador 4tos Izq 2</span></div></div></div>
             </div>
 
+            <!-- COLUMNA 5: Gran Final -->
             <div class="b-column">
                 <div style="grid-row: span 8; display: flex; flex-direction: column; justify-content: center;">
                     <div class="b-card final-card">
-                        <div class="b-team" style="font-weight:700;"><span>Finalista 1</span></div>
+                        <div class="b-team" style="font-weight:700;"><span>Finalista Izquierdo</span></div>
                         <div style="height:1px; background:#f59e0b; margin:6px 0;"></div>
-                        <div class="b-team" style="font-weight:700;"><span>Finalista 2</span></div>
+                        <div class="b-team" style="font-weight:700;"><span>Finalista Derecho</span></div>
                     </div>
                 </div>
             </div>
 
+            <!-- COLUMNA 6: Semifinal Derecha -->
             <div class="b-column">
-                <div style="grid-row: span 8; display: flex; flex-direction: column; justify-content: center;"><div class="b-card"><div class="b-team"><span>Semifinal Der</span></div></div></div>
+                <div style="grid-row: span 8; display: flex; flex-direction: column; justify-content: center;"><div class="b-card"><div class="b-team"><span>Ganador 4tos Der 1</span></div><div style="height:1px; background:#334155; margin:4px 0;"></div><div class="b-team"><span>Ganador 4tos Der 2</span></div></div></div>
             </div>
 
+            <!-- COLUMNA 7: Cuartos Lado Derecho -->
             <div class="b-column">
-                <div style="grid-row: span 4; display: flex; flex-direction: column; justify-content: center;"><div class="b-card"><div class="b-team"><span>4tos Der</span></div></div></div>
                 <div style="grid-row: span 4; display: flex; flex-direction: column; justify-content: center;"><div class="b-card"><div class="b-team"><span>{w['P19']}</span></div><div style="height:1px; background:#334155; margin:4px 0;"></div><div class="b-team"><span>{w['P20']}</span></div></div></div>
+                <div style="grid-row: span 4; display: flex; flex-direction: column; justify-content: center;"><div class="b-card"><div class="b-team"><span>{w['P23']}</span></div><div style="height:1px; background:#334155; margin:4px 0;"></div><div class="b-team"><span>{w['P24']}</span></div></div></div>
             </div>
 
+            <!-- COLUMNA 8: Octavos Lado Derecho -->
             <div class="b-column">
-                <div style="grid-row: span 2; display: flex; flex-direction: column; justify-content: center;"><div class="b-card"><div class="b-team"><span>{w['P9']}</span></div><div style="height:1px; background:#334155; margin:4px 0;"></div><div class="b-team"><span>{w['P10']}</span></div></div></div>
-                <div style="grid-row: span 2; display: flex; flex-direction: column; justify-content: center;"><div class="b-card"><div class="b-team"><span>{w['P11']}</span></div><div style="height:1px; background:#334155; margin:4px 0;"></div><div class="b-team"><span>{w['P12']}</span></div></div></div>
-                <div style="grid-row: span 2; display: flex; flex-direction: column; justify-content: center;"><div class="b-card"><div class="b-team"><span>{w['P13']}</span></div><div style="height:1px; background:#334155; margin:4px 0;"></div><div class="b-team"><span>{w['P14']}</span></div></div></div>
-                <div style="grid-row: span 2; display: flex; flex-direction: column; justify-content: center;"><div class="b-card"><div class="b-team"><span>{w['P15']}</span></div><div style="height:1px; background:#334155; margin:4px 0;"></div><div class="b-team"><span>{w['P16']}</span></div></div></div>
+                <div style="grid-row: span 2; display: flex; flex-direction: column; justify-content: center;">{render_match_html("P19", BRACKET)}</div>
+                <div style="grid-row: span 2; display: flex; flex-direction: column; justify-content: center;">{render_match_html("P20", BRACKET)}</div>
+                <div style="grid-row: span 2; display: flex; flex-direction: column; justify-content: center;">{render_match_html("P23", BRACKET)}</div>
+                <div style="grid-row: span 2; display: flex; flex-direction: column; justify-content: center;">{render_match_html("P24", BRACKET)}</div>
             </div>
 
+            <!-- COLUMNA 9: 16vos Lado Derecho -->
             <div class="b-column">
                 <div class="b-match">{render_match_html("P9", BRACKET)}</div>
                 <div class="b-match">{render_match_html("P10", BRACKET)}</div>
