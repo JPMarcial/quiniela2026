@@ -65,7 +65,10 @@ CALENDARIO_COMPLETO = [
     {"Id": "P16", "Fecha": "03/07/2026", "Rival 1": "COLOMBIA", "Rival 2": "GHANA", "Texto": "Colombia 🆚 Ghana", "Hora": "19:30", "Keys 1": ["COLOMBIA", "COL"], "Keys 2": ["GHANA", "GHA"]}
 ]
 
-PARTIDOS_HOY = [partido for partido in CALENDARIO_COMPLETO if partido["Fecha"] == fecha_formateada]
+PARTIDOS_HOY = [partido for_partido in CALENDARIO_COMPLETO if partido["Fecha"] == fecha_formateada]
+
+# Extraer una lista ordenada de fechas únicas que tienen partidos en el calendario
+FECHAS_DISPONIBLES = sorted(list(set(p["Fecha"] for p in CALENDARIO_COMPLETO)), key=lambda x: datetime.strptime(x, "%d/%m/%Y"))
 
 SPREADSHEET_ID = "1FTUtzXd-ODXBB0QxIf-68FKf0ZQzVnWM"
 ID_PESTAÑAS = ["HAAM", "CA", "HR", "JAG", "FB", "PM", "JLJF", "MASM", "CAVL", "AMG", "CAER", "VAVA", "JAMP", "VCBH", "JMG", "JV", "CAAM", "DSR", "SLO", "JGLM"]
@@ -122,10 +125,12 @@ def limpiar_texto(s):
     return s
 
 @st.cache_data(ttl=60)
-def cargar_y_procesar_todo_el_torneo(spreadsheet_id, pestañas_jugadores, partidos_hoy):
+def cargar_y_procesar_todo_el_torneo(spreadsheet_id, pestañas_jugadores, fecha_consulta):
     url = f"https://drive.google.com/uc?export=download&id={spreadsheet_id}"
     datos_ranking = []
-    pronosticos_hoy_lista = []
+    pronosticos_fecha_lista = []
+    
+    partidos_fecha = [partido for partido in CALENDARIO_COMPLETO if partido["Fecha"] == fecha_consulta]
     
     bracket_data = {}
     for p in CALENDARIO_COMPLETO:
@@ -133,14 +138,14 @@ def cargar_y_procesar_todo_el_torneo(spreadsheet_id, pestañas_jugadores, partid
     
     try:
         respuesta = requests.get(url, timeout=15)
-        if respuesta.status_code != 200: return None, None, partidos_hoy, bracket_data
+        if respuesta.status_code != 200: return None, None, partidos_fecha, bracket_data
         excel_file = pd.ExcelFile(io.BytesIO(respuesta.content), engine='openpyxl')
         nombres_pestañas = excel_file.sheet_names
         
-        if "BASE" not in nombres_pestañas: return None, None, partidos_hoy, bracket_data
+        if "BASE" not in nombres_pestañas: return None, None, partidos_fecha, bracket_data
         df_base_raw = excel_file.parse("BASE", header=None, dtype=str)
         df_base = procesar_bloque_resumen(df_base_raw)
-        if df_base is None: return None, None, partidos_hoy, bracket_data
+        if df_base is None: return None, None, partidos_fecha, bracket_data
         set_base = set(df_base["16vos"].dropna().apply(limpiar_texto))
         set_base.discard("")
 
@@ -169,7 +174,7 @@ def cargar_y_procesar_todo_el_torneo(spreadsheet_id, pestañas_jugadores, partid
                                 if goles[0] > goles[1]: bracket_data[p["Id"]]["Ganador"] = p["Rival 1"]
                                 elif goles[1] > goles[0]: bracket_data[p["Id"]]["Ganador"] = p["Rival 2"]
         
-        for p in partidos_hoy:
+        for p in partidos_fecha:
             id_p = p["Id"]
             if bracket_data[id_p]["Goles 1"] != "-":
                 p["Resultado"] = f"{bracket_data[id_p]['Goles 1']} - {bracket_data[id_p]['Goles 2']}"
@@ -181,43 +186,51 @@ def cargar_y_procesar_todo_el_torneo(spreadsheet_id, pestañas_jugadores, partid
                 df_jugador_raw = excel_file.parse(pestaña, header=None, dtype=str)
                 nombre_real = obtener_nombre_real(df_jugador_raw, pestaña)
                 df_jugador = procesar_bloque_resumen(df_jugador_raw)
-            elecciones_hoy = {"Participante": nombre_real}
+            elecciones_fecha = {"Participante": nombre_real}
             
             if df_jugador is not None and "16vos" in df_jugador.columns:
                 set_jugador = set(df_jugador["16vos"].dropna().apply(limpiar_texto))
                 set_jugador.discard("")
                 datos_ranking.append({"Participante": nombre_real, "Aciertos Totales": len(set_jugador.intersection(set_base))})
-                for p in partidos_hoy:
+                for p in partidos_fecha:
                     encontrado = "Ninguno"
                     for pronostico in list(set_jugador):
                         if any(k in pronostico for k in p["Keys 1"]): encontrado = p["Rival 1"].title(); break
                         elif any(k in pronostico for k in p["Keys 2"]): encontrado = p["Rival 2"].title(); break
                     if p.get("Ganador"):
-                        elecciones_hoy[p["Texto"]] = f"✅ {encontrado}" if limpiar_texto(p["Ganador"]) == limpiar_texto(encontrado) else f"• {encontrado}"
-                    else: elecciones_hoy[p["Texto"]] = encontrado
+                        elecciones_fecha[p["Texto"]] = f"✅ {encontrado}" if limpiar_texto(p["Ganador"]) == limpiar_texto(encontrado) else f"• {encontrado}"
+                    else: elecciones_fecha[p["Texto"]] = encontrado
             else:
                 datos_ranking.append({"Participante": nombre_real, "Aciertos Totales": 0})
-                for p in partidos_hoy: elecciones_hoy[p["Texto"]] = "Sin Datos"
-            if partidos_hoy: pronosticos_hoy_lista.append(elecciones_hoy)
+                for p in partidos_fecha: elecciones_fecha[p["Texto"]] = "Sin Datos"
+            if partidos_fecha: pronosticos_fecha_lista.append(elecciones_fecha)
                 
-        df_ranking = pd.DataFrame(datos_ranking).sort_values(by="Aciertos Totales", ascending=False).reset_index(drop=True)
-        df_pronosticos_hoy = pd.DataFrame(pronosticos_hoy_lista).reset_index(drop=True) if pronosticos_hoy_lista else pd.DataFrame(columns=["Participante"])
-        return df_ranking, df_pronosticos_hoy, partidos_hoy, bracket_data
-    except Exception: return None, None, partidos_hoy, bracket_data
+        df_ranking = pd.DataFrame(datos_ranking).sort_values(by="Aciertos Totales", ascending=False).drop_duplicates(subset=["Participante"]).reset_index(drop=True)
+        df_pronosticos_fecha = pd.DataFrame(pronosticos_fecha_lista).reset_index(drop=True) if pronosticos_fecha_lista else pd.DataFrame(columns=["Participante"])
+        return df_ranking, df_pronosticos_fecha, partidos_fecha, bracket_data
+    except Exception: return None, None, partidos_fecha, bracket_data
 
-with st.spinner("🚀 Sincronizando datos..."):
-    df_ranking, df_pronosticos_hoy, PARTIDOS_HOY, BRACKET = cargar_y_procesar_todo_el_torneo(SPREADSHEET_ID, ID_PESTAÑAS, PARTIDOS_HOY)
+# Determinamos el índice por defecto del selector de fecha para que apunte al día de hoy si está en la lista
+default_idx = FECHAS_DISPONIBLES.index(fecha_formateada) if fecha_formateada in FECHAS_DISPONIBLES else 0
+
+if "BASE" not in st.session_state:
+    # Una carga inicial rápida con la fecha por defecto
+    with st.spinner("🚀 Sincronizando datos..."):
+        df_ranking, df_pronosticos_hoy, PARTIDOS_HOY, BRACKET = cargar_y_procesar_todo_el_torneo(SPREADSHEET_ID, ID_PESTAÑAS, FECHAS_DISPONIBLES[default_idx])
 
 if df_ranking is not None:
-    tab_principal, tab_hoy, tab_participantes, tab_bracket_dev = st.tabs(["📊 Clasificación", "🔮 Pronósticos", "👤 Participantes", "🛠️ Desarrollo Bracket"])
+    # Eliminamos la pestaña rota de Participantes y dejamos una experiencia limpia
+    tab_principal, tab_hoy, tab_bracket_dev = st.tabs(["📊 Clasificación", "🔮 Pronósticos por Fecha", "🛠️ Desarrollo Bracket"])
 
     # --- PESTAÑA PRINCIPAL ---
     with tab_principal:
         st.subheader(f"📅 Partidos del Día ({fecha_formateada})")
-        if not PARTIDOS_HOY: st.info("⚽ No hay partidos agendados para hoy.")
+        # Generar partidos de 'hoy' reales en base al Reloj del Servidor
+        partidos_tiempo_real = [partido for partido in CALENDARIO_COMPLETO if partido["Fecha"] == fecha_formateada]
+        if not partidos_tiempo_real: st.info("⚽ No hay partidos agendados para hoy.")
         else:
-            columnas_juegos = st.columns(len(PARTIDOS_HOY))
-            for i, partido in enumerate(PARTIDOS_HOY):
+            columnas_juegos = st.columns(len(partidos_tiempo_real))
+            for i, partido in enumerate(partidos_tiempo_real):
                 with columnas_juegos[i]:
                     marcador = partido.get("Resultado", "")
                     badge_html = f'<div style="text-align: center; font-size: 26px; font-weight: 800; color: #10B981; background-color: #ECFDF5; padding: 10px; border-radius: 8px; border: 2px solid #A7F3D0; margin-bottom: 10px;">{marcador} <span style="font-size:12px; font-weight:bold; display:block; color:#059669;">FINALIZADO</span></div>' if marcador != "" else f'<div style="text-align: center; font-size: 14px; font-weight: 700; color: #1D4ED8; background-color: #EFF6FF; padding: 6px; border-radius: 6px; margin-bottom: 10px;">⏰ {partido["Hora"]} MX</div>'
@@ -230,15 +243,25 @@ if df_ranking is not None:
             pts = int(row["Aciertos Totales"])
             st.markdown(f'<div style="display: flex; align-items: center; background-color: #FFFFFF; padding: 12px 18px; margin-bottom: 8px; border-radius: 8px; box-shadow: 0 1px 2px rgba(0,0,0,0.05); border: 1px solid #F1F5F9;"><div style="width: 50px; font-size: 16px; font-weight: 700; color: #64748B;">#{index + 1}</div><div style="flex-grow: 1; font-size: 16px; font-weight: 600; color: #334155;">{row["Participante"]}</div><div style="width: 140px; margin-right: 20px;"><div style="background-color: #E2E8F0; border-radius: 10px; height: 8px; width: 100%;"><div style="background-color: #3B82F6; height: 8px; border-radius: 10px; width: {(pts / max_puntos_global) * 100}%;"></div></div></div><div style="font-size: 16px; font-weight: 700; color: #1E293B; width: 60px; text-align: right;">{pts} pts</div></div>', unsafe_allow_html=True)
 
-    # --- PESTAÑA PRONÓSTICOS ---
+    # --- PESTAÑA PRONÓSTICOS (CON SUB-PESTAÑAS POR DÍA) ---
     with tab_hoy:
-        st.dataframe(df_pronosticos_hoy, use_container_width=True, hide_index=True)
+        st.markdown("### 🔮 Consulta de Pronósticos")
+        
+        # Implementación de sub-pestañas dinámicas basadas en los días del calendario
+        sub_tabs_fechas = st.tabs([f"📅 {f}" for f in FECHAS_DISPONIBLES])
+        
+        for idx_f, fecha_select in enumerate(FECHAS_DISPONIBLES):
+            with sub_tabs_fechas[idx_f]:
+                # Volvemos a procesar de forma ultra-rápida (gracias al caché) la fecha que el usuario está viendo
+                _, df_pronosticos_fecha, partidos_fecha, _ = cargar_y_procesar_todo_el_torneo(SPREADSHEET_ID, ID_PESTAÑAS, fecha_select)
+                
+                if not partidos_fecha:
+                    st.info("No hay partidos registrados para esta fecha.")
+                else:
+                    st.caption(f"Visualizando las elecciones de los participantes para los juegos del {fecha_select}")
+                    st.dataframe(df_pronosticos_fecha, use_container_width=True, hide_index=True)
 
-    # --- PESTAÑA PARTICIPANTES ---
-    with tab_participantes:
-        st.error("### 🤖 Temporalmente fuera de servicio")
-
-    # --- PESTAÑA BRACKET DESARROLLO (CORREGIDA Y ACTUALIZADA) ---
+    # --- PESTAÑA BRACKET DESARROLLO ---
     with tab_bracket_dev:
         st.markdown("### 🏗️ Bracket del Mundial 2026")
         
@@ -246,7 +269,6 @@ if df_ranking is not None:
             m = data_dict[match_id]
             r1, r2 = m["Rival 1"].title(), m["Rival 2"].title()
             
-            # Obtención segura de goles usando llaves alternativas
             g1 = m.get('Goles 1', m.get('G1', '-'))
             g2 = m.get('Goles 2', m.get('G2', '-'))
             
@@ -265,10 +287,8 @@ if df_ranking is not None:
                 return ganador.title()
             return f"Ganador {pid}"
 
-        # Mapeo de ganadores para Octavos de Final
         w = {pid: get_w(pid) for pid in BRACKET}
 
-        # HTML y CSS unificado con Grid para evitar desajustes verticales
         bracket_html = f"""
         <style>
             .b-container {{
@@ -330,21 +350,21 @@ if df_ranking is not None:
             <div class="phase-title">Semifinal</div><div class="phase-title">4tos</div><div class="phase-title">8vos</div><div class="phase-title">En construcción</div>
 
             <div class="b-column">
-                <div class="b-match">{render_match_html("P1", BRACKET)}</div>
-                <div class="b-match">{render_match_html("P2", BRACKET)}</div>
-                <div class="b-match">{render_match_html("P3", BRACKET)}</div>
-                <div class="b-match">{render_match_html("P4", BRACKET)}</div>
-                <div class="b-match">{render_match_html("P5", BRACKET)}</div>
-                <div class="b-match">{render_match_html("P6", BRACKET)}</div>
-                <div class="b-match">{render_match_html("P7", BRACKET)}</div>
-                <div class="b-match">{render_match_html("P8", BRACKET)}</div>
+                <div class="b-match">{{render_match_html("P1", BRACKET)}}</div>
+                <div class="b-match">{{render_match_html("P2", BRACKET)}}</div>
+                <div class="b-match">{{render_match_html("P3", BRACKET)}}</div>
+                <div class="b-match">{{render_match_html("P4", BRACKET)}}</div>
+                <div class="b-match">{{render_match_html("P5", BRACKET)}}</div>
+                <div class="b-match">{{render_match_html("P6", BRACKET)}}</div>
+                <div class="b-match">{{render_match_html("P7", BRACKET)}}</div>
+                <div class="b-match">{{render_match_html("P8", BRACKET)}}</div>
             </div>
 
             <div class="b-column">
-                <div style="grid-row: span 2; display: flex; flex-direction: column; justify-content: center;"><div class="b-card"><div class="b-team"><span>{w['P1']}</span></div><div style="height:1px; background:#334155; margin:4px 0;"></div><div class="b-team"><span>{w['P2']}</span></div></div></div>
-                <div style="grid-row: span 2; display: flex; flex-direction: column; justify-content: center;"><div class="b-card"><div class="b-team"><span>{w['P3']}</span></div><div style="height:1px; background:#334155; margin:4px 0;"></div><div class="b-team"><span>{w['P4']}</span></div></div></div>
-                <div style="grid-row: span 2; display: flex; flex-direction: column; justify-content: center;"><div class="b-card"><div class="b-team"><span>{w['P5']}</span></div><div style="height:1px; background:#334155; margin:4px 0;"></div><div class="b-team"><span>{w['P6']}</span></div></div></div>
-                <div style="grid-row: span 2; display: flex; flex-direction: column; justify-content: center;"><div class="b-card"><div class="b-team"><span>{w['P7']}</span></div><div style="height:1px; background:#334155; margin:4px 0;"></div><div class="b-team"><span>{w['P8']}</span></div></div></div>
+                <div style="grid-row: span 2; display: flex; flex-direction: column; justify-content: center;"><div class="b-card"><div class="b-team"><span>{{w['P1']}}</span></div><div style="height:1px; background:#334155; margin:4px 0;"></div><div class="b-team"><span>{{w['P2']}}</span></div></div></div>
+                <div style="grid-row: span 2; display: flex; flex-direction: column; justify-content: center;"><div class="b-card"><div class="b-team"><span>{{w['P3']}}</span></div><div style="height:1px; background:#334155; margin:4px 0;"></div><div class="b-team"><span>{{w['P4']}}</span></div></div></div>
+                <div style="grid-row: span 2; display: flex; flex-direction: column; justify-content: center;"><div class="b-card"><div class="b-team"><span>{{w['P5']}}</span></div><div style="height:1px; background:#334155; margin:4px 0;"></div><div class="b-team"><span>{{w['P6']}}</span></div></div></div>
+                <div style="grid-row: span 2; display: flex; flex-direction: column; justify-content: center;"><div class="b-card"><div class="b-team"><span>{{w['P7']}}</span></div><div style="height:1px; background:#334155; margin:4px 0;"></div><div class="b-team"><span>{{w['P8']}}</span></div></div></div>
             </div>
 
             <div class="b-column">
@@ -376,28 +396,28 @@ if df_ranking is not None:
             </div>
 
             <div class="b-column">
-                <div style="grid-row: span 2; display: flex; flex-direction: column; justify-content: center;"><div class="b-card"><div class="b-team"><span>{w['P9']}</span></div><div style="height:1px; background:#334155; margin:4px 0;"></div><div class="b-team"><span>{w['P10']}</span></div></div></div>
+                <div style="grid-row: span 2; display: flex; flex-direction: column; justify-content: center;"><div class="b-card"><div class="b-team"><span>{{w['P9']}}</span></div><div style="height:1px; background:#334155; margin:4px 0;"></div><div class="b-team"><span>{{w['P10']}}</span></div></div></div>
                 <div style="grid-row: span 2; display: flex; flex-direction: column; justify-content: center;">
                     <div class="b-card">
-                        <div class="b-team"><span>{w['P11']}</span></div>
+                        <div class="b-team"><span>{{w['P11']}}</span></div>
                         <div style="height:1px; background:#334155; margin:4px 0;"></div>
-                        <div class="b-team"><span>{w['P12']}</span></div>
+                        <div class="b-team"><span>{{w['P12']}}</span></div>
                     </div>
                     <div class="match-date">05/07/2026 18:00 hrs</div>
                 </div>
-                <div style="grid-row: span 2; display: flex; flex-direction: column; justify-content: center;"><div class="b-card"><div class="b-team"><span>{w['P13']}</span></div><div style="height:1px; background:#334155; margin:4px 0;"></div><div class="b-team"><span>{w['P14']}</span></div></div></div>
-                <div style="grid-row: span 2; display: flex; flex-direction: column; justify-content: center;"><div class="b-card"><div class="b-team"><span>{w['P15']}</span></div><div style="height:1px; background:#334155; margin:4px 0;"></div><div class="b-team"><span>{w['P16']}</span></div></div></div>
+                <div style="grid-row: span 2; display: flex; flex-direction: column; justify-content: center;"><div class="b-card"><div class="b-team"><span>{{w['P13']}}</span></div><div style="height:1px; background:#334155; margin:4px 0;"></div><div class="b-team"><span>{{w['P14']}}</span></div></div></div>
+                <div style="grid-row: span 2; display: flex; flex-direction: column; justify-content: center;"><div class="b-card"><div class="b-team"><span>{{w['P15']}}</span></div><div style="height:1px; background:#334155; margin:4px 0;"></div><div class="b-team"><span>{{w['P16']}}</span></div></div></div>
             </div>
 
             <div class="b-column">
-                <div class="b-match">{render_match_html("P9", BRACKET)}</div>
-                <div class="b-match">{render_match_html("P10", BRACKET)}</div>
-                <div class="b-match">{render_match_html("P11", BRACKET)}</div>
-                <div class="b-match">{render_match_html("P12", BRACKET)}</div>
-                <div class="b-match">{render_match_html("P13", BRACKET)}</div>
-                <div class="b-match">{render_match_html("P14", BRACKET)}</div>
-                <div class="b-match">{render_match_html("P15", BRACKET)}</div>
-                <div class="b-match">{render_match_html("P16", BRACKET)}</div>
+                <div class="b-match">{{render_match_html("P9", BRACKET)}}</div>
+                <div class="b-match">{{render_match_html("P10", BRACKET)}}</div>
+                <div class="b-match">{{render_match_html("P11", BRACKET)}}</div>
+                <div class="b-match">{{render_match_html("P12", BRACKET)}}</div>
+                <div class="b-match">{{render_match_html("P13", BRACKET)}}</div>
+                <div class="b-match">{{render_match_html("P14", BRACKET)}}</div>
+                <div class="b-match">{{render_match_html("P15", BRACKET)}}</div>
+                <div class="b-match">{{render_match_html("P16", BRACKET)}}</div>
             </div>
         </div>
         """
