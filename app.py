@@ -197,14 +197,27 @@ def cargar_y_procesar_todo_el_torneo(spreadsheet_id, pestañas_jugadores, fecha_
                 set_jugador = set(df_jugador["16vos"].dropna().apply(limpiar_texto))
                 set_jugador.discard("")
                 datos_ranking.append({"Participante": nombre_real, "Aciertos Totales": len(set_jugador.intersection(set_base))})
+                
                 for p in partidos_fecha:
                     encontrado = "Ninguno"
                     for pronostico in list(set_jugador):
                         if any(k in pronostico for k in p["Keys 1"]): encontrado = p["Rival 1"].title(); break
                         elif any(k in pronostico for k in p["Keys 2"]): encontrado = p["Rival 2"].title(); break
-                    if p.get("Ganador"):
-                        elecciones_fecha[p["Texto"]] = f"✅ {encontrado}" if limpiar_texto(p["Ganador"]) == limpiar_texto(encontrado) else f"• {encontrado}"
-                    else: elecciones_fecha[p["Texto"]] = encontrado
+                    
+                    # ------------------------------------------------------------------
+                    # VALIDACIÓN DE LA REGLA DE ORO INTERNA
+                    # ------------------------------------------------------------------
+                    rival_real_1 = bracket_data[p["Id"]]["Rival 1"].title()
+                    rival_real_2 = bracket_data[p["Id"]]["Rival 2"].title()
+                    
+                    # Si el equipo pronosticado no es ninguno de los dos equipos reales de la llave actual
+                    if encontrado != "Ninguno" and encontrado not in [rival_real_1, rival_real_2]:
+                        elecciones_fecha[p["Texto"]] = f"❌ Eliminado Previo ({encontrado})"
+                    else:
+                        if p.get("Ganador"):
+                            elecciones_fecha[p["Texto"]] = f"✅ {encontrado}" if limpiar_texto(p["Ganador"]) == limpiar_texto(encontrado) else f"• {encontrado}"
+                        else: 
+                            elecciones_fecha[p["Texto"]] = encontrado
             else:
                 datos_ranking.append({"Participante": nombre_real, "Aciertos Totales": 0})
                 for p in partidos_fecha: elecciones_fecha[p["Texto"]] = "Sin Datos"
@@ -251,7 +264,6 @@ if df_ranking is not None:
                             marcador = f"{g1_b} - {g2_b}"
                             badge_html = f'<div style="text-align: center; font-size: 26px; font-weight: 800; color: #10B981; background-color: #ECFDF5; padding: 10px; border-radius: 8px; border: 2px solid #A7F3D0; margin-bottom: 10px;">{marcador} <span style="font-size:12px; font-weight:bold; display:block; color:#059669;">FINALIZADO</span></div>'
                         else:
-                            # CORREGIDO AQUÍ: se eliminó el error de sintaxis 'partio'
                             badge_html = f'<div style="text-align: center; font-size: 14px; font-weight: 700; color: #1D4ED8; background-color: #EFF6FF; padding: 6px; border-radius: 6px; margin-bottom: 10px;">⏰ {partido["Hora"]} MX</div>'
                         
                         st.markdown(f'<div style="background-color: #FFFFFF; padding: 20px; border-radius: 12px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.07); border: 1px solid #F1F5F9;">{badge_html}<div style="font-size: 19px; font-weight: 700; color: #1E293B; text-align: center; line-height: 1.4;">{partido["Rival 1"].title()} <br><span style="color:#94A3B8; font-size:14px; font-weight:normal;">VS</span><br> {partido["Rival 2"].title()}</div></div>', unsafe_allow_html=True)
