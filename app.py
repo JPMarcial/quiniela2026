@@ -78,10 +78,10 @@ CALENDARIO_COMPLETO = [
     {"Id": "P24", "Fecha": "07/07/2026", "Rival 1": "POR DEFINIR L3", "Rival 2": "POR DEFINIR L4", "Texto": "Octavos 8 🆚 Por Definir", "Hora": "10:00", "Keys 1": ["L3"], "Keys 2": ["L4"]}
 ]
 
-# Filtrar partidos desde hoy en adelante para la sección superior
-PARTIDOS_PROXIMOS = [
+# FILTRO EXCLUSIVO: Solo partidos cuya fecha coincide exactamente con el día de hoy
+PARTIDOS_DEL_DIA_LISTA = [
     partido for partido in CALENDARIO_COMPLETO 
-    if datetime.strptime(partido["Fecha"], "%d/%m/%Y") >= fecha_actual_dt
+    if partido["Fecha"] == fecha_formateada
 ]
 
 # Extraer de forma limpia las fechas únicas
@@ -247,33 +247,27 @@ if df_ranking is not None:
 
     # --- PESTAÑA PRINCIPAL ---
     with tab_principal:
-        st.subheader("📅 Partidos del Día y Próximos Encuentros")
+        st.subheader("📅 Partidos del Día")
         
-        if not PARTIDOS_PROXIMOS: 
-            st.info("⚽ No hay más partidos agendados o pendientes para esta ronda.")
+        # Si la lista filtrada de partidos de hoy está vacía
+        if not PARTIDOS_DEL_DIA_LISTA: 
+            st.info(f"⚽ No hay partidos agendados para el día de hoy ({fecha_formateada}).")
         else:
-            df_prox = pd.DataFrame(PARTIDOS_PROXIMOS)
-            fechas_futuras = sorted(list(df_prox["Fecha"].unique()), key=lambda x: datetime.strptime(x, "%d/%m/%Y"))
-            
-            for f_futura in fechas_futuras:
-                partidos_del_dia = [p for p in PARTIDOS_PROXIMOS if p["Fecha"] == f_futura]
-                st.markdown(f"##### 🗓️ Encuentros del día {f_futura}")
-                
-                columnas_juegos = st.columns(len(partidos_del_dia))
-                for i, partido in enumerate(partidos_del_dia):
-                    with columnas_juegos[i]:
-                        id_p = partido["Id"]
-                        g1_b = BRACKET[id_p]["Goles 1"]
-                        g2_b = BRACKET[id_p]["Goles 2"]
-                        
-                        if g1_b != "-":
-                            marcador = f"{g1_b} - {g2_b}"
-                            badge_html = f'<div style="text-align: center; font-size: 26px; font-weight: 800; color: #10B981; background-color: #ECFDF5; padding: 10px; border-radius: 8px; border: 2px solid #A7F3D0; margin-bottom: 10px;">{marcador} <span style="font-size:12px; font-weight:bold; display:block; color:#059669;">FINALIZADO</span></div>'
-                        else:
-                            badge_html = f'<div style="text-align: center; font-size: 14px; font-weight: 700; color: #1D4ED8; background-color: #EFF6FF; padding: 6px; border-radius: 6px; margin-bottom: 10px;">⏰ {partido["Hora"]} MX</div>'
-                        
-                        st.markdown(f'<div style="background-color: #FFFFFF; padding: 20px; border-radius: 12px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.07); border: 1px solid #F1F5F9;">{badge_html}<div style="font-size: 19px; font-weight: 700; color: #1E293B; text-align: center; line-height: 1.4;">{partido["Rival 1"].title()} <br><span style="color:#94A3B8; font-size:14px; font-weight:normal;">VS</span><br> {partido["Rival 2"].title()}</div></div>', unsafe_allow_html=True)
-                st.write("") 
+            columnas_juegos = st.columns(len(PARTIDOS_DEL_DIA_LISTA))
+            for i, partido in enumerate(PARTIDOS_DEL_DIA_LISTA):
+                with columnas_juegos[i]:
+                    id_p = partido["Id"]
+                    g1_b = BRACKET[id_p]["Goles 1"]
+                    g2_b = BRACKET[id_p]["Goles 2"]
+                    
+                    if g1_b != "-":
+                        marcador = f"{g1_b} - {g2_b}"
+                        badge_html = f'<div style="text-align: center; font-size: 26px; font-weight: 800; color: #10B981; background-color: #ECFDF5; padding: 10px; border-radius: 8px; border: 2px solid #A7F3D0; margin-bottom: 10px;">{marcador} <span style="font-size:12px; font-weight:bold; display:block; color:#059669;">FINALIZADO</span></div>'
+                    else:
+                        badge_html = f'<div style="text-align: center; font-size: 14px; font-weight: 700; color: #1D4ED8; background-color: #EFF6FF; padding: 6px; border-radius: 6px; margin-bottom: 10px;">⏰ {partido["Hora"]} MX</div>'
+                    
+                    st.markdown(f'<div style="background-color: #FFFFFF; padding: 20px; border-radius: 12px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.07); border: 1px solid #F1F5F9;">{badge_html}<div style="font-size: 19px; font-weight: 700; color: #1E293B; text-align: center; line-height: 1.4;">{partido["Rival 1"].title()} <br><span style="color:#94A3B8; font-size:14px; font-weight:normal;">VS</span><br> {partido["Rival 2"].title()}</div></div>', unsafe_allow_html=True)
+            st.write("") 
             
         st.write("---")
         st.subheader("🏅 Tabla de Posiciones General")
