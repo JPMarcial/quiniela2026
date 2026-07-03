@@ -242,17 +242,17 @@ if df_ranking is not None:
                 columnas_juegos = st.columns(len(partidos_del_dia))
                 for i, partido in enumerate(partidos_del_dia):
                     with columnas_juegos[i]:
-                        # Consultar el marcador actual de este partido del bracket de manera dinámica
+                        # Consultar el marcador de este partido del bracket de manera dinámica
                         id_p = partido["Id"]
                         g1_b = BRACKET[id_p]["Goles 1"]
                         g2_b = BRACKET[id_p]["Goles 2"]
                         
                         if g1_b != "-":
                             marcador = f"{g1_b} - {g2_b}"
-                            
-                            badge_html = f'<div style="text-align: center; font-size: 14px; font-weight: 700; color: #1D4ED8; background-color: #EFF6FF; padding: 6px; border-radius: 6px; margin-bottom: 10px;">⏰ {partido["Hora"]} MX</div>'
+                            badge_html = f'<div style="text-align: center; font-size: 26px; font-weight: 800; color: #10B981; background-color: #ECFDF5; padding: 10px; border-radius: 8px; border: 2px solid #A7F3D0; margin-bottom: 10px;">{marcador} <span style="font-size:12px; font-weight:bold; display:block; color:#059669;">FINALIZADO</span></div>'
                         else:
-                            badge_html = f'<div style="text-align: center; font-size: 14px; font-weight: 700; color: #1D4ED8; background-color: #EFF6FF; padding: 6px; border-radius: 6px; margin-bottom: 10px;">⏰ {partio.get("Hora", "12:00") if "partio" not in locals() else partido["Hora"]} MX</div>'
+                            # CORREGIDO AQUÍ: se eliminó el error de sintaxis 'partio'
+                            badge_html = f'<div style="text-align: center; font-size: 14px; font-weight: 700; color: #1D4ED8; background-color: #EFF6FF; padding: 6px; border-radius: 6px; margin-bottom: 10px;">⏰ {partido["Hora"]} MX</div>'
                         
                         st.markdown(f'<div style="background-color: #FFFFFF; padding: 20px; border-radius: 12px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.07); border: 1px solid #F1F5F9;">{badge_html}<div style="font-size: 19px; font-weight: 700; color: #1E293B; text-align: center; line-height: 1.4;">{partido["Rival 1"].title()} <br><span style="color:#94A3B8; font-size:14px; font-weight:normal;">VS</span><br> {partido["Rival 2"].title()}</div></div>', unsafe_allow_html=True)
                 st.write("") 
