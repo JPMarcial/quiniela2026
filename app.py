@@ -38,6 +38,7 @@ st.title("⚽ Quiniela - Fase Final 2026")
 # ==============================================================================
 fecha_actual_mx = datetime.utcnow() - timedelta(hours=6)
 fecha_formateada = fecha_actual_mx.strftime("%d/%m/%Y") 
+fecha_actual_dt = datetime.strptime(fecha_formateada, "%d/%m/%Y")
 
 CALENDARIO_COMPLETO = [
     # --- LADO IZQUIERDO: Bloque Superior ---
@@ -65,7 +66,12 @@ CALENDARIO_COMPLETO = [
     {"Id": "P16", "Fecha": "03/07/2026", "Rival 1": "COLOMBIA", "Rival 2": "GHANA", "Texto": "Colombia 🆚 Ghana", "Hora": "19:30", "Keys 1": ["COLOMBIA", "COL"], "Keys 2": ["GHANA", "GHA"]}
 ]
 
-PARTIDOS_HOY = [partido for partido in CALENDARIO_COMPLETO if partido["Fecha"] == fecha_formateada]
+# Filtrar partidos desde hoy en adelante para la sección superior
+PARTIDOS_PROXIMOS = [
+    partido for partido in CALENDARIO_COMPLETO 
+    if datetime.strptime(partido["Fecha"], "%d/%m/%Y") >= fecha_actual_dt
+]
+
 # Extraer una lista ordenada de fechas únicas que tienen partidos en el calendario
 FECHAS_DISPONIBLES = sorted(list(set(p["Fecha"] for p in CALENDARIO_COMPLETO)), key=lambda x: datetime.strptime(x, "%d/%m/%Y"))
 
@@ -209,31 +215,46 @@ def cargar_y_procesar_todo_el_torneo(spreadsheet_id, pestañas_jugadores, fecha_
         return df_ranking, df_pronosticos_fecha, partidos_fecha, bracket_data
     except Exception: return None, None, partidos_fecha, bracket_data
 
-# Determinamos el índice por defecto del selector de fecha para que apunte al día de hoy si está en la lista
+# Determinamos el índice por defecto del selector de fecha
 default_idx = FECHAS_DISPONIBLES.index(fecha_formateada) if fecha_formateada in FECHAS_DISPONIBLES else 0
 
 if "BASE" not in st.session_state:
-    # Una carga inicial rápida con la fecha por defecto
     with st.spinner("🚀 Sincronizando datos..."):
-        df_ranking, df_pronosticos_hoy, PARTIDOS_HOY, BRACKET = cargar_y_procesar_todo_el_torneo(SPREADSHEET_ID, ID_PESTAÑAS, FECHAS_DISPONIBLES[default_idx])
+        df_ranking, df_pronosticos_hoy, _, BRACKET = cargar_y_procesar_todo_el_torneo(SPREADSHEET_ID, ID_PESTAÑAS, FECHAS_DISPONIBLES[default_idx])
 
 if df_ranking is not None:
-    # Eliminamos la pestaña rota de Participantes y dejamos una experiencia limpia
     tab_principal, tab_hoy, tab_bracket_dev = st.tabs(["📊 Clasificación", "🔮 Pronósticos por Fecha", "🛠️ Desarrollo Bracket"])
 
     # --- PESTAÑA PRINCIPAL ---
     with tab_principal:
-        st.subheader(f"📅 Partidos del Día ({fecha_formateada})")
-        # Generar partidos de 'hoy' reales en base al Reloj del Servidor
-        partidos_tiempo_real = [partido for partido in CALENDARIO_COMPLETO if partido["Fecha"] == fecha_formateada]
-        if not partidos_tiempo_real: st.info("⚽ No hay partidos agendados para hoy.")
+        st.subheader("📅 Partidos del Día y Próximos Encuentros")
+        
+        if not PARTIDOS_PROXIMOS: 
+            st.info("⚽ No hay más partidos agendados o pendientes para esta ronda.")
         else:
-            columnas_juegos = st.columns(len(partidos_tiempo_real))
-            for i, partido in enumerate(partidos_tiempo_real):
-                with columnas_juegos[i]:
-                    marcador = partido.get("Resultado", "")
-                    badge_html = f'<div style="text-align: center; font-size: 26px; font-weight: 800; color: #10B981; background-color: #ECFDF5; padding: 10px; border-radius: 8px; border: 2px solid #A7F3D0; margin-bottom: 10px;">{marcador} <span style="font-size:12px; font-weight:bold; display:block; color:#059669;">FINALIZADO</span></div>' if marcador != "" else f'<div style="text-align: center; font-size: 14px; font-weight: 700; color: #1D4ED8; background-color: #EFF6FF; padding: 6px; border-radius: 6px; margin-bottom: 10px;">⏰ {partido["Hora"]} MX</div>'
-                    st.markdown(f'<div style="background-color: #FFFFFF; padding: 20px; border-radius: 12px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.07); border: 1px solid #F1F5F9;">{badge_html}<div style="font-size: 19px; font-weight: 700; color: #1E293B; text-align: center; line-height: 1.4;">{partido["Rival 1"].title()} <br><span style="color:#94A3B8; font-size:14px; font-weight:normal;">VS</span><br> {partido["Rival 2"].title()}</div></div>', unsafe_allow_html=True)
+            df_prox = pd.DataFrame(PARTIDOS_PROXIMOS)
+            fechas_futuras = sorted(list(df_prox["Fecha"].unique()), key=lambda x: datetime.strptime(x, "%d/%m/%Y"))
+            
+            for f_futura in fechas_futuras:
+                partidos_del_dia = [p for p in PARTIDOS_PROXIMOS if p["Fecha"] == f_futura]
+                st.markdown(f"##### 🗓️ Encuentros del día {f_futura}")
+                
+                columnas_juegos = st.columns(len(partidos_del_dia))
+                for i, partido in enumerate(partidos_del_dia):
+                    with columnas_juegos[i]:
+                        # Consultar el marcador actual de este partido del bracket de manera dinámica
+                        id_p = partido["Id"]
+                        g1_b = BRACKET[id_p]["Goles 1"]
+                        g2_b = BRACKET[id_p]["Goles 2"]
+                        
+                        if g1_b != "-":
+                            marcador = f"{g1_b} - {g2_b}"
+                            badge_html = f'<div style="text-align: center; font-size: 26px; font-weight: 800; color: #10B981; background-color: #ECFDF5; padding: 10px; border-radius: 8px; border: 2px solid #A7F3D0; margin-bottom: 10px;">{marcador} <span style="font-size:12px; font-weight:bold; display:block; color:#059669;">FINALIZADO</span></div>'
+                        else:
+                            badge_html = f'<div style="text-align: center; font-size: 14px; font-weight: 700; color: #1D4ED8; background-color: #EFF6FF; padding: 6px; border-radius: 6px; margin-bottom: 10px;">⏰ {partio.get("Hora", "12:00") if "partio" not in locals() else partido["Hora"]} MX</div>'
+                        
+                        st.markdown(f'<div style="background-color: #FFFFFF; padding: 20px; border-radius: 12px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.07); border: 1px solid #F1F5F9;">{badge_html}<div style="font-size: 19px; font-weight: 700; color: #1E293B; text-align: center; line-height: 1.4;">{partido["Rival 1"].title()} <br><span style="color:#94A3B8; font-size:14px; font-weight:normal;">VS</span><br> {partido["Rival 2"].title()}</div></div>', unsafe_allow_html=True)
+                st.write("") 
             
         st.write("---")
         st.subheader("🏅 Tabla de Posiciones General")
@@ -246,12 +267,10 @@ if df_ranking is not None:
     with tab_hoy:
         st.markdown("### 🔮 Consulta de Pronósticos")
         
-        # Implementación de sub-pestañas dinámicas basadas en los días del calendario
         sub_tabs_fechas = st.tabs([f"📅 {f}" for f in FECHAS_DISPONIBLES])
         
         for idx_f, fecha_select in enumerate(FECHAS_DISPONIBLES):
             with sub_tabs_fechas[idx_f]:
-                # Volvemos a procesar de forma ultra-rápida (gracias al caché) la fecha que el usuario está viendo
                 _, df_pronosticos_fecha, partidos_fecha, _ = cargar_y_procesar_todo_el_torneo(SPREADSHEET_ID, ID_PESTAÑAS, fecha_select)
                 
                 if not partidos_fecha:
@@ -349,21 +368,21 @@ if df_ranking is not None:
             <div class="phase-title">Semifinal</div><div class="phase-title">4tos</div><div class="phase-title">8vos</div><div class="phase-title">En construcción</div>
 
             <div class="b-column">
-                <div class="b-match">{{render_match_html("P1", BRACKET)}}</div>
-                <div class="b-match">{{render_match_html("P2", BRACKET)}}</div>
-                <div class="b-match">{{render_match_html("P3", BRACKET)}}</div>
-                <div class="b-match">{{render_match_html("P4", BRACKET)}}</div>
-                <div class="b-match">{{render_match_html("P5", BRACKET)}}</div>
-                <div class="b-match">{{render_match_html("P6", BRACKET)}}</div>
-                <div class="b-match">{{render_match_html("P7", BRACKET)}}</div>
-                <div class="b-match">{{render_match_html("P8", BRACKET)}}</div>
+                <div class="b-match">{render_match_html("P1", BRACKET)}</div>
+                <div class="b-match">{render_match_html("P2", BRACKET)}</div>
+                <div class="b-match">{render_match_html("P3", BRACKET)}</div>
+                <div class="b-match">{render_match_html("P4", BRACKET)}</div>
+                <div class="b-match">{render_match_html("P5", BRACKET)}</div>
+                <div class="b-match">{render_match_html("P6", BRACKET)}</div>
+                <div class="b-match">{render_match_html("P7", BRACKET)}</div>
+                <div class="b-match">{render_match_html("P8", BRACKET)}</div>
             </div>
 
             <div class="b-column">
-                <div style="grid-row: span 2; display: flex; flex-direction: column; justify-content: center;"><div class="b-card"><div class="b-team"><span>{{w['P1']}}</span></div><div style="height:1px; background:#334155; margin:4px 0;"></div><div class="b-team"><span>{{w['P2']}}</span></div></div></div>
-                <div style="grid-row: span 2; display: flex; flex-direction: column; justify-content: center;"><div class="b-card"><div class="b-team"><span>{{w['P3']}}</span></div><div style="height:1px; background:#334155; margin:4px 0;"></div><div class="b-team"><span>{{w['P4']}}</span></div></div></div>
-                <div style="grid-row: span 2; display: flex; flex-direction: column; justify-content: center;"><div class="b-card"><div class="b-team"><span>{{w['P5']}}</span></div><div style="height:1px; background:#334155; margin:4px 0;"></div><div class="b-team"><span>{{w['P6']}}</span></div></div></div>
-                <div style="grid-row: span 2; display: flex; flex-direction: column; justify-content: center;"><div class="b-card"><div class="b-team"><span>{{w['P7']}}</span></div><div style="height:1px; background:#334155; margin:4px 0;"></div><div class="b-team"><span>{{w['P8']}}</span></div></div></div>
+                <div style="grid-row: span 2; display: flex; flex-direction: column; justify-content: center;"><div class="b-card"><div class="b-team"><span>{w['P1']}</span></div><div style="height:1px; background:#334155; margin:4px 0;"></div><div class="b-team"><span>{w['P2']}</span></div></div></div>
+                <div style="grid-row: span 2; display: flex; flex-direction: column; justify-content: center;"><div class="b-card"><div class="b-team"><span>{w['P3']}</span></div><div style="height:1px; background:#334155; margin:4px 0;"></div><div class="b-team"><span>{w['P4']}</span></div></div></div>
+                <div style="grid-row: span 2; display: flex; flex-direction: column; justify-content: center;"><div class="b-card"><div class="b-team"><span>{w['P5']}</span></div><div style="height:1px; background:#334155; margin:4px 0;"></div><div class="b-team"><span>{w['P6']}</span></div></div></div>
+                <div style="grid-row: span 2; display: flex; flex-direction: column; justify-content: center;"><div class="b-card"><div class="b-team"><span>{w['P7']}</span></div><div style="height:1px; background:#334155; margin:4px 0;"></div><div class="b-team"><span>{w['P8']}</span></div></div></div>
             </div>
 
             <div class="b-column">
@@ -395,28 +414,28 @@ if df_ranking is not None:
             </div>
 
             <div class="b-column">
-                <div style="grid-row: span 2; display: flex; flex-direction: column; justify-content: center;"><div class="b-card"><div class="b-team"><span>{{w['P9']}}</span></div><div style="height:1px; background:#334155; margin:4px 0;"></div><div class="b-team"><span>{{w['P10']}}</span></div></div></div>
+                <div style="grid-row: span 2; display: flex; flex-direction: column; justify-content: center;"><div class="b-card"><div class="b-team"><span>{w['P9']}</span></div><div style="height:1px; background:#334155; margin:4px 0;"></div><div class="b-team"><span>{w['P10']}</span></div></div></div>
                 <div style="grid-row: span 2; display: flex; flex-direction: column; justify-content: center;">
                     <div class="b-card">
-                        <div class="b-team"><span>{{w['P11']}}</span></div>
+                        <div class="b-team"><span>{w['P11']}</span></div>
                         <div style="height:1px; background:#334155; margin:4px 0;"></div>
-                        <div class="b-team"><span>{{w['P12']}}</span></div>
+                        <div class="b-team"><span>{w['P12']}</span></div>
                     </div>
                     <div class="match-date">05/07/2026 18:00 hrs</div>
                 </div>
-                <div style="grid-row: span 2; display: flex; flex-direction: column; justify-content: center;"><div class="b-card"><div class="b-team"><span>{{w['P13']}}</span></div><div style="height:1px; background:#334155; margin:4px 0;"></div><div class="b-team"><span>{{w['P14']}}</span></div></div></div>
-                <div style="grid-row: span 2; display: flex; flex-direction: column; justify-content: center;"><div class="b-card"><div class="b-team"><span>{{w['P15']}}</span></div><div style="height:1px; background:#334155; margin:4px 0;"></div><div class="b-team"><span>{{w['P16']}}</span></div></div></div>
+                <div style="grid-row: span 2; display: flex; flex-direction: column; justify-content: center;"><div class="b-card"><div class="b-team"><span>{w['P13']}</span></div><div style="height:1px; background:#334155; margin:4px 0;"></div><div class="b-team"><span>{w['P14']}</span></div></div></div>
+                <div style="grid-row: span 2; display: flex; flex-direction: column; justify-content: center;"><div class="b-card"><div class="b-team"><span>{w['P15']}</span></div><div style="height:1px; background:#334155; margin:4px 0;"></div><div class="b-team"><span>{w['P16']}</span></div></div></div>
             </div>
 
             <div class="b-column">
-                <div class="b-match">{{render_match_html("P9", BRACKET)}}</div>
-                <div class="b-match">{{render_match_html("P10", BRACKET)}}</div>
-                <div class="b-match">{{render_match_html("P11", BRACKET)}}</div>
-                <div class="b-match">{{render_match_html("P12", BRACKET)}}</div>
-                <div class="b-match">{{render_match_html("P13", BRACKET)}}</div>
-                <div class="b-match">{{render_match_html("P14", BRACKET)}}</div>
-                <div class="b-match">{{render_match_html("P15", BRACKET)}}</div>
-                <div class="b-match">{{render_match_html("P16", BRACKET)}}</div>
+                <div class="b-match">{render_match_html("P9", BRACKET)}</div>
+                <div class="b-match">{render_match_html("P10", BRACKET)}</div>
+                <div class="b-match">{render_match_html("P11", BRACKET)}</div>
+                <div class="b-match">{render_match_html("P12", BRACKET)}</div>
+                <div class="b-match">{render_match_html("P13", BRACKET)}</div>
+                <div class="b-match">{render_match_html("P14", BRACKET)}</div>
+                <div class="b-match">{render_match_html("P15", BRACKET)}</div>
+                <div class="b-match">{render_match_html("P16", BRACKET)}</div>
             </div>
         </div>
         """
