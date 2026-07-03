@@ -65,8 +65,7 @@ CALENDARIO_COMPLETO = [
     {"Id": "P16", "Fecha": "03/07/2026", "Rival 1": "COLOMBIA", "Rival 2": "GHANA", "Texto": "Colombia 🆚 Ghana", "Hora": "19:30", "Keys 1": ["COLOMBIA", "COL"], "Keys 2": ["GHANA", "GHA"]}
 ]
 
-PARTIDOS_HOY = [partido for_partido in CALENDARIO_COMPLETO if partido["Fecha"] == fecha_formateada]
-
+PARTIDOS_HOY = [partido for partido in CALENDARIO_COMPLETO if partido["Fecha"] == fecha_formateada]
 # Extraer una lista ordenada de fechas únicas que tienen partidos en el calendario
 FECHAS_DISPONIBLES = sorted(list(set(p["Fecha"] for p in CALENDARIO_COMPLETO)), key=lambda x: datetime.strptime(x, "%d/%m/%Y"))
 
