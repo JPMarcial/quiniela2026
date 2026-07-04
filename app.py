@@ -142,8 +142,10 @@ def cargar_y_procesar_todo_el_torneo(spreadsheet_id, pestañas_jugadores, fecha_
             set_base_16vos = set()
             set_base_8vos = set()
 
-        set_base_total = set_base_16vos.union(set_base_8vos)
-        lista_base_ordenada = sorted(list(set_base_total))
+        # Asegurar la unificación correcta de todas las columnas base para el desglose completo
+        lista_base_16vos_ordenada = sorted(list(set_base_16vos))
+        lista_base_8vos_ordenada = sorted(list(set_base_8vos))
+        lista_base_total = lista_base_16vos_ordenada + [e for e in lista_base_8vos_ordenada if e not in lista_base_16vos_ordenada]
 
         # Lectura de marcadores reales en el CALENDARIO excel
         pestaña_cal = [n for n in nombres_pestañas if "CALENDARIO" in n.upper()]
@@ -199,7 +201,8 @@ def cargar_y_procesar_todo_el_torneo(spreadsheet_id, pestañas_jugadores, fecha_
                 
                 datos_ranking.append({"Participante": nombre_real, "Aciertos Totales": puntos_totales})
                 
-                for equipo_base in lista_base_ordenada:
+                # Desglose auditable dinámico sin omitir octavos no jugados
+                for equipo_base in lista_base_total:
                     if equipo_base in fases_jugador["16vos"] or equipo_base in fases_jugador["8vos"]:
                         auditoria_puntos[equipo_base] = "✅ Sí"
                     else:
@@ -224,7 +227,7 @@ def cargar_y_procesar_todo_el_torneo(spreadsheet_id, pestañas_jugadores, fecha_
                         elecciones_fecha[p["Texto"]] = encontrado
             else:
                 datos_ranking.append({"Participante": nombre_real, "Aciertos Totales": 0})
-                for equipo_base in lista_base_ordenada:
+                for equipo_base in lista_base_total:
                     auditoria_puntos[equipo_base] = "❌ No"
                 for p in partidos_fecha: elecciones_fecha[p["Texto"]] = "Sin Datos"
                 
@@ -288,7 +291,7 @@ if df_ranking is not None:
 
     # --- PESTAÑA: DESGLOSE DE ACIERTOS ---
     with tab_desglose:
-        st.markdown("### 🔍 Tabla General")
+        st.markdown("### 🔍 Tabla General de Equipos Colocados (16vos y Octavos)")
         st.write("")
         
         if df_desglose.empty or len(df_desglose.columns) <= 2:
@@ -317,6 +320,10 @@ if df_ranking is not None:
                 else:
                     st.caption(f"Visualizando elecciones reales según la columna correspondiente de la fase jugada el {fecha_select} (16vos de Columna B u Octavos de Columna D)")
                     st.dataframe(df_pronosticos_fecha, use_container_width=True, hide_index=True)
+                    
+                    st.info("""
+                    💡 **Nota sobre 'Ninguno':** Si ves que un participante tiene 'Ninguno' asignado en un partido, significa que los dos equipos que colocó originalmente en su estructura para esta fase del torneo fueron eliminados en las rondas previas. Al no contar con ninguno de los dos rivales vivos en su cuadro real, se queda sin predicción para este juego.
+                    """)
 
     # --- PESTAÑA BRACKET DESARROLLO ---
     with tab_bracket_dev:
