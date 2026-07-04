@@ -88,7 +88,7 @@ def obtener_nombre_real(df_raw, id_pestaña):
             raw_val = str(df_raw.iloc[0, 1]).strip()
             if pd.notna(raw_val) and raw_val != "" and raw_val != "0" and raw_val.lower() != "nan":
                 nombre = raw_val.split('\n')[0].strip()
-                palabras_ a_remover = ["Alemania", "Portugal", "Croacia", "España", "Austria", "Francia", "Brasil"]
+                palabras_a_remover = ["Alemania", "Portugal", "Croacia", "España", "Austria", "Francia", "Brasil"]
                 for palabra in palabras_a_remover:
                     nombre = re.sub(rf'\s+{palabra}$', '', nombre, flags=re.IGNORECASE).strip()
                 return nombre
