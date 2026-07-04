@@ -7,7 +7,7 @@ from datetime import datetime, timedelta
 
 st.set_page_config(page_title="Quiniela Fase Final", page_icon="⚽", layout="wide")
 
-# Estilos CSS mejorados con contenedores Flexbox para alineación vertical perfecta
+# Estilos CSS con contenedores Flexbox para alineación vertical perfecta
 st.markdown("""
     <style>
     .main .block-container { padding-top: 2rem; }
@@ -40,7 +40,7 @@ fecha_formateada = fecha_actual_mx.strftime("%d/%m/%Y")
 fecha_actual_dt = datetime.strptime(fecha_formateada, "%d/%m/%Y")
 
 # ==============================================================================
-# CALENDARIO COMPLETO ACTUALIZADO CON RESULTADOS Y CRUCES DE 8VOS DEFINIDOS
+# CALENDARIO COMPLETO CON IDENTIFICADORES DE PARTIDO ASOCIADOS A SU RONDA
 # ==============================================================================
 CALENDARIO_COMPLETO = [
     # --- 16vos LADO IZQUIERDO ---
@@ -63,7 +63,7 @@ CALENDARIO_COMPLETO = [
     {"Id": "P15", "Fecha": "02/07/2026", "Rival 1": "SUIZA", "Rival 2": "ARGELIA", "Texto": "Suiza 🆚 Argelia", "Hora": "21:00", "Keys 1": ["SUIZA", "SUI"], "Keys 2": ["ARGELIA", "ALG"]},
     {"Id": "P16", "Fecha": "03/07/2026", "Rival 1": "COLOMBIA", "Rival 2": "GHANA", "Texto": "Colombia 🆚 Ghana", "Hora": "19:30", "Keys 1": ["COLOMBIA", "COL"], "Keys 2": ["GHANA", "GHA"]},
 
-    # --- OCTAVOS DE FINAL ACTUALIZADOS ---
+    # --- OCTAVOS DE FINAL ---
     {"Id": "P17", "Fecha": "04/07/2026", "Rival 1": "CANADÁ", "Rival 2": "MARRUECOS", "Texto": "Canadá 🆚 Marruecos", "Hora": "11:00", "Keys 1": ["CANADA", "CANADÁ", "CAN"], "Keys 2": ["MARRUECOS", "MAR"]},
     {"Id": "P18", "Fecha": "04/07/2026", "Rival 1": "PARAGUAY", "Rival 2": "FRANCIA", "Texto": "Paraguay 🆚 Francia", "Hora": "15:00", "Keys 1": ["PARAGUAY", "PAR"], "Keys 2": ["FRANCIA", "FRA"]},
     {"Id": "P19", "Fecha": "05/07/2026", "Rival 1": "BRASIL", "Rival 2": "NORUEGA", "Texto": "Brasil 🆚 Noruega", "Hora": "14:00", "Keys 1": ["BRASIL", "BRA"], "Keys 2": ["NORUEGA", "NOR"]},
@@ -72,22 +72,15 @@ CALENDARIO_COMPLETO = [
     {"Id": "P22", "Fecha": "06/07/2026", "Rival 1": "PORTUGAL", "Rival 2": "ESPAÑA", "Texto": "Portugal 🆚 España", "Hora": "13:00", "Keys 1": ["PORTUGAL", "POR"], "Keys 2": ["ESPAÑA", "ESP"]},
     {"Id": "P23", "Fecha": "07/07/2026", "Rival 1": "SUIZA", "Rival 2": "COLOMBIA", "Texto": "Suiza 🆚 Colombia", "Hora": "14:00", "Keys 1": ["SUIZA", "SUI"], "Keys 2": ["COLOMBIA", "COL"]},
     {"Id": "P24", "Fecha": "07/07/2026", "Rival 1": "ARGENTINA", "Rival 2": "EGIPTO", "Texto": "Argentina 🆚 Egipto", "Hora": "10:00", "Keys 1": ["ARGENTINA", "ARG"], "Keys 2": ["EGIPTO", "EGY"]}
+    
+    # Nota: Agregar aquí partidos de 4tos, 3er lugar y Final conforme se definan las fechas exactas.
 ]
-
-# FILTRO EXCLUSIVO: Solo partidos cuya fecha coincide exactamente con el día de hoy
-PARTIDOS_DEL_DIA_LISTA = [
-    partido for partido in CALENDARIO_COMPLETO 
-    if partido["Fecha"] == fecha_formateada
-]
-
-# Extraer de forma limpia las fechas únicas
-FECHAS_DISPONIBLES = sorted(list(set(p["Fecha"] for p in CALENDARIO_COMPLETO)), key=lambda x: datetime.strptime(x, "%d/%m/%Y"))
 
 SPREADSHEET_ID = "1FTUtzXd-ODXBB0QxIf-68FKf0ZQzVnWM"
 ID_PESTAÑAS = ["HAAM", "CA", "HR", "JAG", "FB", "PM", "JLJF", "MASM", "CAVL", "AMG", "CAER", "VAVA", "JAMP", "VCBH", "JMG", "JV", "CAAM", "DSR", "SLO", "JGLM"]
 
 # ==============================================================================
-# 2. FUNCIONES DE PROCESAMIENTO AUXILIARES
+# 2. FUNCIONES DE PROCESAMIENTO MIGRADAS AL MAPEO FIJO POR COLUMNAS
 # ==============================================================================
 def obtener_nombre_real(df_raw, id_pestaña):
     try:
@@ -95,7 +88,7 @@ def obtener_nombre_real(df_raw, id_pestaña):
             raw_val = str(df_raw.iloc[0, 1]).strip()
             if pd.notna(raw_val) and raw_val != "" and raw_val != "0" and raw_val.lower() != "nan":
                 nombre = raw_val.split('\n')[0].strip()
-                palabras_a_remover = ["Alemania", "Portugal", "Croacia", "España", "Austria", "Francia", "Brasil"]
+                palabras_ a_remover = ["Alemania", "Portugal", "Croacia", "España", "Austria", "Francia", "Brasil"]
                 for palabra in palabras_a_remover:
                     nombre = re.sub(rf'\s+{palabra}$', '', nombre, flags=re.IGNORECASE).strip()
                 return nombre
@@ -103,39 +96,26 @@ def obtener_nombre_real(df_raw, id_pestaña):
         pass
     return id_pestaña
 
-def procesar_bloque_resumen(df_raw):
-    if df_raw is None or df_raw.empty:
-        return None
-    try:
-        inicio_tabla = None
-        for idx, row in df_raw.iterrows():
-            if row.astype(str).str.contains('16vos', case=False, na=False).any():
-                inicio_tabla = idx
-                break
-        if inicio_tabla is None:
-            return None
-            
-        df_resumen = df_raw.iloc[inicio_tabla:].copy()
-        cabeceras = [str(c).strip().lower() if pd.notna(c) else "" for c in df_resumen.iloc[0]]
-        df_resumen.columns = cabeceras
-        df_resumen = df_resumen[1:]
-        
-        idx_16vos = [i for i, x in enumerate(cabeceras) if x == '16vos']
-        if not idx_16vos:
-            return None
-        col_pos = idx_16vos[0]
-        
-        df_final = pd.DataFrame()
-        df_final["16vos"] = df_resumen.iloc[:, col_pos].astype(str).str.strip()
-        df_final = df_final[df_final["16vos"].notna() & (df_final["16vos"] != "") & (df_final["16vos"] != "nan")]
-        return df_final.reset_index(drop=True)
-    except Exception:
-        return None
-
 def limpiar_texto(s):
     s = str(s).strip().upper()
     s = re.sub(r'[ÁÉÍÓÚ]', lambda m: {'Á':'A','É':'E','Í':'I','Ó':'O','Ú':'U'}[m.group(0)], s)
     return s
+
+def extraer_columna_fija(df_raw, col_indice):
+    """
+    Lee de forma segura el bloque vertical a partir de la fila 54 (índice 53)
+    para una columna determinada.
+    """
+    if df_raw is None or df_raw.shape[0] < 54 or df_raw.shape[1] <= col_indice:
+        return set()
+    try:
+        # Extraemos un rango prudente hacia abajo (ej. hasta 20 celdas) para cubrir los nombres ingresados
+        bloque = df_raw.iloc[53:75, col_indice].dropna().astype(str).str.strip()
+        valores_limpios = set(bloque.apply(limpiar_texto))
+        valores_limpios.difference_update({"", "0", "NAN"})
+        return valores_limpios
+    except Exception:
+        return set()
 
 @st.cache_data(ttl=60)
 def cargar_y_procesar_todo_el_torneo(spreadsheet_id, pestañas_jugadores, fecha_consulta):
@@ -155,13 +135,14 @@ def cargar_y_procesar_todo_el_torneo(spreadsheet_id, pestañas_jugadores, fecha_
         excel_file = pd.ExcelFile(io.BytesIO(respuesta.content), engine='openpyxl')
         nombres_pestañas = excel_file.sheet_names
         
-        if "BASE" not in nombres_pestañas: return None, None, partidos_fecha, bracket_data
-        df_base_raw = excel_file.parse("BASE", header=None, dtype=str)
-        df_base = procesar_bloque_resumen(df_base_raw)
-        if df_base is None: return None, None, partidos_fecha, bracket_data
-        set_base = set(df_base["16vos"].dropna().apply(limpiar_texto))
-        set_base.discard("")
+        # Cargar matriz de la hoja BASE para calificar aciertos globales (Columna B de la hoja Base)
+        if "BASE" in nombres_pestañas:
+            df_base_raw = excel_file.parse("BASE", header=None, dtype=str)
+            set_base_16vos = extraer_columna_fija(df_base_raw, 1) # Columna B
+        else:
+            set_base_16vos = set()
 
+        # Lectura de marcadores reales en el CALENDARIO excel
         pestaña_cal = [n for n in nombres_pestañas if "CALENDARIO" in n.upper()]
         if pestaña_cal:
             df_cal_excel = excel_file.parse(pestaña_cal[0], header=None, dtype=str)
@@ -193,45 +174,74 @@ def cargar_y_procesar_todo_el_torneo(spreadsheet_id, pestañas_jugadores, fecha_
                 p["Resultado"] = f"{bracket_data[id_p]['Goles 1']} - {bracket_data[id_p]['Goles 2']}"
                 p["Ganador"] = bracket_data[id_p]["Ganador"]
 
+        # Procesar elecciones individuales por columna correspondiente
         for pestaña in pestañas_jugadores:
-            df_jugador = None; nombre_real = pestaña
+            df_jugador_raw = None; nombre_real = pestaña
+            
+            # Diccionario para almacenar los sets de elecciones por fase
+            fases_jugador = {"16vos": set(), "8vos": set(), "4tos": set(), "3er": set(), "Final": set()}
+            
             if pestaña in nombres_pestañas:
                 df_jugador_raw = excel_file.parse(pestaña, header=None, dtype=str)
                 nombre_real = obtener_nombre_real(df_jugador_raw, pestaña)
-                df_jugador = procesar_bloque_resumen(df_jugador_raw)
+                
+                # Extracción exacta mediante mapeo de columnas indicado:
+                fases_jugador["16vos"] = extraer_columna_fija(df_jugador_raw, 1)  # Columna B (B54)
+                fases_jugador["8vos"]  = extraer_columna_fija(df_jugador_raw, 3)  # Columna D (D54)
+                fases_jugador["4tos"]  = extraer_columna_fija(df_jugador_raw, 5)  # Columna F (F54)
+                fases_jugador["3er"]   = extraer_columna_fija(df_jugador_raw, 7)  # Columna H (H54)
+                fases_jugador["Final"] = extraer_columna_fija(df_jugador_raw, 9)  # Columna J (J54)
+
             elecciones_fecha = {"Participante": nombre_real}
             
-            if df_jugador is not None and "16vos" in df_jugador.columns:
-                set_jugador = set(df_jugador["16vos"].dropna().apply(limpiar_texto))
-                set_jugador.discard("")
-                datos_ranking.append({"Participante": nombre_real, "Aciertos Totales": len(set_jugador.intersection(set_base))})
+            if df_jugador_raw is not None:
+                # Tabla general acumulada (aciertos basándose en la columna B del jugador vs hoja base)
+                datos_ranking.append({"Participante": nombre_real, "Aciertos Totales": len(fases_jugador["16vos"].intersection(set_base_16vos))})
                 
                 for p in partidos_fecha:
-                    encontrado = "Ninguno"
-                    for pronostico in list(set_jugador):
-                        if any(k in pronostico for k in p["Keys 1"]): encontrado = p["Rival 1"].title(); break
-                        elif any(k in pronostico for k in p["Keys 2"]): encontrado = p["Rival 2"].title(); break
+                    num_partido = int(p["Id"].replace("P", ""))
                     
-                    rival_real_1 = bracket_data[p["Id"]]["Rival 1"].title()
-                    rival_real_2 = bracket_data[p["Id"]]["Rival 2"].title()
-                    
-                    if encontrado != "Ninguno" and encontrado not in [rival_real_1, rival_real_2]:
-                        elecciones_fecha[p["Texto"]] = f"❌ Eliminado Previo ({encontrado})"
+                    # Ruteo Dinámico: Asignamos el set de búsqueda según el ID de partido y su fase real
+                    if num_partido <= 16:
+                        set_busqueda = fases_jugador["16vos"]
+                    elif 17 <= num_partido <= 24:
+                        set_busqueda = fases_jugador["8vos"]
+                    elif 25 <= num_partido <= 28:
+                        set_busqueda = fases_jugador["4tos"]
                     else:
-                        if p.get("Ganador") and p["Ganador"] != "Por Definir":
-                            elecciones_fecha[p["Texto"]] = f"✅ {encontrado}" if limpiar_texto(p["Ganador"]) == limpiar_texto(encontrado) else f"• {encontrado}"
-                        else: 
-                            elecciones_fecha[p["Texto"]] = encontrado
+                        set_busqueda = fases_jugador["Final"] # Ajustar según IDs de finales
+                    
+                    encontrado = "Ninguno"
+                    # Buscamos si alguno de los equipos del partido de hoy coincide con lo que el usuario escribió en esa columna
+                    for pronostico in list(set_busqueda):
+                        if any(k in pronostico for k in p["Keys 1"]): 
+                            encontrado = p["Rival 1"].title()
+                            break
+                        elif any(k in pronostico for k in p["Keys 2"]): 
+                            encontrado = p["Rival 2"].title()
+                            break
+                    
+                    if p.get("Ganador") and p["Ganador"] != "Por Definir":
+                        elecciones_fecha[p["Texto"]] = f"✅ {encontrado}" if limpiar_texto(p["Ganador"]) == limpiar_texto(encontrado) else f"• {encontrado}"
+                    else: 
+                        elecciones_fecha[p["Texto"]] = encontrado
             else:
                 datos_ranking.append({"Participante": nombre_real, "Aciertos Totales": 0})
                 for p in partidos_fecha: elecciones_fecha[p["Texto"]] = "Sin Datos"
-            if partidos_fecha: pronosticos_fecha_lista.append(elecciones_fecha)
+                
+            if partidos_fecha: 
+                pronosticos_fecha_lista.append(elecciones_fecha)
                 
         df_ranking = pd.DataFrame(datos_ranking).sort_values(by="Aciertos Totales", ascending=False).drop_duplicates(subset=["Participante"]).reset_index(drop=True)
         df_pronosticos_fecha = pd.DataFrame(pronosticos_fecha_lista).reset_index(drop=True) if pronosticos_fecha_lista else pd.DataFrame(columns=["Participante"])
         return df_ranking, df_pronosticos_fecha, partidos_fecha, bracket_data
-    except Exception: return None, None, partidos_fecha, bracket_data
+    except Exception: 
+        return None, None, partidos_fecha, bracket_data
 
+# ==============================================================================
+# INTERFAZ GRÁFICA DE STREAMLIT
+# ==============================================================================
+FECHAS_DISPONIBLES = sorted(list(set(p["Fecha"] for p in CALENDARIO_COMPLETO)), key=lambda x: datetime.strptime(x, "%d/%m/%Y"))
 default_idx = FECHAS_DISPONIBLES.index(fecha_formateada) if fecha_formateada in FECHAS_DISPONIBLES else 0
 
 if "BASE" not in st.session_state:
@@ -245,6 +255,7 @@ if df_ranking is not None:
     with tab_principal:
         st.subheader("📅 Partidos del Día")
         
+        PARTIDOS_DEL_DIA_LISTA = [partido for partido in CALENDARIO_COMPLETO if partido["Fecha"] == fecha_formateada]
         if not PARTIDOS_DEL_DIA_LISTA: 
             st.info(f"⚽ No hay partidos agendados para el día de hoy ({fecha_formateada}).")
         else:
@@ -274,17 +285,15 @@ if df_ranking is not None:
     # --- PESTAÑA PRONÓSTICOS ---
     with tab_hoy:
         st.markdown("### 🔮 Consulta de Pronósticos")
-        
         sub_tabs_fechas = st.tabs([f"📅 {f}" for f in FECHAS_DISPONIBLES])
         
         for idx_f, fecha_select in enumerate(FECHAS_DISPONIBLES):
             with sub_tabs_fechas[idx_f]:
                 _, df_pronosticos_fecha, partidos_fecha, _ = cargar_y_procesar_todo_el_torneo(SPREADSHEET_ID, ID_PESTAÑAS, fecha_select)
-                
                 if not partidos_fecha or df_pronosticos_fecha.empty:
                     st.info("No hay partidos ni pronósticos registrados para esta fecha.")
                 else:
-                    st.caption(f"Visualizando las elecciones de los participantes para los juegos del {fecha_select}")
+                    st.caption(f"Visualizando elecciones reales según la columna correspondiente de la fase jugada el {fecha_select}")
                     st.dataframe(df_pronosticos_fecha, use_container_width=True, hide_index=True)
 
     # --- PESTAÑA BRACKET DESARROLLO ---
@@ -294,10 +303,7 @@ if df_ranking is not None:
         def render_match_html(match_id, data_dict):
             m = data_dict[match_id]
             r1, r2 = m["Rival 1"].title(), m["Rival 2"].title()
-            
-            g1 = m.get('Goles 1', '-')
-            g2 = m.get('Goles 2', '-')
-            
+            g1, g2 = m.get('Goles 1', '-'), m.get('Goles 2', '-')
             c1 = "winner" if m["Ganador"] == m["Rival 1"] else ("loser" if m["Ganador"] != "Por Definir" and m["Ganador"] is not None else "")
             c2 = "winner" if m["Ganador"] == m["Rival 2"] else ("loser" if m["Ganador"] != "Por Definir" and m["Ganador"] is not None else "")
             return f"""
@@ -309,9 +315,7 @@ if df_ranking is not None:
 
         def get_w(pid):
             ganador = BRACKET[pid]["Ganador"]
-            if ganador and ganador != "Por Definir":
-                return ganador.title()
-            return f"Ganador {pid}"
+            return ganador.title() if ganador and ganador != "Por Definir" else f"Ganador {pid}"
 
         w = {f"P{i}": get_w(f"P{i}") for i in range(1, 25)}
 
@@ -333,7 +337,6 @@ if df_ranking is not None:
             <div class="phase-title" style="color:#f59e0b;">🏆 FINAL</div>
             <div class="phase-title">Semifinal</div><div class="phase-title">4tos (Der)</div><div class="phase-title">8vos (Der)</div><div class="phase-title">16vos (Der)</div>
 
-            <!-- COLUMNA 1: 16vos Lado Izquierdo -->
             <div class="b-column">
                 <div class="b-match">{render_match_html("P1", BRACKET)}</div>
                 <div class="b-match">{render_match_html("P2", BRACKET)}</div>
@@ -345,7 +348,6 @@ if df_ranking is not None:
                 <div class="b-match">{render_match_html("P8", BRACKET)}</div>
             </div>
 
-            <!-- COLUMNA 2: Octavos Lado Izquierdo -->
             <div class="b-column">
                 <div style="grid-row: span 2; display: flex; flex-direction: column; justify-content: center;">{render_match_html("P18", BRACKET)}</div>
                 <div style="grid-row: span 2; display: flex; flex-direction: column; justify-content: center;">{render_match_html("P17", BRACKET)}</div>
@@ -353,18 +355,15 @@ if df_ranking is not None:
                 <div style="grid-row: span 2; display: flex; flex-direction: column; justify-content: center;">{render_match_html("P21", BRACKET)}</div>
             </div>
 
-            <!-- COLUMNA 3: Cuartos Lado Izquierdo -->
             <div class="b-column">
                 <div style="grid-row: span 4; display: flex; flex-direction: column; justify-content: center;"><div class="b-card"><div class="b-team"><span>{w['P18']}</span></div><div style="height:1px; background:#334155; margin:4px 0;"></div><div class="b-team"><span>{w['P17']}</span></div></div></div>
                 <div style="grid-row: span 4; display: flex; flex-direction: column; justify-content: center;"><div class="b-card"><div class="b-team"><span>{w['P22']}</span></div><div style="height:1px; background:#334155; margin:4px 0;"></div><div class="b-team"><span>{w['P21']}</span></div></div></div>
             </div>
 
-            <!-- COLUMNA 4: Semifinal Izquierda -->
             <div class="b-column">
                 <div style="grid-row: span 8; display: flex; flex-direction: column; justify-content: center;"><div class="b-card"><div class="b-team"><span>Ganador 4tos Izq 1</span></div><div style="height:1px; background:#334155; margin:4px 0;"></div><div class="b-team"><span>Ganador 4tos Izq 2</span></div></div></div>
             </div>
 
-            <!-- COLUMNA 5: Gran Final -->
             <div class="b-column">
                 <div style="grid-row: span 8; display: flex; flex-direction: column; justify-content: center;">
                     <div class="b-card final-card">
@@ -375,18 +374,15 @@ if df_ranking is not None:
                 </div>
             </div>
 
-            <!-- COLUMNA 6: Semifinal Derecha -->
             <div class="b-column">
                 <div style="grid-row: span 8; display: flex; flex-direction: column; justify-content: center;"><div class="b-card"><div class="b-team"><span>Ganador 4tos Der 1</span></div><div style="height:1px; background:#334155; margin:4px 0;"></div><div class="b-team"><span>Ganador 4tos Der 2</span></div></div></div>
             </div>
 
-            <!-- COLUMNA 7: Cuartos Lado Derecho -->
             <div class="b-column">
                 <div style="grid-row: span 4; display: flex; flex-direction: column; justify-content: center;"><div class="b-card"><div class="b-team"><span>{w['P19']}</span></div><div style="height:1px; background:#334155; margin:4px 0;"></div><div class="b-team"><span>{w['P20']}</span></div></div></div>
                 <div style="grid-row: span 4; display: flex; flex-direction: column; justify-content: center;"><div class="b-card"><div class="b-team"><span>{w['P23']}</span></div><div style="height:1px; background:#334155; margin:4px 0;"></div><div class="b-team"><span>{w['P24']}</span></div></div></div>
             </div>
 
-            <!-- COLUMNA 8: Octavos Lado Derecho -->
             <div class="b-column">
                 <div style="grid-row: span 2; display: flex; flex-direction: column; justify-content: center;">{render_match_html("P19", BRACKET)}</div>
                 <div style="grid-row: span 2; display: flex; flex-direction: column; justify-content: center;">{render_match_html("P20", BRACKET)}</div>
@@ -394,7 +390,6 @@ if df_ranking is not None:
                 <div style="grid-row: span 2; display: flex; flex-direction: column; justify-content: center;">{render_match_html("P24", BRACKET)}</div>
             </div>
 
-            <!-- COLUMNA 9: 16vos Lado Derecho -->
             <div class="b-column">
                 <div class="b-match">{render_match_html("P9", BRACKET)}</div>
                 <div class="b-match">{render_match_html("P10", BRACKET)}</div>
