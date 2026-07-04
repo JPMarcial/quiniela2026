@@ -103,7 +103,7 @@ def extraer_columna_fija(df_raw, col_indice):
     if df_raw is None or df_raw.shape[0] < 55 or df_raw.shape[1] <= col_indice:
         return set()
     try:
-        # CORRECCIÓN: Cambiamos de 53 a 54 para ignorar el encabezado de la fila 54 de Excel
+        # Fila 54 en Python (que es la 55 en Excel) en adelante para omitir los encabezados (16VOS, 8VOS, etc.)
         bloque = df_raw.iloc[54:75, col_indice].dropna().astype(str).str.strip()
         valores_limpios = set(bloque.apply(limpiar_texto))
         
@@ -134,14 +134,18 @@ def cargar_y_procesar_todo_el_torneo(spreadsheet_id, pestañas_jugadores, fecha_
         excel_file = pd.ExcelFile(io.BytesIO(respuesta.content), engine='openpyxl')
         nombres_pestañas = excel_file.sheet_names
         
-        # Cargar matriz de la hoja BASE para calificar aciertos globales (Columna B)
+        # Cargar matriz de la hoja BASE para calificar aciertos globales (Fase 16vos en Columna B, 8vos en Columna D)
         if "BASE" in nombres_pestañas:
             df_base_raw = excel_file.parse("BASE", header=None, dtype=str)
             set_base_16vos = extraer_columna_fija(df_base_raw, 1) # Columna B
+            set_base_8vos = extraer_columna_fija(df_base_raw, 3)  # Columna D
         else:
             set_base_16vos = set()
+            set_base_8vos = set()
 
-        lista_base_ordenada = sorted(list(set_base_16vos))
+        # Unimos ambas bases para tener el listado de todos los aciertos posibles hasta hoy
+        set_base_total = set_base_16vos.union(set_base_8vos)
+        lista_base_ordenada = sorted(list(set_base_total))
 
         # Lectura de marcadores reales en el CALENDARIO excel
         pestaña_cal = [n for n in nombres_pestañas if "CALENDARIO" in n.upper()]
@@ -184,24 +188,32 @@ def cargar_y_procesar_todo_el_torneo(spreadsheet_id, pestañas_jugadores, fecha_
                 df_jugador_raw = excel_file.parse(pestaña, header=None, dtype=str)
                 nombre_real = obtener_nombre_real(df_jugador_raw, pestaña)
                 
+                # Extraemos de las columnas correspondientes
                 fases_jugador["16vos"] = extraer_columna_fija(df_jugador_raw, 1)  # Columna B
+                fases_jugador["8vos"] = extraer_columna_fija(df_jugador_raw, 3)   # Columna D
 
             elecciones_fecha = {"Participante": nombre_real}
             auditoria_puntos = {"Participante": nombre_real}
             
             if df_jugador_raw is not None:
-                interseccion_real = fases_jugador["16vos"].intersection(set_base_16vos)
-                datos_ranking.append({"Participante": nombre_real, "Aciertos Totales": len(interseccion_real)})
+                # Los aciertos totales ahora suman los aciertos de 16vos (Col B) + los aciertos de 8vos (Col D)
+                interseccion_16vos = fases_jugador["16vos"].intersection(set_base_16vos)
+                interseccion_8vos = fases_jugador["8vos"].intersection(set_base_8vos)
+                puntos_totales = len(interseccion_16vos) + len(interseccion_8vos)
                 
-                # Rellenar matriz de desglose
+                datos_ranking.append({"Participante": nombre_real, "Aciertos Totales": puntos_totales})
+                
+                # Rellenar matriz de desglose combinada
                 for equipo_base in lista_base_ordenada:
-                    if equipo_base in fases_jugador["16vos"]:
+                    if equipo_base in fases_jugador["16vos"] or equipo_base in fases_jugador["8vos"]:
                         auditoria_puntos[equipo_base] = "✅ Sí"
                     else:
                         auditoria_puntos[equipo_base] = "❌ No"
                 
+                # CORRECCIÓN CLAVE: Buscar en la columna correcta según el número de partido
                 for p in partidos_fecha:
                     num_partido = int(p["Id"].replace("P", ""))
+                    # Partidos 1 al 16 son de 16vos (Columna B), del 17 al 24 son de Octavos (Columna D)
                     set_busqueda = fases_jugador["16vos"] if num_partido <= 16 else fases_jugador["8vos"]
                     
                     encontrado = "Ninguno"
@@ -283,8 +295,8 @@ if df_ranking is not None:
 
     # --- PESTAÑA: DESGLOSE DE ACIERTOS ---
     with tab_desglose:
-        st.markdown("### 🔍 Tabla General de Auditoría de Puntos")
-        st.write("Resultados por fase")
+        st.markdown("### 🔍 Tabla General")
+        st.write("")
         
         if df_desglose.empty or len(df_desglose.columns) <= 2:
             st.warning("No hay equipos registrados en la hoja 'BASE' para desglosar todavía.")
@@ -310,7 +322,7 @@ if df_ranking is not None:
                 if not partidos_fecha or df_pronosticos_fecha.empty:
                     st.info("No hay partidos ni pronósticos registrados para esta fecha.")
                 else:
-                    st.caption(f"Visualizando elecciones reales según la columna correspondiente de la fase jugada el {fecha_select}")
+                    st.caption(f"Visualizando elecciones reales según la columna correspondiente de la fase jugada el {fecha_select} (16vos de Columna B u Octavos de Columna D)")
                     st.dataframe(df_pronosticos_fecha, use_container_width=True, hide_index=True)
 
     # --- PESTAÑA BRACKET DESARROLLO ---
