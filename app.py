@@ -100,15 +100,16 @@ def limpiar_texto(s):
     return s
 
 def extraer_columna_fija(df_raw, col_indice):
-    if df_raw is None or df_raw.shape[0] < 54 or df_raw.shape[1] <= col_indice:
+    if df_raw is None or df_raw.shape[0] < 55 or df_raw.shape[1] <= col_indice:
         return set()
     try:
-        bloque = df_raw.iloc[53:75, col_indice].dropna().astype(str).str.strip()
+        # CORRECCIÓN: Cambiamos de 53 a 54 para ignorar el encabezado de la fila 54 de Excel
+        bloque = df_raw.iloc[54:75, col_indice].dropna().astype(str).str.strip()
         valores_limpios = set(bloque.apply(limpiar_texto))
         
         valores_filtrados = {
             v for v in valores_limpios 
-            if v not in {"", "0", "NAN", "NINGUNO", "NONE", "NO"} and len(v) > 2
+            if v not in {"", "0", "NAN", "NINGUNO", "NONE", "NO", "16VOS", "8VOS", "4TOS", "SEMIS", "FINAL"} and len(v) > 2
         }
         return valores_filtrados
     except Exception:
@@ -295,7 +296,6 @@ if df_ranking is not None:
                     return 'background-color: #fee2e2; color: #991b1b; text-align: center;'
                 return ''
             
-            # Corrección con .map() para compatibilidad moderna de Pandas
             df_estilado = df_desglose.style.map(estilar_tabla_aciertos, subset=df_desglose.columns[2:])
             st.dataframe(df_estilado, use_container_width=True, hide_index=True)
 
