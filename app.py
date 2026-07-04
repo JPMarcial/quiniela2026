@@ -330,7 +330,7 @@ if df_ranking is not None:
             return ''
 
         with tab_16vos:
-            st.caption("Conteo de aciertos basado en los equipos clasificados reales de la Columna B (Hoja BASE)")
+            st.caption("Conteo de aciertos")
             if df_desglose_16vos.empty or len(df_desglose_16vos.columns) <= 2:
                 st.info("No hay datos de 16vos disponibles aún.")
             else:
@@ -338,7 +338,7 @@ if df_ranking is not None:
                 st.dataframe(df_estilado_16, use_container_width=True, hide_index=True)
                 
         with tab_8vos:
-            st.caption("Conteo de aciertos basado en los equipos clasificados reales de la Columna D (Hoja BASE)")
+            st.caption("Conteo de aciertos")
             if df_desglose_8vos.empty or len(df_desglose_8vos.columns) <= 2:
                 st.info("No hay datos de Octavos disponibles aún.")
             else:
@@ -356,7 +356,7 @@ if df_ranking is not None:
                 if not partidos_fecha or df_pronosticos_fecha.empty:
                     st.info("No hay partidos ni pronósticos registrados para esta fecha.")
                 else:
-                    st.caption(f"Visualizando elecciones reales según la columna correspondiente de la fase jugada el {fecha_select} (16vos de Columna B u Octavos de Columna D)")
+                    st.caption(f"Visualizando elecciones reales según la fase jugada el {fecha_select}")
                     st.dataframe(df_pronosticos_fecha, use_container_width=True, hide_index=True)
                     
                     st.info("""
