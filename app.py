@@ -140,7 +140,6 @@ def cargar_y_procesar_todo_el_torneo(spreadsheet_id, pestañas_jugadores, fecha_
         else:
             set_base_16vos = set()
 
-        # Lista ordenada de aciertos de la base para construir las columnas de auditoría
         lista_base_ordenada = sorted(list(set_base_16vos))
 
         # Lectura de marcadores reales en el CALENDARIO excel
@@ -193,7 +192,7 @@ def cargar_y_procesar_todo_el_torneo(spreadsheet_id, pestañas_jugadores, fecha_
                 interseccion_real = fases_jugador["16vos"].intersection(set_base_16vos)
                 datos_ranking.append({"Participante": nombre_real, "Aciertos Totales": len(interseccion_real)})
                 
-                # Rellenar matriz de desglose (si el equipo está en su intersección)
+                # Rellenar matriz de desglose
                 for equipo_base in lista_base_ordenada:
                     if equipo_base in fases_jugador["16vos"]:
                         auditoria_puntos[equipo_base] = "✅ Sí"
@@ -231,7 +230,6 @@ def cargar_y_procesar_todo_el_torneo(spreadsheet_id, pestañas_jugadores, fecha_
         df_pronosticos_fecha = pd.DataFrame(pronosticos_fecha_lista).reset_index(drop=True) if pronosticos_fecha_lista else pd.DataFrame(columns=["Participante"])
         df_desglose = pd.DataFrame(desglose_puntos_lista).reset_index(drop=True) if desglose_puntos_lista else pd.DataFrame()
         
-        # Unir los aciertos totales al desglose para ordenarlo igual que la tabla general
         if not df_desglose.empty and not df_ranking.empty:
             df_desglose = df_ranking[["Participante", "Aciertos Totales"]].merge(df_desglose, on="Participante", how="left")
 
@@ -255,7 +253,7 @@ if df_ranking is not None:
     # --- PESTAÑA PRINCIPAL ---
     with tab_principal:
         st.subheader("📅 Partidos del Día")
-        PARTIDOS_DEL_DIA_LISTA = [partido for partido in CALENDARIO_COMPLETO if partido["Fecha"] == fecha_formateada]
+        PARTIDOS_DEL_DIA_LISTA = [partido for_partido in CALENDARIO_COMPLETO if partido["Fecha"] == fecha_formateada]
         if not PARTIDOS_DEL_DIA_LISTA: 
             st.info(f"⚽ No hay partidos agendados para el día de hoy ({fecha_formateada}).")
         else:
@@ -282,7 +280,7 @@ if df_ranking is not None:
             pts = int(row["Aciertos Totales"])
             st.markdown(f'<div style="display: flex; align-items: center; background-color: #FFFFFF; padding: 12px 18px; margin-bottom: 8px; border-radius: 8px; box-shadow: 0 1px 2px rgba(0,0,0,0.05); border: 1px solid #F1F5F9;"><div style="width: 50px; font-size: 16px; font-weight: 700; color: #64748B;">#{index + 1}</div><div style="flex-grow: 1; font-size: 16px; font-weight: 600; color: #334155;">{row["Participante"]}</div><div style="width: 140px; margin-right: 20px;"><div style="background-color: #E2E8F0; border-radius: 10px; height: 8px; width: 100%;"><div style="background-color: #3B82F6; height: 8px; border-radius: 10px; width: {(pts / max_puntos_global) * 100}%;"></div></div></div><div style="font-size: 16px; font-weight: 700; color: #1E293B; width: 60px; text-align: right;">{pts} pts</div></div>', unsafe_allow_html=True)
 
-    # --- NUEVA PESTAÑA: DESGLOSE DE ACIERTOS ---
+    # --- PESTAÑA: DESGLOSE DE ACIERTOS ---
     with tab_desglose:
         st.markdown("### 🔍 Tabla General de Auditoría de Puntos")
         st.write("Esta matriz muestra exactamente cuáles equipos de la hoja **BASE** tiene cada persona en su columna, garantizando que no se cuenten puntos fantasma.")
@@ -290,7 +288,6 @@ if df_ranking is not None:
         if df_desglose.empty or len(df_desglose.columns) <= 2:
             st.warning("No hay equipos registrados en la hoja 'BASE' para desglosar todavía.")
         else:
-            # Función para aplicar estilos visuales llamativos en la tabla interactiva
             def estilar_tabla_aciertos(val):
                 if val == "✅ Sí":
                     return 'background-color: #d1fae5; color: #065f46; font-weight: bold; text-align: center;'
@@ -298,7 +295,8 @@ if df_ranking is not None:
                     return 'background-color: #fee2e2; color: #991b1b; text-align: center;'
                 return ''
             
-            df_estilado = df_desglose.style.applymap(estilar_tabla_aciertos, subset=df_desglose.columns[2:])
+            # Corrección con .map() para compatibilidad moderna de Pandas
+            df_estilado = df_desglose.style.map(estilar_tabla_aciertos, subset=df_desglose.columns[2:])
             st.dataframe(df_estilado, use_container_width=True, hide_index=True)
 
     # --- PESTAÑA PRONÓSTICOS ---
