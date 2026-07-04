@@ -253,7 +253,7 @@ if df_ranking is not None:
     # --- PESTAÑA PRINCIPAL ---
     with tab_principal:
         st.subheader("📅 Partidos del Día")
-        PARTIDOS_DEL_DIA_LISTA = [partido for_partido in CALENDARIO_COMPLETO if partido["Fecha"] == fecha_formateada]
+        PARTIDOS_DEL_DIA_LISTA = [partido for partido in CALENDARIO_COMPLETO if partido["Fecha"] == fecha_formateada]
         if not PARTIDOS_DEL_DIA_LISTA: 
             st.info(f"⚽ No hay partidos agendados para el día de hoy ({fecha_formateada}).")
         else:
