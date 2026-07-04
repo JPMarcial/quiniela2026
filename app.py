@@ -284,7 +284,7 @@ if df_ranking is not None:
     # --- PESTAÑA: DESGLOSE DE ACIERTOS ---
     with tab_desglose:
         st.markdown("### 🔍 Tabla General de Auditoría de Puntos")
-        st.write("Esta matriz muestra exactamente cuáles equipos de la hoja **BASE** tiene cada persona en su columna, garantizando que no se cuenten puntos fantasma.")
+        st.write("Resultados por fase")
         
         if df_desglose.empty or len(df_desglose.columns) <= 2:
             st.warning("No hay equipos registrados en la hoja 'BASE' para desglosar todavía.")
