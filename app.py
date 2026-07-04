@@ -100,17 +100,12 @@ def limpiar_texto(s):
     return s
 
 def extraer_columna_fija(df_raw, col_indice):
-    """
-    Lee de forma segura el bloque vertical a partir de la fila 54 (índice 53)
-    para una columna determinada, ignorando vacíos y la palabra 'NINGUNO'.
-    """
     if df_raw is None or df_raw.shape[0] < 54 or df_raw.shape[1] <= col_indice:
         return set()
     try:
         bloque = df_raw.iloc[53:75, col_indice].dropna().astype(str).str.strip()
         valores_limpios = set(bloque.apply(limpiar_texto))
         
-        # Filtrado estricto para evitar emparejar falsos positivos
         valores_filtrados = {
             v for v in valores_limpios 
             if v not in {"", "0", "NAN", "NINGUNO", "NONE", "NO"} and len(v) > 2
@@ -124,6 +119,7 @@ def cargar_y_procesar_todo_el_torneo(spreadsheet_id, pestañas_jugadores, fecha_
     url = f"https://drive.google.com/uc?export=download&id={spreadsheet_id}"
     datos_ranking = []
     pronosticos_fecha_lista = []
+    desglose_puntos_lista = []
     
     partidos_fecha = [partido for partido in CALENDARIO_COMPLETO if partido["Fecha"] == fecha_consulta]
     
@@ -133,16 +129,19 @@ def cargar_y_procesar_todo_el_torneo(spreadsheet_id, pestañas_jugadores, fecha_
     
     try:
         respuesta = requests.get(url, timeout=15)
-        if respuesta.status_code != 200: return None, None, partidos_fecha, bracket_data
+        if respuesta.status_code != 200: return None, None, partidos_fecha, bracket_data, pd.DataFrame()
         excel_file = pd.ExcelFile(io.BytesIO(respuesta.content), engine='openpyxl')
         nombres_pestañas = excel_file.sheet_names
         
-        # Cargar matriz de la hoja BASE para calificar aciertos globales (Columna B de la hoja Base)
+        # Cargar matriz de la hoja BASE para calificar aciertos globales (Columna B)
         if "BASE" in nombres_pestañas:
             df_base_raw = excel_file.parse("BASE", header=None, dtype=str)
             set_base_16vos = extraer_columna_fija(df_base_raw, 1) # Columna B
         else:
             set_base_16vos = set()
+
+        # Lista ordenada de aciertos de la base para construir las columnas de auditoría
+        lista_base_ordenada = sorted(list(set_base_16vos))
 
         # Lectura de marcadores reales en el CALENDARIO excel
         pestaña_cal = [n for n in nombres_pestañas if "CALENDARIO" in n.upper()]
@@ -176,38 +175,34 @@ def cargar_y_procesar_todo_el_torneo(spreadsheet_id, pestañas_jugadores, fecha_
                 p["Resultado"] = f"{bracket_data[id_p]['Goles 1']} - {bracket_data[id_p]['Goles 2']}"
                 p["Ganador"] = bracket_data[id_p]["Ganador"]
 
-        # Procesar elecciones individuales por columna correspondiente
+        # Procesar elecciones individuales
         for pestaña in pestañas_jugadores:
             df_jugador_raw = None; nombre_real = pestaña
-            
             fases_jugador = {"16vos": set(), "8vos": set(), "4tos": set(), "3er": set(), "Final": set()}
             
             if pestaña in nombres_pestañas:
                 df_jugador_raw = excel_file.parse(pestaña, header=None, dtype=str)
                 nombre_real = obtener_nombre_real(df_jugador_raw, pestaña)
                 
-                fases_jugador["16vos"] = extraer_columna_fija(df_jugador_raw, 1)  # Columna B (B54)
-                fases_jugador["8vos"]  = extraer_columna_fija(df_jugador_raw, 3)  # Columna D (D54)
-                fases_jugador["4tos"]  = extraer_columna_fija(df_jugador_raw, 5)  # Columna F (F54)
-                fases_jugador["3er"]   = extraer_columna_fija(df_jugador_raw, 7)  # Columna H (H54)
-                fases_jugador["Final"] = extraer_columna_fija(df_jugador_raw, 9)  # Columna J (J54)
+                fases_jugador["16vos"] = extraer_columna_fija(df_jugador_raw, 1)  # Columna B
 
             elecciones_fecha = {"Participante": nombre_real}
+            auditoria_puntos = {"Participante": nombre_real}
             
             if df_jugador_raw is not None:
-                datos_ranking.append({"Participante": nombre_real, "Aciertos Totales": len(fases_jugador["16vos"].intersection(set_base_16vos))})
+                interseccion_real = fases_jugador["16vos"].intersection(set_base_16vos)
+                datos_ranking.append({"Participante": nombre_real, "Aciertos Totales": len(interseccion_real)})
+                
+                # Rellenar matriz de desglose (si el equipo está en su intersección)
+                for equipo_base in lista_base_ordenada:
+                    if equipo_base in fases_jugador["16vos"]:
+                        auditoria_puntos[equipo_base] = "✅ Sí"
+                    else:
+                        auditoria_puntos[equipo_base] = "❌ No"
                 
                 for p in partidos_fecha:
                     num_partido = int(p["Id"].replace("P", ""))
-                    
-                    if num_partido <= 16:
-                        set_busqueda = fases_jugador["16vos"]
-                    elif 17 <= num_partido <= 24:
-                        set_busqueda = fases_jugador["8vos"]
-                    elif 25 <= num_partido <= 28:
-                        set_busqueda = fases_jugador["4tos"]
-                    else:
-                        set_busqueda = fases_jugador["Final"]
+                    set_busqueda = fases_jugador["16vos"] if num_partido <= 16 else fases_jugador["8vos"]
                     
                     encontrado = "Ninguno"
                     for pronostico in list(set_busqueda):
@@ -224,16 +219,25 @@ def cargar_y_procesar_todo_el_torneo(spreadsheet_id, pestañas_jugadores, fecha_
                         elecciones_fecha[p["Texto"]] = encontrado
             else:
                 datos_ranking.append({"Participante": nombre_real, "Aciertos Totales": 0})
+                for equipo_base in lista_base_ordenada:
+                    auditoria_puntos[equipo_base] = "❌ No"
                 for p in partidos_fecha: elecciones_fecha[p["Texto"]] = "Sin Datos"
                 
+            desglose_puntos_lista.append(auditoria_puntos)
             if partidos_fecha: 
                 pronosticos_fecha_lista.append(elecciones_fecha)
                 
         df_ranking = pd.DataFrame(datos_ranking).sort_values(by="Aciertos Totales", ascending=False).drop_duplicates(subset=["Participante"]).reset_index(drop=True)
         df_pronosticos_fecha = pd.DataFrame(pronosticos_fecha_lista).reset_index(drop=True) if pronosticos_fecha_lista else pd.DataFrame(columns=["Participante"])
-        return df_ranking, df_pronosticos_fecha, partidos_fecha, bracket_data
+        df_desglose = pd.DataFrame(desglose_puntos_lista).reset_index(drop=True) if desglose_puntos_lista else pd.DataFrame()
+        
+        # Unir los aciertos totales al desglose para ordenarlo igual que la tabla general
+        if not df_desglose.empty and not df_ranking.empty:
+            df_desglose = df_ranking[["Participante", "Aciertos Totales"]].merge(df_desglose, on="Participante", how="left")
+
+        return df_ranking, df_pronosticos_fecha, partidos_fecha, bracket_data, df_desglose
     except Exception: 
-        return None, None, partidos_fecha, bracket_data
+        return None, None, partidos_fecha, bracket_data, pd.DataFrame()
 
 # ==============================================================================
 # INTERFAZ GRÁFICA DE STREAMLIT
@@ -243,15 +247,14 @@ default_idx = FECHAS_DISPONIBLES.index(fecha_formateada) if fecha_formateada in 
 
 if "BASE" not in st.session_state:
     with st.spinner("🚀 Sincronizando datos del torneo..."):
-        df_ranking, _, _, BRACKET = cargar_y_procesar_todo_el_torneo(SPREADSHEET_ID, ID_PESTAÑAS, FECHAS_DISPONIBLES[default_idx])
+        df_ranking, _, _, BRACKET, df_desglose = cargar_y_procesar_todo_el_torneo(SPREADSHEET_ID, ID_PESTAÑAS, FECHAS_DISPONIBLES[default_idx])
 
 if df_ranking is not None:
-    tab_principal, tab_hoy, tab_bracket_dev = st.tabs(["📊 Clasificación", "🔮 Pronósticos por Fecha", "🛠️ Desarrollo Bracket"])
+    tab_principal, tab_desglose, tab_hoy, tab_bracket_dev = st.tabs(["📊 Clasificación", "🔍 Desglose de Aciertos", "🔮 Pronósticos por Fecha", "🛠️ Desarrollo Bracket"])
 
     # --- PESTAÑA PRINCIPAL ---
     with tab_principal:
         st.subheader("📅 Partidos del Día")
-        
         PARTIDOS_DEL_DIA_LISTA = [partido for partido in CALENDARIO_COMPLETO if partido["Fecha"] == fecha_formateada]
         if not PARTIDOS_DEL_DIA_LISTA: 
             st.info(f"⚽ No hay partidos agendados para el día de hoy ({fecha_formateada}).")
@@ -279,6 +282,25 @@ if df_ranking is not None:
             pts = int(row["Aciertos Totales"])
             st.markdown(f'<div style="display: flex; align-items: center; background-color: #FFFFFF; padding: 12px 18px; margin-bottom: 8px; border-radius: 8px; box-shadow: 0 1px 2px rgba(0,0,0,0.05); border: 1px solid #F1F5F9;"><div style="width: 50px; font-size: 16px; font-weight: 700; color: #64748B;">#{index + 1}</div><div style="flex-grow: 1; font-size: 16px; font-weight: 600; color: #334155;">{row["Participante"]}</div><div style="width: 140px; margin-right: 20px;"><div style="background-color: #E2E8F0; border-radius: 10px; height: 8px; width: 100%;"><div style="background-color: #3B82F6; height: 8px; border-radius: 10px; width: {(pts / max_puntos_global) * 100}%;"></div></div></div><div style="font-size: 16px; font-weight: 700; color: #1E293B; width: 60px; text-align: right;">{pts} pts</div></div>', unsafe_allow_html=True)
 
+    # --- NUEVA PESTAÑA: DESGLOSE DE ACIERTOS ---
+    with tab_desglose:
+        st.markdown("### 🔍 Tabla General de Auditoría de Puntos")
+        st.write("Esta matriz muestra exactamente cuáles equipos de la hoja **BASE** tiene cada persona en su columna, garantizando que no se cuenten puntos fantasma.")
+        
+        if df_desglose.empty or len(df_desglose.columns) <= 2:
+            st.warning("No hay equipos registrados en la hoja 'BASE' para desglosar todavía.")
+        else:
+            # Función para aplicar estilos visuales llamativos en la tabla interactiva
+            def estilar_tabla_aciertos(val):
+                if val == "✅ Sí":
+                    return 'background-color: #d1fae5; color: #065f46; font-weight: bold; text-align: center;'
+                elif val == "❌ No":
+                    return 'background-color: #fee2e2; color: #991b1b; text-align: center;'
+                return ''
+            
+            df_estilado = df_desglose.style.applymap(estilar_tabla_aciertos, subset=df_desglose.columns[2:])
+            st.dataframe(df_estilado, use_container_width=True, hide_index=True)
+
     # --- PESTAÑA PRONÓSTICOS ---
     with tab_hoy:
         st.markdown("### 🔮 Consulta de Pronósticos")
@@ -286,7 +308,7 @@ if df_ranking is not None:
         
         for idx_f, fecha_select in enumerate(FECHAS_DISPONIBLES):
             with sub_tabs_fechas[idx_f]:
-                _, df_pronosticos_fecha, partidos_fecha, _ = cargar_y_procesar_todo_el_torneo(SPREADSHEET_ID, ID_PESTAÑAS, fecha_select)
+                _, df_pronosticos_fecha, partidos_fecha, _, _ = cargar_y_procesar_todo_el_torneo(SPREADSHEET_ID, ID_PESTAÑAS, fecha_select)
                 if not partidos_fecha or df_pronosticos_fecha.empty:
                     st.info("No hay partidos ni pronósticos registrados para esta fecha.")
                 else:
