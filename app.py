@@ -72,15 +72,13 @@ CALENDARIO_COMPLETO = [
     {"Id": "P22", "Fecha": "06/07/2026", "Rival 1": "PORTUGAL", "Rival 2": "ESPAÑA", "Texto": "Portugal 🆚 España", "Hora": "13:00", "Keys 1": ["PORTUGAL", "POR"], "Keys 2": ["ESPAÑA", "ESP"]},
     {"Id": "P23", "Fecha": "07/07/2026", "Rival 1": "SUIZA", "Rival 2": "COLOMBIA", "Texto": "Suiza 🆚 Colombia", "Hora": "14:00", "Keys 1": ["SUIZA", "SUI"], "Keys 2": ["COLOMBIA", "COL"]},
     {"Id": "P24", "Fecha": "07/07/2026", "Rival 1": "ARGENTINA", "Rival 2": "EGIPTO", "Texto": "Argentina 🆚 Egipto", "Hora": "10:00", "Keys 1": ["ARGENTINA", "ARG"], "Keys 2": ["EGIPTO", "EGY"]}
-    
-    # Nota: Agregar aquí partidos de 4tos, 3er lugar y Final conforme se definan las fechas exactas.
 ]
 
 SPREADSHEET_ID = "1FTUtzXd-ODXBB0QxIf-68FKf0ZQzVnWM"
 ID_PESTAÑAS = ["HAAM", "CA", "HR", "JAG", "FB", "PM", "JLJF", "MASM", "CAVL", "AMG", "CAER", "VAVA", "JAMP", "VCBH", "JMG", "JV", "CAAM", "DSR", "SLO", "JGLM"]
 
 # ==============================================================================
-# 2. FUNCIONES DE PROCESAMIENTO MIGRADAS AL MAPEO FIJO POR COLUMNAS
+# 2. FUNCIONES DE PROCESAMIENTO
 # ==============================================================================
 def obtener_nombre_real(df_raw, id_pestaña):
     try:
@@ -104,16 +102,20 @@ def limpiar_texto(s):
 def extraer_columna_fija(df_raw, col_indice):
     """
     Lee de forma segura el bloque vertical a partir de la fila 54 (índice 53)
-    para una columna determinada.
+    para una columna determinada, ignorando vacíos y la palabra 'NINGUNO'.
     """
     if df_raw is None or df_raw.shape[0] < 54 or df_raw.shape[1] <= col_indice:
         return set()
     try:
-        # Extraemos un rango prudente hacia abajo (ej. hasta 20 celdas) para cubrir los nombres ingresados
         bloque = df_raw.iloc[53:75, col_indice].dropna().astype(str).str.strip()
         valores_limpios = set(bloque.apply(limpiar_texto))
-        valores_limpios.difference_update({"", "0", "NAN"})
-        return valores_limpios
+        
+        # Filtrado estricto para evitar emparejar falsos positivos
+        valores_filtrados = {
+            v for v in valores_limpios 
+            if v not in {"", "0", "NAN", "NINGUNO", "NONE", "NO"} and len(v) > 2
+        }
+        return valores_filtrados
     except Exception:
         return set()
 
@@ -178,14 +180,12 @@ def cargar_y_procesar_todo_el_torneo(spreadsheet_id, pestañas_jugadores, fecha_
         for pestaña in pestañas_jugadores:
             df_jugador_raw = None; nombre_real = pestaña
             
-            # Diccionario para almacenar los sets de elecciones por fase
             fases_jugador = {"16vos": set(), "8vos": set(), "4tos": set(), "3er": set(), "Final": set()}
             
             if pestaña in nombres_pestañas:
                 df_jugador_raw = excel_file.parse(pestaña, header=None, dtype=str)
                 nombre_real = obtener_nombre_real(df_jugador_raw, pestaña)
                 
-                # Extracción exacta mediante mapeo de columnas indicado:
                 fases_jugador["16vos"] = extraer_columna_fija(df_jugador_raw, 1)  # Columna B (B54)
                 fases_jugador["8vos"]  = extraer_columna_fija(df_jugador_raw, 3)  # Columna D (D54)
                 fases_jugador["4tos"]  = extraer_columna_fija(df_jugador_raw, 5)  # Columna F (F54)
@@ -195,13 +195,11 @@ def cargar_y_procesar_todo_el_torneo(spreadsheet_id, pestañas_jugadores, fecha_
             elecciones_fecha = {"Participante": nombre_real}
             
             if df_jugador_raw is not None:
-                # Tabla general acumulada (aciertos basándose en la columna B del jugador vs hoja base)
                 datos_ranking.append({"Participante": nombre_real, "Aciertos Totales": len(fases_jugador["16vos"].intersection(set_base_16vos))})
                 
                 for p in partidos_fecha:
                     num_partido = int(p["Id"].replace("P", ""))
                     
-                    # Ruteo Dinámico: Asignamos el set de búsqueda según el ID de partido y su fase real
                     if num_partido <= 16:
                         set_busqueda = fases_jugador["16vos"]
                     elif 17 <= num_partido <= 24:
@@ -209,10 +207,9 @@ def cargar_y_procesar_todo_el_torneo(spreadsheet_id, pestañas_jugadores, fecha_
                     elif 25 <= num_partido <= 28:
                         set_busqueda = fases_jugador["4tos"]
                     else:
-                        set_busqueda = fases_jugador["Final"] # Ajustar según IDs de finales
+                        set_busqueda = fases_jugador["Final"]
                     
                     encontrado = "Ninguno"
-                    # Buscamos si alguno de los equipos del partido de hoy coincide con lo que el usuario escribió en esa columna
                     for pronostico in list(set_busqueda):
                         if any(k in pronostico for k in p["Keys 1"]): 
                             encontrado = p["Rival 1"].title()
