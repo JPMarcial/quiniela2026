@@ -134,7 +134,7 @@ def cargar_y_procesar_todo_el_torneo(spreadsheet_id, pestañas_jugadores, fecha_
     desglose_8vos_lista = []
     desglose_4tos_lista = []
     
-    partidos_fecha = [partido for_partido in CALENDARIO_COMPLETO if partido["Fecha"] == fecha_consulta]
+    partidos_fecha = [partido for partido in CALENDARIO_COMPLETO if partido["Fecha"] == fecha_consulta]
     
     bracket_data = {}
     for p in CALENDARIO_COMPLETO:
@@ -323,7 +323,7 @@ if df_ranking is not None:
     # --- PESTAÑA PRINCIPAL ---
     with tab_principal:
         st.subheader("📅 Partidos del Día")
-        PARTIDOS_DEL_DIA_LISTA = [partido for_partido in CALENDARIO_COMPLETO if partido["Fecha"] == fecha_formateada]
+        PARTIDOS_DEL_DIA_LISTA = [partido for partido in CALENDARIO_COMPLETO if partido["Fecha"] == fecha_formateada]
         if not PARTIDOS_DEL_DIA_LISTA: 
             st.info(f"⚽ No hay partidos agendados para el día de hoy ({fecha_formateada}).")
         else:
