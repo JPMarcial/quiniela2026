@@ -71,12 +71,17 @@ CALENDARIO_COMPLETO = [
     {"Id": "P21", "Fecha": "06/07/2026", "Rival 1": "ESTADOS UNIDOS", "Rival 2": "BÉLGICA", "Texto": "Estados Unidos 🆚 Bélgica", "Hora": "18:00", "Keys 1": ["ESTADOS UNIDOS", "USA", "EEUU"], "Keys 2": ["BELGICA", "BÉLGICA", "BEL"]},
     {"Id": "P22", "Fecha": "06/07/2026", "Rival 1": "PORTUGAL", "Rival 2": "ESPAÑA", "Texto": "Portugal 🆚 España", "Hora": "13:00", "Keys 1": ["PORTUGAL", "POR"], "Keys 2": ["ESPAÑA", "ESP"]},
     {"Id": "P23", "Fecha": "07/07/2026", "Rival 1": "SUIZA", "Rival 2": "COLOMBIA", "Texto": "Suiza 🆚 Colombia", "Hora": "14:00", "Keys 1": ["SUIZA", "SUI"], "Keys 2": ["COLOMBIA", "COL"]},
-    {"Id": "P24", "Fecha": "07/07/2026", "Rival 1": "ARGENTINA", "Rival 2": "EGIPTO", "Texto": "Argentina 🆚 Egipto", "Hora": "10:00", "Keys 1": ["ARGENTINA", "ARG"], "Keys 2": ["EGIPTO", "EGY"]}
+    {"Id": "P24", "Fecha": "07/07/2026", "Rival 1": "ARGENTINA", "Rival 2": "EGIPTO", "Texto": "Argentina 🆚 Egipto", "Hora": "10:00", "Keys 1": ["ARGENTINA", "ARG"], "Keys 2": ["EGIPTO", "EGY"]},
+
+    # --- CUARTOS DE FINAL ---
+    {"Id": "P25", "Fecha": "09/07/2026", "Rival 1": "FRANCIA", "Rival 2": "MARRUECOS", "Texto": "Francia 🆚 Marruecos", "Hora": "14:00", "Keys 1": ["FRANCIA", "FRA"], "Keys 2": ["MARRUECOS", "MAR"]},
+    {"Id": "P26", "Fecha": "10/07/2026", "Rival 1": "ESPAÑA", "Rival 2": "BÉLGICA", "Texto": "España 🆚 Bélgica", "Hora": "13:00", "Keys 1": ["ESPAÑA", "ESP"], "Keys 2": ["BELGICA", "BÉLGICA", "BEL"]},
+    {"Id": "P27", "Fecha": "11/07/2026", "Rival 1": "NORUEGA", "Rival 2": "INGLATERRA", "Texto": "Noruega 🆚 Inglaterra", "Hora": "15:00", "Keys 1": ["NORUEGA", "NOR"], "Keys 2": ["INGLATERRA", "ENG"]},
+    {"Id": "P28", "Fecha": "11/07/2026", "Rival 1": "ARGENTINA", "Rival 2": "SUIZA/COLOMBIA", "Texto": "Argentina 🆚 Suiza/Colombia", "Hora": "19:00", "Keys 1": ["ARGENTINA", "ARG"], "Keys 2": ["SUIZA", "SUI", "COLOMBIA", "COL"]}
 ]
 
 SPREADSHEET_ID = "1FTUtzXd-ODXBB0QxIf-68FKf0ZQzVnWM"
 ID_PESTAÑAS = ["HAAM", "CA", "HR", "JAG", "FB", "PM", "JLJF", "MASM", "CAVL", "AMG", "CAER", "VAVA", "JAMP", "VCBH", "JMG", "JV", "CAAM", "DSR", "SLO", "JGLM"]
-
 # ==============================================================================
 # 2. FUNCIONES DE PROCESAMIENTO
 # ==============================================================================
