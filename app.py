@@ -325,7 +325,7 @@ if df_ranking is not None:
         st.subheader("📅 Partidos del Día")
         PARTIDOS_DEL_DIA_LISTA = [partido for partido in CALENDARIO_COMPLETO if partido["Fecha"] == fecha_formateada]
         if not PARTIDOS_DEL_DIA_LISTA: 
-            st.info(f"⚽ No hay partidos agendados para el día de hoy ({fecha_formateada}).")
+            st.info(f"⚽ No hay partidos agendados para el día de hoy, sal a que te de el aire o toca pasto ({fecha_formateada}).")
         else:
             columnas_juegos = st.columns(len(PARTIDOS_DEL_DIA_LISTA))
             for i, partido in enumerate(PARTIDOS_DEL_DIA_LISTA):
