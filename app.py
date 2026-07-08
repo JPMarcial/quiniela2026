@@ -328,10 +328,11 @@ if df_ranking is not None:
         if not PARTIDOS_DEL_DIA_LISTA: 
             st.info(f"⚽ No hay partidos agendados para el día de hoy, sal a que te de el aire ({fecha_formateada}).")
             
-            # Centramos la imagen de Homero para que quede estéticamente perfecta
-            col_img1, col_img2, col_img3 = st.columns([1, 2, 1])
+            # Ajustamos las proporciones de las columnas para hacer el contenedor central más pequeño
+            col_img1, col_img2, col_img3 = st.columns([2, 1.5, 2])
             with col_img2:
-                st.image("01.jpg", caption="Todos esperando el regreso de la quiniela...", use_container_width=True)
+                # Fijamos un ancho máximo de 350px para que no se vea gigante
+                st.image("01.jpg", caption=". . . ", width=350)
                 
         else:
             columnas_juegos = st.columns(len(PARTIDOS_DEL_DIA_LISTA))
