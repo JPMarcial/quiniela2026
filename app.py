@@ -324,8 +324,15 @@ if df_ranking is not None:
     with tab_principal:
         st.subheader("📅 Partidos del Día")
         PARTIDOS_DEL_DIA_LISTA = [partido for partido in CALENDARIO_COMPLETO if partido["Fecha"] == fecha_formateada]
+        
         if not PARTIDOS_DEL_DIA_LISTA: 
             st.info(f"⚽ No hay partidos agendados para el día de hoy, sal a que te de el aire ({fecha_formateada}).")
+            
+            # Centramos la imagen de Homero para que quede estéticamente perfecta
+            col_img1, col_img2, col_img3 = st.columns([1, 2, 1])
+            with col_img2:
+                st.image("01.jpg", caption="Todos esperando el regreso de la quiniela...", use_container_width=True)
+                
         else:
             columnas_juegos = st.columns(len(PARTIDOS_DEL_DIA_LISTA))
             for i, partido in enumerate(PARTIDOS_DEL_DIA_LISTA):
@@ -349,7 +356,6 @@ if df_ranking is not None:
         for index, row in df_ranking.iterrows():
             pts = int(row["Aciertos Totales"])
             st.markdown(f'<div style="display: flex; align-items: center; background-color: #FFFFFF; padding: 12px 18px; margin-bottom: 8px; border-radius: 8px; box-shadow: 0 1px 2px rgba(0,0,0,0.05); border: 1px solid #F1F5F9;"><div style="width: 50px; font-size: 16px; font-weight: 700; color: #64748B;">#{index + 1}</div><div style="flex-grow: 1; font-size: 16px; font-weight: 600; color: #334155;">{row["Participante"]}</div><div style="width: 140px; margin-right: 20px;"><div style="background-color: #E2E8F0; border-radius: 10px; height: 8px; width: 100%;"><div style="background-color: #3B82F6; height: 8px; border-radius: 10px; width: {(pts / max_puntos_global) * 100}%;"></div></div></div><div style="font-size: 16px; font-weight: 700; color: #1E293B; width: 60px; text-align: right;">{pts} pts</div></div>', unsafe_allow_html=True)
-
     # --- PESTAÑA: DESGLOSE DE ACIERTOS (MODIFICADA CON 16VOS, 8VOS Y 4TOS) ---
     with tab_desglose:
         st.markdown("### 🔍 Tabla General de Equipos Colocados (16vos, 8vos y 4tos)")
