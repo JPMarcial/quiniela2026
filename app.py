@@ -326,7 +326,7 @@ if df_ranking is not None:
         PARTIDOS_DEL_DIA_LISTA = [partido for partido in CALENDARIO_COMPLETO if partido["Fecha"] == fecha_formateada]
         
         if not PARTIDOS_DEL_DIA_LISTA: 
-            st.info(f"⚽ No hay partidos agendados para el día de hoy, sal a que te de el aire ({fecha_formateada}).")
+            st.info(f"⚽ No hay partidos agendados para el día de hoy, sal a que te dé el aire ({fecha_formateada}).")
             
             # Ajustamos las proporciones de las columnas para hacer el contenedor central más pequeño
             col_img1, col_img2, col_img3 = st.columns([2, 1.5, 2])
