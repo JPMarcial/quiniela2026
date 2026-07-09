@@ -318,7 +318,7 @@ if "BASE" not in st.session_state:
         df_ranking, _, _, BRACKET, df_desglose_16vos, df_desglose_8vos, df_desglose_4tos = cargar_y_procesar_todo_el_torneo(SPREADSHEET_ID, ID_PESTAÑAS, FECHAS_DISPONIBLES[default_idx])
 
 if df_ranking is not None:
-    tab_principal, tab_desglose, tab_hoy, tab_bracket_dev, tab_ganador = st.tabs(["📊 Clasificación", "🔍 Desglose de Aciertos", "🔮 Pronósticos por Fecha", "Bracket", ">:("])
+    tab_principal, tab_desglose, tab_hoy, tab_bracket_dev, tab_ganador = st.tabs(["📊 Clasificación", "🔍 Desglose de Aciertos", "🔮 Pronósticos por Fecha", "Bracket"])
 
     # --- PESTAÑA PRINCIPAL ---
     with tab_principal:
