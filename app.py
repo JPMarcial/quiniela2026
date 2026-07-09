@@ -318,7 +318,7 @@ if "BASE" not in st.session_state:
         df_ranking, _, _, BRACKET, df_desglose_16vos, df_desglose_8vos, df_desglose_4tos = cargar_y_procesar_todo_el_torneo(SPREADSHEET_ID, ID_PESTAÑAS, FECHAS_DISPONIBLES[default_idx])
 
 if df_ranking is not None:
-    tab_principal, tab_desglose, tab_hoy, tab_bracket_dev = st.tabs(["📊 Clasificación", "🔍 Desglose de Aciertos", "🔮 Pronósticos por Fecha", "🛠️ Desarrollo Bracket"])
+    tab_principal, tab_desglose, tab_hoy, tab_bracket_dev, tab_ganador = st.tabs(["📊 Clasificación", "🔍 Desglose de Aciertos", "🔮 Pronósticos por Fecha", "Bracket", ">:("])
 
     # --- PESTAÑA PRINCIPAL ---
     with tab_principal:
@@ -521,3 +521,19 @@ if df_ranking is not None:
         </div>
         """
         st.components.v1.html(bracket_html, height=900, scrolling=True)
+    # --- PESTAÑA: CUANDO VES AL QUE VA A GANAR LA QUINIELA ---
+    with tab_ganador:
+        st.markdown("<h3 style='text-align: center;'>😏 Cuando ves al que va a ganar la quiniela...</h3>", unsafe_allow_html=True)
+        st.write("")
+        
+        # Centramos el GIF usando columnas adaptables
+        col_gif1, col_gif2, col_gif3 = st.columns([1, 2, 1])
+        with col_gif2:
+            # Incrustamos el GIF de Tenor de forma limpia y responsiva
+            gif_html = """
+            <div class="tenor-gif-embed" data-postid="15392276595568112521" data-share-method="host" data-aspect-ratio="1.33333" data-width="100%">
+                <a href="https://tenor.com/view/cuando-ves-al-que-va-a-ganar-la-quiniela-gif-15392276595568112521">Cuando Ves Al Que Va A Ganar La Quiniela GIF</a>
+            </div>
+            <script type="text/javascript" async src="https://tenor.com/js/embed.js"></script>
+            """
+            st.components.v1.html(gif_html, height=400)
