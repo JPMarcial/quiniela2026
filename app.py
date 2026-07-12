@@ -340,8 +340,7 @@ def cargar_y_procesar_todo_el_torneo(spreadsheet_id, pestañas_jugadores, fecha_
 # INTERFAZ GRÁFICA DE STREAMLIT
 # ==============================================================================
 FECHAS_DISPONIBLES = sorted(list(set(p["Fecha"] for p in CALENDARIO_COMPLETO)), key=lambda x: datetime.strptime(x, "%d/%m/%Y"))
-default_idx = FECHAS_DISPONIBLES.index(fecha_formateada) if fecha_formateada in FECHAS_DISDESP else 0
-
+default_idx = FECHAS_DISPONIBLES.index(fecha_formateada) if fecha_formateada in FECHAS_DISPONIBLES else 0
 if "BASE" not in st.session_state:
     with st.spinner("🚀 Sincronizando datos del torneo..."):
         df_ranking, _, _, BRACKET, df_desglose_16vos, df_desglose_8vos, df_desglose_4tos, df_desglose_semis = cargar_y_procesar_todo_el_torneo(SPREADSHEET_ID, ID_PESTAÑAS, FECHAS_DISPONIBLES[default_idx])
