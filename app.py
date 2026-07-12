@@ -151,13 +151,13 @@ def cargar_y_procesar_todo_el_torneo(spreadsheet_id, pestañas_jugadores, fecha_
         # Cargar matriz de la hoja BASE para calificar aciertos globales
         if "BASE" in nombres_pestañas:
             df_base_raw = excel_file.parse("BASE", header=None, dtype=str)
-            set_base_16vos = extraer_columna_fija(df_base_raw, 1) # Columna B
-            set_base_8vos = extraer_columna_fija(df_base_raw, 3)  # Columna D
-            set_base_4tos = extraer_columna_fija(df_base_raw, 5)  # Columna F (Filas 55-90 de base)
+            set_base_16vos = extraer_columna_fija(df_base_raw, 1)
+            set_base_8vos = extraer_columna_fija(df_base_raw, 3)
+            set_base_4tos = extraer_columna_fija(df_base_raw, 5)
             
-            # Semifinalistas reales (Columna F, filas 55 a 58)[cite: 2]
+            # Semifinalistas reales (F55-F58)[cite: 2]
             set_base_semis = extraer_columna_fija(df_base_raw, 5, fila_inicio=54, fila_fin=58)[cite: 2]
-            # Finalistas reales (Columna J, filas 55 a 56)[cite: 2]
+            # Finalistas reales (J55-J56)[cite: 2]
             set_base_final = extraer_columna_fija(df_base_raw, 9, fila_inicio=54, fila_fin=56)[cite: 2]
         else:
             set_base_16vos, set_base_8vos, set_base_4tos, set_base_semis, set_base_final = set(), set(), set(), set(), set()
@@ -165,7 +165,7 @@ def cargar_y_procesar_todo_el_torneo(spreadsheet_id, pestañas_jugadores, fecha_
         lista_base_16vos_ordenada = sorted(list(set_base_16vos))
         lista_base_8vos_ordenada = sorted(list(set_base_8vos))
         lista_base_4tos_ordenada = sorted(list(set_base_4tos))
-        lista_base_semis_ordenada = sorted(list(set_base_semis))
+        lista_base_semis_ordenada = sorted(list(set_base_semis))[cite: 2]
 
         # Lectura de marcadores reales en el CALENDARIO excel
         pestaña_cal = [n for n in nombres_pestañas if "CALENDARIO" in n.upper()]
@@ -208,20 +208,20 @@ def cargar_y_procesar_todo_el_torneo(spreadsheet_id, pestañas_jugadores, fecha_
                 df_jugador_raw = excel_file.parse(pestaña, header=None, dtype=str)
                 nombre_real = obtener_nombre_real(df_jugador_raw, pestaña)
                 
-                fases_jugador["16vos"] = extraer_columna_fija(df_jugador_raw, 1)  # Columna B
-                fases_jugador["8vos"] = extraer_columna_fija(df_jugador_raw, 3)   # Columna D
-                fases_jugador["4tos"] = extraer_columna_fija(df_jugador_raw, 5)   # Columna F general
+                fases_jugador["16vos"] = extraer_columna_fija(df_jugador_raw, 1)
+                fases_jugador["8vos"] = extraer_columna_fija(df_jugador_raw, 3)
+                fases_jugador["4tos"] = extraer_columna_fija(df_jugador_raw, 5)
                 
                 # Semifinalistas elegidos por persona en F55-F58[cite: 2]
                 fases_jugador["semis"] = extraer_columna_fija(df_jugador_raw, 5, fila_inicio=54, fila_fin=58)[cite: 2]
-                # Finalistas en J55-J56[cite: 2]
+                # Finalistas elegidos en J55-J56[cite: 2]
                 fases_jugador["final"] = extraer_columna_fija(df_jugador_raw, 9, fila_inicio=54, fila_fin=56)[cite: 2]
 
             elecciones_fecha = {"Participante": nombre_real}
             auditoria_16vos = {"Participante": nombre_real}
             auditoria_8vos = {"Participante": nombre_real}
             auditoria_4tos = {"Participante": nombre_real}
-            auditoria_semis = {"Participante": nombre_real}
+            auditoria_semis = {"Participante": nombre_real}[cite: 2]
             
             if df_jugador_raw is not None:
                 interseccion_16vos = fases_jugador["16vos"].intersection(set_base_16vos)
@@ -236,7 +236,6 @@ def cargar_y_procesar_todo_el_torneo(spreadsheet_id, pestañas_jugadores, fecha_
                 puntos_semis = len(interseccion_semis)[cite: 2]
                 puntos_final = len(interseccion_final)[cite: 2]
                 
-                # Puntos totales acumulados
                 puntos_totales = puntos_16vos + puntos_8vos + puntos_4tos + puntos_semis + puntos_final[cite: 2]
                 
                 datos_ranking.append({
@@ -248,7 +247,7 @@ def cargar_y_procesar_todo_el_torneo(spreadsheet_id, pestañas_jugadores, fecha_
                     "Aciertos Semis": puntos_semis[cite: 2]
                 })
                 
-                # Desgloses correspondientes
+                # Desgloses individuales
                 auditoria_16vos["Aciertos 16vos"] = puntos_16vos
                 for equipo_base in lista_base_16vos_ordenada:
                     auditoria_16vos[equipo_base] = "✅ Sí" if equipo_base in fases_jugador["16vos"] else "❌ No"
@@ -261,7 +260,6 @@ def cargar_y_procesar_todo_el_torneo(spreadsheet_id, pestañas_jugadores, fecha_
                 for equipo_base in lista_base_4tos_ordenada:
                     auditoria_4tos[equipo_base] = "✅ Sí" if equipo_base in fases_jugador["4tos"] else "❌ No"
                 
-                # Desglose Semis[cite: 2]
                 auditoria_semis["Aciertos Semis"] = puntos_semis[cite: 2]
                 for equipo_base in lista_base_semis_ordenada:[cite: 2]
                     auditoria_semis[equipo_base] = "✅ Sí" if equipo_base in fases_jugador["semis"] else "❌ No"[cite: 2]
@@ -298,7 +296,7 @@ def cargar_y_procesar_todo_el_torneo(spreadsheet_id, pestañas_jugadores, fecha_
                 auditoria_16vos["Aciertos 16vos"] = 0
                 auditoria_8vos["Aciertos 8vos"] = 0
                 auditoria_4tos["Aciertos 4tos"] = 0
-                auditoria_semis["Aciertos Semis"] = 0
+                auditoria_semis["Aciertos Semis"] = 0[cite: 2]
                 for equipo_base in lista_base_16vos_ordenada: auditoria_16vos[equipo_base] = "❌ No"
                 for equipo_base in lista_base_8vos_ordenada: auditoria_8vos[equipo_base] = "❌ No"
                 for equipo_base in lista_base_4tos_ordenada: auditoria_4tos[equipo_base] = "❌ No"
@@ -359,7 +357,6 @@ if df_ranking is not None:
         if not PARTIDOS_DEL_DIA_LISTA: 
             st.info(f"⚽ No hay partidos agendados para el día de hoy, sal a que te dé el aire ({fecha_formateada}).")
             
-            # Ajustamos las proporciones de las columnas para hacer el contenedor central más pequeño
             col_img1, col_img2, col_img3 = st.columns([2, 1.5, 2])
             with col_img2:
                 st.image("01.jpg", caption=". . . ", width=350)
@@ -469,7 +466,7 @@ if df_ranking is not None:
             ganador = BRACKET[pid]["Ganador"]
             return ganador.title() if ganador and ganador != "Por Definir" else f"Ganador {pid}"
 
-        w = {f"P{i}": get_w(f"P{i}") for i in range(1, 29)}
+        w = {f"P{i}": get_w(f"P{i}") for i in range(1, 31)}
 
         bracket_html = f"""
         <style>
@@ -537,7 +534,7 @@ if df_ranking is not None:
 
             <div class="b-column">
                 <div style="grid-row: span 2; display: flex; flex-direction: column; justify-content: center;">{render_match_html("P19", BRACKET)}</div>
-                <div style="grid-row: span 2; display: flex; flex-radius: column; justify-content: center;">{render_match_html("P20", BRACKET)}</div>
+                <div style="grid-row: span 2; display: flex; flex-direction: column; justify-content: center;">{render_match_html("P20", BRACKET)}</div>
                 <div style="grid-row: span 2; display: flex; flex-direction: column; justify-content: center;">{render_match_html("P23", BRACKET)}</div>
                 <div style="grid-row: span 2; display: flex; flex-direction: column; justify-content: center;">{render_match_html("P24", BRACKET)}</div>
             </div>
