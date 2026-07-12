@@ -155,17 +155,17 @@ def cargar_y_procesar_todo_el_torneo(spreadsheet_id, pestañas_jugadores, fecha_
             set_base_8vos = extraer_columna_fija(df_base_raw, 3)
             set_base_4tos = extraer_columna_fija(df_base_raw, 5)
             
-            # Semifinalistas reales (F55-F58)[cite: 2]
-            set_base_semis = extraer_columna_fija(df_base_raw, 5, fila_inicio=54, fila_fin=58)[cite: 2]
-            # Finalistas reales (J55-J56)[cite: 2]
-            set_base_final = extraer_columna_fija(df_base_raw, 9, fila_inicio=54, fila_fin=56)[cite: 2]
+            # Semifinalistas reales (F55-F58)
+            set_base_semis = extraer_columna_fija(df_base_raw, 5, fila_inicio=54, fila_fin=58)
+            # Finalistas reales (J55-J56)
+            set_base_final = extraer_columna_fija(df_base_raw, 9, fila_inicio=54, fila_fin=56)
         else:
             set_base_16vos, set_base_8vos, set_base_4tos, set_base_semis, set_base_final = set(), set(), set(), set(), set()
 
         lista_base_16vos_ordenada = sorted(list(set_base_16vos))
         lista_base_8vos_ordenada = sorted(list(set_base_8vos))
         lista_base_4tos_ordenada = sorted(list(set_base_4tos))
-        lista_base_semis_ordenada = sorted(list(set_base_semis))[cite: 2]
+        lista_base_semis_ordenada = sorted(list(set_base_semis))
 
         # Lectura de marcadores reales en el CALENDARIO excel
         pestaña_cal = [n for n in nombres_pestañas if "CALENDARIO" in n.upper()]
@@ -212,31 +212,31 @@ def cargar_y_procesar_todo_el_torneo(spreadsheet_id, pestañas_jugadores, fecha_
                 fases_jugador["8vos"] = extraer_columna_fija(df_jugador_raw, 3)
                 fases_jugador["4tos"] = extraer_columna_fija(df_jugador_raw, 5)
                 
-                # Semifinalistas elegidos por persona en F55-F58[cite: 2]
-                fases_jugador["semis"] = extraer_columna_fija(df_jugador_raw, 5, fila_inicio=54, fila_fin=58)[cite: 2]
-                # Finalistas elegidos en J55-J56[cite: 2]
-                fases_jugador["final"] = extraer_columna_fija(df_jugador_raw, 9, fila_inicio=54, fila_fin=56)[cite: 2]
+                # Semifinalistas elegidos por persona en F55-F58
+                fases_jugador["semis"] = extraer_columna_fija(df_jugador_raw, 5, fila_inicio=54, fila_fin=58)
+                # Finalistas elegidos en J55-J56
+                fases_jugador["final"] = extraer_columna_fija(df_jugador_raw, 9, fila_inicio=54, fila_fin=56)
 
             elecciones_fecha = {"Participante": nombre_real}
             auditoria_16vos = {"Participante": nombre_real}
             auditoria_8vos = {"Participante": nombre_real}
             auditoria_4tos = {"Participante": nombre_real}
-            auditoria_semis = {"Participante": nombre_real}[cite: 2]
+            auditoria_semis = {"Participante": nombre_real}
             
             if df_jugador_raw is not None:
                 interseccion_16vos = fases_jugador["16vos"].intersection(set_base_16vos)
                 interseccion_8vos = fases_jugador["8vos"].intersection(set_base_8vos)
                 interseccion_4tos = fases_jugador["4tos"].intersection(set_base_4tos)
-                interseccion_semis = fases_jugador["semis"].intersection(set_base_semis)[cite: 2]
-                interseccion_final = fases_jugador["final"].intersection(set_base_final)[cite: 2]
+                interseccion_semis = fases_jugador["semis"].intersection(set_base_semis)
+                interseccion_final = fases_jugador["final"].intersection(set_base_final)
                 
                 puntos_16vos = len(interseccion_16vos)
                 puntos_8vos = len(interseccion_8vos)
                 puntos_4tos = len(interseccion_4tos)
-                puntos_semis = len(interseccion_semis)[cite: 2]
-                puntos_final = len(interseccion_final)[cite: 2]
+                puntos_semis = len(interseccion_semis)
+                puntos_final = len(interseccion_final)
                 
-                puntos_totales = puntos_16vos + puntos_8vos + puntos_4tos + puntos_semis + puntos_final[cite: 2]
+                puntos_totales = puntos_16vos + puntos_8vos + puntos_4tos + puntos_semis + puntos_final
                 
                 datos_ranking.append({
                     "Participante": nombre_real, 
@@ -244,7 +244,7 @@ def cargar_y_procesar_todo_el_torneo(spreadsheet_id, pestañas_jugadores, fecha_
                     "Aciertos 16vos": puntos_16vos,
                     "Aciertos 8vos": puntos_8vos,
                     "Aciertos 4tos": puntos_4tos,
-                    "Aciertos Semis": puntos_semis[cite: 2]
+                    "Aciertos Semis": puntos_semis
                 })
                 
                 # Desgloses individuales
@@ -260,9 +260,9 @@ def cargar_y_procesar_todo_el_torneo(spreadsheet_id, pestañas_jugadores, fecha_
                 for equipo_base in lista_base_4tos_ordenada:
                     auditoria_4tos[equipo_base] = "✅ Sí" if equipo_base in fases_jugador["4tos"] else "❌ No"
                 
-                auditoria_semis["Aciertos Semis"] = puntos_semis[cite: 2]
-                for equipo_base in lista_base_semis_ordenada:[cite: 2]
-                    auditoria_semis[equipo_base] = "✅ Sí" if equipo_base in fases_jugador["semis"] else "❌ No"[cite: 2]
+                auditoria_semis["Aciertos Semis"] = puntos_semis
+                for equipo_base in lista_base_semis_ordenada:
+                    auditoria_semis[equipo_base] = "✅ Sí" if equipo_base in fases_jugador["semis"] else "❌ No"
                 
                 # Mapeo exhaustivo para la pestaña "Pronósticos por Fecha"
                 for p in partidos_fecha:
@@ -274,9 +274,9 @@ def cargar_y_procesar_todo_el_torneo(spreadsheet_id, pestañas_jugadores, fecha_
                     elif num_partido <= 28:
                         set_busqueda = fases_jugador["4tos"]
                     elif num_partido <= 30:
-                        set_busqueda = fases_jugador["semis"][cite: 2]
+                        set_busqueda = fases_jugador["semis"]
                     else:
-                        set_busqueda = fases_jugador["final"][cite: 2]
+                        set_busqueda = fases_jugador["final"]
                     
                     encontrado = "Ninguno"
                     for pronostico in list(set_busqueda):
@@ -296,17 +296,17 @@ def cargar_y_procesar_todo_el_torneo(spreadsheet_id, pestañas_jugadores, fecha_
                 auditoria_16vos["Aciertos 16vos"] = 0
                 auditoria_8vos["Aciertos 8vos"] = 0
                 auditoria_4tos["Aciertos 4tos"] = 0
-                auditoria_semis["Aciertos Semis"] = 0[cite: 2]
+                auditoria_semis["Aciertos Semis"] = 0
                 for equipo_base in lista_base_16vos_ordenada: auditoria_16vos[equipo_base] = "❌ No"
                 for equipo_base in lista_base_8vos_ordenada: auditoria_8vos[equipo_base] = "❌ No"
                 for equipo_base in lista_base_4tos_ordenada: auditoria_4tos[equipo_base] = "❌ No"
-                for equipo_base in lista_base_semis_ordenada: auditoria_semis[equipo_base] = "❌ No"[cite: 2]
+                for equipo_base in lista_base_semis_ordenada: auditoria_semis[equipo_base] = "❌ No"
                 for p in partidos_fecha: elecciones_fecha[p["Texto"]] = "Sin Datos"
                 
             desglose_16vos_lista.append(auditoria_16vos)
             desglose_8vos_lista.append(auditoria_8vos)
             desglose_4tos_lista.append(auditoria_4tos)
-            desglose_semis_lista.append(auditoria_semis)[cite: 2]
+            desglose_semis_lista.append(auditoria_semis)
             if partidos_fecha: 
                 pronosticos_fecha_lista.append(elecciones_fecha)
                 
@@ -316,7 +316,7 @@ def cargar_y_procesar_todo_el_torneo(spreadsheet_id, pestañas_jugadores, fecha_
         df_desglose_16vos = pd.DataFrame(desglose_16vos_lista).sort_values(by="Aciertos 16vos", ascending=False).reset_index(drop=True)
         df_desglose_8vos = pd.DataFrame(desglose_8vos_lista).sort_values(by="Aciertos 8vos", ascending=False).reset_index(drop=True)
         df_desglose_4tos = pd.DataFrame(desglose_4tos_lista).sort_values(by="Aciertos 4tos", ascending=False).reset_index(drop=True)
-        df_desglose_semis = pd.DataFrame(desglose_semis_lista).sort_values(by="Aciertos Semis", ascending=False).reset_index(drop=True)[cite: 2]
+        df_desglose_semis = pd.DataFrame(desglose_semis_lista).sort_values(by="Aciertos Semis", ascending=False).reset_index(drop=True)
         
         # Reordenar columnas para dejar Participante y Conteo al inicio
         if not df_desglose_16vos.empty:
@@ -328,11 +328,11 @@ def cargar_y_procesar_todo_el_torneo(spreadsheet_id, pestañas_jugadores, fecha_
         if not df_desglose_4tos.empty:
             cols_4 = ["Participante", "Aciertos 4tos"] + [c for c in df_desglose_4tos.columns if c not in ["Participante", "Aciertos 4tos"]]
             df_desglose_4tos = df_desglose_4tos[cols_4]
-        if not df_desglose_semis.empty:[cite: 2]
-            cols_se = ["Participante", "Aciertos Semis"] + [c for c in df_desglose_semis.columns if c not in ["Participante", "Aciertos Semis"]][cite: 2]
-            df_desglose_semis = df_desglose_semis[cols_se][cite: 2]
+        if not df_desglose_semis.empty:
+            cols_se = ["Participante", "Aciertos Semis"] + [c for c in df_desglose_semis.columns if c not in ["Participante", "Aciertos Semis"]]
+            df_desglose_semis = df_desglose_semis[cols_se]
 
-        return df_ranking, df_pronosticos_fecha, partidos_fecha, bracket_data, df_desglose_16vos, df_desglose_8vos, df_desglose_4tos, df_desglose_semis[cite: 2]
+        return df_ranking, df_pronosticos_fecha, partidos_fecha, bracket_data, df_desglose_16vos, df_desglose_8vos, df_desglose_4tos, df_desglose_semis
     except Exception: 
         return None, None, partidos_fecha, bracket_data, pd.DataFrame(), pd.DataFrame(), pd.DataFrame(), pd.DataFrame()
 
@@ -340,11 +340,11 @@ def cargar_y_procesar_todo_el_torneo(spreadsheet_id, pestañas_jugadores, fecha_
 # INTERFAZ GRÁFICA DE STREAMLIT
 # ==============================================================================
 FECHAS_DISPONIBLES = sorted(list(set(p["Fecha"] for p in CALENDARIO_COMPLETO)), key=lambda x: datetime.strptime(x, "%d/%m/%Y"))
-default_idx = FECHAS_DISPONIBLES.index(fecha_formateada) if fecha_formateada in FECHAS_DISPONIBLES else 0
+default_idx = FECHAS_DISPONIBLES.index(fecha_formateada) if fecha_formateada in FECHAS_DISDESP else 0
 
 if "BASE" not in st.session_state:
     with st.spinner("🚀 Sincronizando datos del torneo..."):
-        df_ranking, _, _, BRACKET, df_desglose_16vos, df_desglose_8vos, df_desglose_4tos, df_desglose_semis = cargar_y_procesar_todo_el_torneo(SPREADSHEET_ID, ID_PESTAÑAS, FECHAS_DISPONIBLES[default_idx])[cite: 2]
+        df_ranking, _, _, BRACKET, df_desglose_16vos, df_desglose_8vos, df_desglose_4tos, df_desglose_semis = cargar_y_procesar_todo_el_torneo(SPREADSHEET_ID, ID_PESTAÑAS, FECHAS_DISPONIBLES[default_idx])
 
 if df_ranking is not None:
     tab_principal, tab_desglose, tab_hoy, tab_bracket_dev = st.tabs(["📊 Clasificación", "🔍 Desglose de Aciertos", "🔮 Pronósticos por Fecha", "Bracket"])
@@ -390,7 +390,7 @@ if df_ranking is not None:
         st.markdown("### 🔍 Tabla General de Equipos Colocados")
         st.write("")
         
-        tab_16vos, tab_8vos, tab_4tos, tab_semis = st.tabs(["🏆 Ronda de 16vos", "⚡ Ronda de 8vos", "🏅 Ronda de Cuartos", "🔥 Semifinales"])[cite: 2]
+        tab_16vos, tab_8vos, tab_4tos, tab_semis = st.tabs(["🏆 Ronda de 16vos", "⚡ Ronda de 8vos", "🏅 Ronda de Cuartos", "🔥 Semifinales"])
         
         def estilar_tabla_aciertos(val):
             if val == "✅ Sí":
@@ -423,13 +423,13 @@ if df_ranking is not None:
                 df_estilado_4 = df_desglose_4tos.style.map(estilar_tabla_aciertos, subset=df_desglose_4tos.columns[2:])
                 st.dataframe(df_estilado_4, use_container_width=True, hide_index=True)
 
-        with tab_semis:[cite: 2]
-            st.caption("Conteo de aciertos basado en los 4 semifinalistas reales de las celdas F55-F58 (Hoja BASE)")[cite: 2]
-            if df_desglose_semis.empty or len(df_desglose_semis.columns) <= 2:[cite: 2]
-                st.info("No hay datos de Semifinales disponibles aún.")[cite: 2]
+        with tab_semis:
+            st.caption("Conteo de aciertos basado en los 4 semifinalistas reales de las celdas F55-F58 (Hoja BASE)")
+            if df_desglose_semis.empty or len(df_desglose_semis.columns) <= 2:
+                st.info("No hay datos de Semifinales disponibles aún.")
             else:
-                df_estilado_semi = df_desglose_semis.style.map(estilar_tabla_aciertos, subset=df_desglose_semis.columns[2:])[cite: 2]
-                st.dataframe(df_estilado_semi, use_container_width=True, hide_index=True)[cite: 2]
+                df_estilado_semi = df_desglose_semis.style.map(estilar_tabla_aciertos, subset=df_desglose_semis.columns[2:])
+                st.dataframe(df_estilado_semi, use_container_width=True, hide_index=True)
 
     # --- PESTAÑA PRONÓSTICOS ---
     with tab_hoy:
@@ -438,7 +438,7 @@ if df_ranking is not None:
         
         for idx_f, fecha_select in enumerate(FECHAS_DISPONIBLES):
             with sub_tabs_fechas[idx_f]:
-                _, df_pronosticos_fecha, partidos_fecha, _, _, _, _, _ = cargar_y_procesar_todo_el_torneo(SPREADSHEET_ID, ID_PESTAÑAS, fecha_select)[cite: 2]
+                _, df_pronosticos_fecha, partidos_fecha, _, _, _, _, _ = cargar_y_procesar_todo_el_torneo(SPREADSHEET_ID, ID_PESTAÑAS, fecha_select)
                 if not partidos_fecha or df_pronosticos_fecha.empty:
                     st.info("No hay partidos ni pronósticos registrados para esta fecha.")
                 else:
