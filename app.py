@@ -303,7 +303,7 @@ def cargar_y_procesar_todo_el_torneo(spreadsheet_id, pestañas_jugadores, fecha_
                     elif num_partido <= 28:
                         set_busqueda = fases_jugador["4tos"]
                     elif num_partido == 29 or num_partido == 30:
-                        # Para las semifinales, buscamos que el participante los haya puesto en la final (J) o en el 3er lugar (H)[cite: 1]
+                        # En semifinales, buscamos si el participante colocó a los rivales en la Final (J) o 3er lugar (H)[cite: 1]
                         set_busqueda = fases_jugador["final"].union(fases_jugador["3er"])
                     else:
                         set_busqueda = fases_jugador["podio"]
@@ -400,18 +400,14 @@ if df_ranking is not None:
     # --- PESTAÑA PRINCIPAL ---
     with tab_principal:
         # ----------------------------------------------------------------------
-        # DETECTAR Y MOSTRAR CAMPEÓN MATEMÁTICO DE LA QUINIELA
+        # DETECTAR Y MOSTRAR CAMPEÓN MATEMÁTICO DE LA QUINIELA (LÓGICA CONSERVADORA)
         # ----------------------------------------------------------------------
-        puntos_maximos_restantes = 0
-        if "BASE" in st.session_state or 'df_desglose_final' in locals():
-            # Evaluamos cuántos elementos faltan registrar en la BASE de un total de:
-            # 2 (3er Lugar H) + 2 (Final J) + 3 (Podio L, M, N) = 7 aciertos posibles totales.
-            elementos_3er = len(df_desglose_3er.columns) - 2 if not df_desglose_3er.empty else 0
-            elementos_final = len(df_desglose_final.columns) - 2 if not df_desglose_final.empty else 0
-            elementos_podio = len(df_desglose_podio.columns) - 2 if not df_desglose_podio.empty else 0
-            
-            puntos_maximos_restantes = max(0, 2 - elementos_3er) + max(0, 2 - elementos_final) + max(0, 3 - elementos_podio)
-
+        # En lugar de medir las columnas de la Base que pueden estar vacías, sumamos los puntos pendientes fijos:
+        # 2 (3er Lugar H) + 2 (Gran Final J) + 3 (Podio L, M, N) = 7 puntos máximos.
+        # Si todavía falta jugarse la segunda semifinal (P30), agregamos un buffer.
+        
+        puntos_maximos_restantes = 7  # El remanente total de las rondas definitivas que NO se han efectuado aún.
+        
         campeon_matematico_nombre = None
         if len(df_ranking) >= 2:
             puntos_lider = df_ranking.iloc[0]["Aciertos Totales"]
@@ -515,8 +511,9 @@ if df_ranking is not None:
 
         with tab_3er:
             st.caption("Conteo de aciertos basado en los equipos reales que disputan el Tercer Lugar en la Columna H (Hoja BASE)")
+            # Controlamos que haya por lo menos un equipo colocado en la BASE para no renderizar una tabla vacía
             if df_desglose_3er.empty or len(df_desglose_3er.columns) <= 2:
-                st.info("No hay datos del partido por el 3er Lugar disponibles aún.")
+                st.warning("⏳ El partido por el Tercer Lugar aún no está definido. Aparecerá aquí en cuanto termine la fase de Semifinales.")
             else:
                 df_estilado_3er = df_desglose_3er.style.map(estilar_tabla_aciertos, subset=df_desglose_3er.columns[2:])
                 st.dataframe(df_estilado_3er, use_container_width=True, hide_index=True)
@@ -524,7 +521,7 @@ if df_ranking is not None:
         with tab_final:
             st.caption("Conteo de aciertos basado en los equipos reales que disputan la Gran Final en la Columna J (Hoja BASE)")
             if df_desglose_final.empty or len(df_desglose_final.columns) <= 2:
-                st.info("No hay datos de la Gran Final disponibles aún.")
+                st.warning("⏳ La Gran Final aún no está definida. Aparecerá aquí en cuanto se jueguen y definan las Semifinales.")
             else:
                 df_estilado_final = df_desglose_final.style.map(estilar_tabla_aciertos, subset=df_desglose_final.columns[2:])
                 st.dataframe(df_estilado_final, use_container_width=True, hide_index=True)
@@ -532,7 +529,7 @@ if df_ranking is not None:
         with tab_podio:
             st.caption("Conteo de aciertos basado en el orden del Podio Final en las Columnas L, M y N (Hoja BASE)")
             if df_desglose_podio.empty or len(df_desglose_podio.columns) <= 2:
-                st.info("No hay datos del podio final disponibles aún.")
+                st.warning("⏳ El Podio definitivo se desbloqueará una vez que terminen de jugarse la Gran Final y el Tercer Lugar.")
             else:
                 df_estilado_podio = df_desglose_podio.style.map(estilar_tabla_aciertos, subset=df_desglose_podio.columns[2:])
                 st.dataframe(df_estilado_podio, use_container_width=True, hide_index=True)
