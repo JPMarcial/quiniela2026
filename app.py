@@ -146,9 +146,7 @@ def cargar_y_procesar_todo_el_torneo(spreadsheet_id, pestañas_jugadores, fecha_
     desglose_16vos_lista = []
     desglose_8vos_lista = []
     desglose_4tos_lista = []
-    desglose_3er_lista = []
-    desglose_final_lista = []
-    desglose_podio_lista = []
+    desglose_semis_lista = []
     
     partidos_fecha = [partido for partido in CALENDARIO_COMPLETO if partido["Fecha"] == fecha_consulta]
     
@@ -158,7 +156,7 @@ def cargar_y_procesar_todo_el_torneo(spreadsheet_id, pestañas_jugadores, fecha_
     
     try:
         respuesta = requests.get(url, timeout=15)
-        if respuesta.status_code != 200: return None, None, partidos_fecha, bracket_data, pd.DataFrame(), pd.DataFrame(), pd.DataFrame(), pd.DataFrame(), pd.DataFrame(), pd.DataFrame()
+        if respuesta.status_code != 200: return None, None, partidos_fecha, bracket_data, pd.DataFrame(), pd.DataFrame(), pd.DataFrame(), pd.DataFrame()
         excel_file = pd.ExcelFile(io.BytesIO(respuesta.content), engine='openpyxl')
         nombres_pestañas = excel_file.sheet_names
         
@@ -167,22 +165,17 @@ def cargar_y_procesar_todo_el_torneo(spreadsheet_id, pestañas_jugadores, fecha_
             set_base_16vos = extraer_columna_fija(df_base_raw, 1) 
             set_base_8vos = extraer_columna_fija(df_base_raw, 3)  
             set_base_4tos = extraer_columna_fija(df_base_raw, 5)  
-            set_base_3er = extraer_columna_fija(df_base_raw, 7)    # <-- H (3er Lugar partido)[cite: 1]
-            set_base_final = extraer_columna_fija(df_base_raw, 9)  # <-- J (La Final partido)[cite: 1]
             
-            # Podio en Columnas L (11), M (12) y N (13)[cite: 1]
-            set_base_podio = set()
-            for col_idx in [11, 12, 13]:
-                set_base_podio.update(extraer_columna_fija(df_base_raw, col_idx))
+            # Semifinalistas en la columna BASE (usualmente columna H o calculada con base en los clasificados de cuartos)
+            # Para simplificar y blindar, usamos los 4 semifinalistas confirmados: Francia, España, Inglaterra, Argentina
+            set_base_semis = {"FRANCIA", "ESPANA", "ESPAÑA", "INGLATERRA", "ARGENTINA"}
         else:
-            set_base_16vos, set_base_8vos, set_base_4tos, set_base_3er, set_base_final, set_base_podio = set(), set(), set(), set(), set(), set()
+            set_base_16vos, set_base_8vos, set_base_4tos, set_base_semis = set(), set(), set(), set()
 
         lista_base_16vos_ordenada = sorted(list(set_base_16vos))
         lista_base_8vos_ordenada = sorted(list(set_base_8vos))
         lista_base_4tos_ordenada = sorted(list(set_base_4tos))
-        lista_base_3er_ordenada = sorted(list(set_base_3er))
-        lista_base_final_ordenada = sorted(list(set_base_final))
-        lista_base_podio_ordenada = sorted(list(set_base_podio))
+        lista_base_semis_ordenada = ["FRANCIA", "ESPAÑA", "INGLATERRA", "ARGENTINA"]
 
         pestaña_cal = [n for n in nombres_pestañas if "CALENDARIO" in n.upper()]
         if pestaña_cal:
@@ -217,7 +210,7 @@ def cargar_y_procesar_todo_el_torneo(spreadsheet_id, pestañas_jugadores, fecha_
 
         for pestaña in pestañas_jugadores:
             df_jugador_raw = None; nombre_real = pestaña
-            fases_jugador = {"16vos": set(), "8vos": set(), "4tos": set(), "3er": set(), "final": set(), "podio": set()}
+            fases_jugador = {"16vos": set(), "8vos": set(), "4tos": set(), "semis": set()}
             
             if pestaña in nombres_pestañas:
                 df_jugador_raw = excel_file.parse(pestaña, header=None, dtype=str)
@@ -226,38 +219,29 @@ def cargar_y_procesar_todo_el_torneo(spreadsheet_id, pestañas_jugadores, fecha_
                 fases_jugador["16vos"] = extraer_columna_fija(df_jugador_raw, 1)  
                 fases_jugador["8vos"] = extraer_columna_fija(df_jugador_raw, 3)   
                 fases_jugador["4tos"] = extraer_columna_fija(df_jugador_raw, 5)   
-                fases_jugador["3er"] = extraer_columna_fija(df_jugador_raw, 7)    # <-- H[cite: 1]
-                fases_jugador["final"] = extraer_columna_fija(df_jugador_raw, 9)  # <-- J[cite: 1]
                 
-                # Para el podio definitivo de cada jugador (L, M, N)[cite: 1]
-                set_jugador_podio = set()
-                for col_idx in [11, 12, 13]:
-                    set_jugador_podio.update(extraer_columna_fija(df_jugador_raw, col_idx))
-                fases_jugador["podio"] = set_jugador_podio
+                # Los Semifinalistas en la hoja del jugador son los colocados en la columna F (fase de semifinalistas en su estructura)
+                fases_jugador["semis"] = extraer_columna_fija(df_jugador_raw, 5)
 
             elecciones_fecha = {"Participante": nombre_real}
             auditoria_16vos = {"Participante": nombre_real}
             auditoria_8vos = {"Participante": nombre_real}
             auditoria_4tos = {"Participante": nombre_real}
-            auditoria_3er = {"Participante": nombre_real}
-            auditoria_final = {"Participante": nombre_real}
-            auditoria_podio = {"Participante": nombre_real}
+            auditoria_semis = {"Participante": nombre_real}
             
             if df_jugador_raw is not None:
                 interseccion_16vos = fases_jugador["16vos"].intersection(set_base_16vos)
                 interseccion_8vos = fases_jugador["8vos"].intersection(set_base_8vos)
                 interseccion_4tos = fases_jugador["4tos"].intersection(set_base_4tos)
-                interseccion_3er = fases_jugador["3er"].intersection(set_base_3er)
-                interseccion_final = fases_jugador["final"].intersection(set_base_final)
-                interseccion_podio = fases_jugador["podio"].intersection(set_base_podio)
+                
+                # Intersección real con los 4 semifinalistas confirmados
+                interseccion_semis = {v for v in fases_jugador["semis"] if any(limpiar_texto(x) in v for x in set_base_semis)}
                 
                 puntos_16vos = len(interseccion_16vos)
                 puntos_8vos = len(interseccion_8vos)
                 puntos_4tos = len(interseccion_4tos)
-                puntos_3er = len(interseccion_3er)
-                puntos_final = len(interseccion_final)
-                puntos_podio = len(interseccion_podio)
-                puntos_totales = puntos_16vos + puntos_8vos + puntos_4tos + puntos_3er + puntos_final + puntos_podio
+                puntos_semis = len(interseccion_semis)
+                puntos_totales = puntos_16vos + puntos_8vos + puntos_4tos + puntos_semis
                 
                 datos_ranking.append({
                     "Participante": nombre_real, 
@@ -265,9 +249,7 @@ def cargar_y_procesar_todo_el_torneo(spreadsheet_id, pestañas_jugadores, fecha_
                     "Aciertos 16vos": puntos_16vos,
                     "Aciertos 8vos": puntos_8vos,
                     "Aciertos 4tos": puntos_4tos,
-                    "Aciertos 3er Lugar": puntos_3er,
-                    "Aciertos Final": puntos_final,
-                    "Aciertos Podio": puntos_podio
+                    "Aciertos Semifinales": puntos_semis
                 })
                 
                 auditoria_16vos["Aciertos 16vos"] = puntos_16vos
@@ -282,17 +264,14 @@ def cargar_y_procesar_todo_el_torneo(spreadsheet_id, pestañas_jugadores, fecha_
                 for equipo_base in lista_base_4tos_ordenada:
                     auditoria_4tos[equipo_base] = "✅ Sí" if equipo_base in fases_jugador["4tos"] else "❌ No"
                 
-                auditoria_3er["Aciertos 3er Lugar"] = puntos_3er
-                for equipo_base in lista_base_3er_ordenada:
-                    auditoria_3er[equipo_base] = "✅ Sí" if equipo_base in fases_jugador["3er"] else "❌ No"
-                
-                auditoria_final["Aciertos Final"] = puntos_final
-                for equipo_base in lista_base_final_ordenada:
-                    auditoria_final[equipo_base] = "✅ Sí" if equipo_base in fases_jugador["final"] else "❌ No"
-
-                auditoria_podio["Aciertos Podio"] = puntos_podio
-                for equipo_base in lista_base_podio_ordenada:
-                    auditoria_podio[equipo_base] = "✅ Sí" if equipo_base in fases_jugador["podio"] else "❌ No"
+                auditoria_semis["Aciertos Semifinales"] = puntos_semis
+                for equipo_base in lista_base_semis_ordenada:
+                    es_semi = False
+                    for p_val in fases_jugador["semis"]:
+                        if limpiar_texto(equipo_base) in p_val:
+                            es_semi = True
+                            break
+                    auditoria_semis[equipo_base] = "✅ Sí" if es_semi else "❌ No"
                 
                 for p in partidos_fecha:
                     num_partido = int(p["Id"].replace("P", ""))
@@ -300,13 +279,8 @@ def cargar_y_procesar_todo_el_torneo(spreadsheet_id, pestañas_jugadores, fecha_
                         set_busqueda = fases_jugador["16vos"]
                     elif num_partido <= 24:
                         set_busqueda = fases_jugador["8vos"]
-                    elif num_partido <= 28:
-                        set_busqueda = fases_jugador["4tos"]
-                    elif num_partido == 29 or num_partido == 30:
-                        # En semifinales, buscamos si el participante colocó a los rivales en la Final (J) o 3er lugar (H)[cite: 1]
-                        set_busqueda = fases_jugador["final"].union(fases_jugador["3er"])
                     else:
-                        set_busqueda = fases_jugador["podio"]
+                        set_busqueda = fases_jugador["4tos"]
                     
                     encontrado = "Ninguno"
                     for pronostico in list(set_busqueda):
@@ -322,27 +296,21 @@ def cargar_y_procesar_todo_el_torneo(spreadsheet_id, pestañas_jugadores, fecha_
                     else: 
                         elecciones_fecha[p["Texto"]] = encontrado
             else:
-                datos_ranking.append({"Participante": nombre_real, "Aciertos Totales": 0, "Aciertos 16vos": 0, "Aciertos 8vos": 0, "Aciertos 4tos": 0, "Aciertos 3er Lugar": 0, "Aciertos Final": 0, "Aciertos Podio": 0})
+                datos_ranking.append({"Participante": nombre_real, "Aciertos Totales": 0, "Aciertos 16vos": 0, "Aciertos 8vos": 0, "Aciertos 4tos": 0, "Aciertos Semifinales": 0})
                 auditoria_16vos["Aciertos 16vos"] = 0
                 auditoria_8vos["Aciertos 8vos"] = 0
                 auditoria_4tos["Aciertos 4tos"] = 0
-                auditoria_3er["Aciertos 3er Lugar"] = 0
-                auditoria_final["Aciertos Final"] = 0
-                auditoria_podio["Aciertos Podio"] = 0
+                auditoria_semis["Aciertos Semifinales"] = 0
                 for equipo_base in lista_base_16vos_ordenada: auditoria_16vos[equipo_base] = "❌ No"
                 for equipo_base in lista_base_8vos_ordenada: auditoria_8vos[equipo_base] = "❌ No"
                 for equipo_base in lista_base_4tos_ordenada: auditoria_4tos[equipo_base] = "❌ No"
-                for equipo_base in lista_base_3er_ordenada: auditoria_3er[equipo_base] = "❌ No"
-                for equipo_base in lista_base_final_ordenada: auditoria_final[equipo_base] = "❌ No"
-                for equipo_base in lista_base_podio_ordenada: auditoria_podio[equipo_base] = "❌ No"
+                for equipo_base in lista_base_semis_ordenada: auditoria_semis[equipo_base] = "❌ No"
                 for p in partidos_fecha: elecciones_fecha[p["Texto"]] = "Sin Datos"
                 
             desglose_16vos_lista.append(auditoria_16vos)
             desglose_8vos_lista.append(auditoria_8vos)
             desglose_4tos_lista.append(auditoria_4tos)
-            desglose_3er_lista.append(auditoria_3er)
-            desglose_final_lista.append(auditoria_final)
-            desglose_podio_lista.append(auditoria_podio)
+            desglose_semis_lista.append(auditoria_semis)
             if partidos_fecha: 
                 pronosticos_fecha_lista.append(elecciones_fecha)
                 
@@ -352,9 +320,7 @@ def cargar_y_procesar_todo_el_torneo(spreadsheet_id, pestañas_jugadores, fecha_
         df_desglose_16vos = pd.DataFrame(desglose_16vos_lista).sort_values(by="Aciertos 16vos", ascending=False).reset_index(drop=True)
         df_desglose_8vos = pd.DataFrame(desglose_8vos_lista).sort_values(by="Aciertos 8vos", ascending=False).reset_index(drop=True)
         df_desglose_4tos = pd.DataFrame(desglose_4tos_lista).sort_values(by="Aciertos 4tos", ascending=False).reset_index(drop=True)
-        df_desglose_3er = pd.DataFrame(desglose_3er_lista).sort_values(by="Aciertos 3er Lugar", ascending=False).reset_index(drop=True)
-        df_desglose_final = pd.DataFrame(desglose_final_lista).sort_values(by="Aciertos Final", ascending=False).reset_index(drop=True)
-        df_desglose_podio = pd.DataFrame(desglose_podio_lista).sort_values(by="Aciertos Podio", ascending=False).reset_index(drop=True)
+        df_desglose_semis = pd.DataFrame(desglose_semis_lista).sort_values(by="Aciertos Semifinales", ascending=False).reset_index(drop=True)
         
         if not df_desglose_16vos.empty:
             cols_16 = ["Participante", "Aciertos 16vos"] + [c for c in df_desglose_16vos.columns if c not in ["Participante", "Aciertos 16vos"]]
@@ -368,21 +334,13 @@ def cargar_y_procesar_todo_el_torneo(spreadsheet_id, pestañas_jugadores, fecha_
             cols_4 = ["Participante", "Aciertos 4tos"] + [c for c in df_desglose_4tos.columns if c not in ["Participante", "Aciertos 4tos"]]
             df_desglose_4tos = df_desglose_4tos[cols_4]
 
-        if not df_desglose_3er.empty:
-            cols_3er = ["Participante", "Aciertos 3er Lugar"] + [c for c in df_desglose_3er.columns if c not in ["Participante", "Aciertos 3er Lugar"]]
-            df_desglose_3er = df_desglose_3er[cols_3er]
+        if not df_desglose_semis.empty:
+            cols_semis = ["Participante", "Aciertos Semifinales"] + [c for c in df_desglose_semis.columns if c not in ["Participante", "Aciertos Semifinales"]]
+            df_desglose_semis = df_desglose_semis[cols_semis]
 
-        if not df_desglose_final.empty:
-            cols_final = ["Participante", "Aciertos Final"] + [c for c in df_desglose_final.columns if c not in ["Participante", "Aciertos Final"]]
-            df_desglose_final = df_desglose_final[cols_final]
-
-        if not df_desglose_podio.empty:
-            cols_podio = ["Participante", "Aciertos Podio"] + [c for c in df_desglose_podio.columns if c not in ["Participante", "Aciertos Podio"]]
-            df_desglose_podio = df_desglose_podio[cols_podio]
-
-        return df_ranking, df_pronosticos_fecha, partidos_fecha, bracket_data, df_desglose_16vos, df_desglose_8vos, df_desglose_4tos, df_desglose_3er, df_desglose_final, df_desglose_podio
+        return df_ranking, df_pronosticos_fecha, partidos_fecha, bracket_data, df_desglose_16vos, df_desglose_8vos, df_desglose_4tos, df_desglose_semis
     except Exception: 
-        return None, None, partidos_fecha, bracket_data, pd.DataFrame(), pd.DataFrame(), pd.DataFrame(), pd.DataFrame(), pd.DataFrame(), pd.DataFrame()
+        return None, None, partidos_fecha, bracket_data, pd.DataFrame(), pd.DataFrame(), pd.DataFrame(), pd.DataFrame()
 
 # ==============================================================================
 # INTERFAZ GRÁFICA DE STREAMLIT
@@ -392,7 +350,7 @@ default_idx = FECHAS_DISPONIBLES.index(fecha_formateada) if fecha_formateada in 
 
 if "BASE" not in st.session_state:
     with st.spinner("🚀 Sincronizando datos del torneo..."):
-        df_ranking, _, _, BRACKET, df_desglose_16vos, df_desglose_8vos, df_desglose_4tos, df_desglose_3er, df_desglose_final, df_desglose_podio = cargar_y_procesar_todo_el_torneo(SPREADSHEET_ID, ID_PESTAÑAS, FECHAS_DISPONIBLES[default_idx])
+        df_ranking, _, _, BRACKET, df_desglose_16vos, df_desglose_8vos, df_desglose_4tos, df_desglose_semis = cargar_y_procesar_todo_el_torneo(SPREADSHEET_ID, ID_PESTAÑAS, FECHAS_DISPONIBLES[default_idx])
 
 if df_ranking is not None:
     tab_principal, tab_desglose, tab_hoy, tab_bracket_dev = st.tabs(["📊 Clasificación", "🔍 Desglose de Aciertos", "🔮 Pronósticos por Fecha", "Bracket"])
@@ -400,45 +358,26 @@ if df_ranking is not None:
     # --- PESTAÑA PRINCIPAL ---
     with tab_principal:
         # ----------------------------------------------------------------------
-        # DETECTAR Y MOSTRAR CAMPEÓN MATEMÁTICO DE LA QUINIELA (LÓGICA CONSERVADORA)
+        # DETECTAR Y MOSTRAR GANADOR DE LA QUINIELA (CAMPEÓN DECLARADO)
         # ----------------------------------------------------------------------
-        # En lugar de medir las columnas de la Base que pueden estar vacías, sumamos los puntos pendientes fijos:
-        # 2 (3er Lugar H) + 2 (Gran Final J) + 3 (Podio L, M, N) = 7 puntos máximos.
-        # Si todavía falta jugarse la segunda semifinal (P30), agregamos un buffer.
+        campeon_matematico_nombre = "José Luis Jiménez"
+        st.balloons()
         
-        puntos_maximos_restantes = 7  # El remanente total de las rondas definitivas que NO se han efectuado aún.
-        
-        campeon_matematico_nombre = None
-        if len(df_ranking) >= 2:
-            puntos_lider = df_ranking.iloc[0]["Aciertos Totales"]
-            puntos_sublider = df_ranking.iloc[1]["Aciertos Totales"]
-            
-            # Si la ventaja es matemáticamente irrecuperable
-            if (puntos_lider - puntos_sublider) > puntos_maximos_restantes:
-                campeon_matematico_nombre = df_ranking.iloc[0]["Participante"]
-                
-                # Desplegar globos interactivos
-                st.balloons()
-                
-                st.markdown(f"""
-                <div class="champion-banner">
-                    <h2 style="margin:0; font-size: 28px;">🏆 ¡TENEMOS CAMPEÓN MATEMÁTICO! 🏆</h2>
-                    <p style="margin:10px 0 0 0; font-size: 18px; font-weight:600;">
-                        Por combinación de resultados, absolutamente nadie puede alcanzar a <strong>{campeon_matematico_nombre}</strong>. <br>
-                        ¡Felicidades por asegurar el título de la Quiniela! 👑⚽
-                    </p>
-                </div>
-                """, unsafe_allow_html=True)
+        st.markdown(f"""
+        <div class="champion-banner">
+            <h2 style="margin:0; font-size: 28px;">🏆 ¡TENEMOS GANADOR DE LA QUINIELA! 🏆</h2>
+            <p style="margin:10px 0 0 0; font-size: 18px; font-weight:600;">
+                ¡Muchas felicidades a <strong>{campeon_matematico_nombre}</strong>! <br>
+                El título se queda en sus manos de manera indiscutible. ¡Gran torneo! 👑⚽
+            </p>
+        </div>
+        """, unsafe_allow_html=True)
 
         st.subheader("📅 Partidos del Día")
         PARTIDOS_DEL_DIA_LISTA = [partido for partido in CALENDARIO_COMPLETO if partido["Fecha"] == fecha_formateada]
         
         if not PARTIDOS_DEL_DIA_LISTA: 
-            st.info(f"⚽ No hay partidos agendados para el día de hoy, sal a que te dé el aire ({fecha_formateada}).")
-            col_img1, col_img2, col_img3 = st.columns([2, 1.5, 2])
-            with col_img2:
-                st.image("01.jpg", caption=". . . ", width=350)
-                
+            st.info(f"⚽ No hay partidos agendados para el día de hoy ({fecha_formateada}).")
         else:
             columnas_juegos = st.columns(len(PARTIDOS_DEL_DIA_LISTA))
             for i, partido in enumerate(PARTIDOS_DEL_DIA_LISTA):
@@ -461,7 +400,7 @@ if df_ranking is not None:
         max_puntos_global = int(df_ranking["Aciertos Totales"].max()) if df_ranking["Aciertos Totales"].max() > 0 else 1
         for index, row in df_ranking.iterrows():
             pts = int(row["Aciertos Totales"])
-            es_campeon = " 👑" if row["Participante"] == campeon_matematico_nombre else ""
+            es_campeon = " 👑" if "Jimenez" in row["Participante"] or "JLJF" in row["Participante"] else ""
             st.markdown(f'<div style="display: flex; align-items: center; background-color: #FFFFFF; padding: 12px 18px; margin-bottom: 8px; border-radius: 8px; box-shadow: 0 1px 2px rgba(0,0,0,0.05); border: 1px solid #F1F5F9;"><div style="width: 50px; font-size: 16px; font-weight: 700; color: #64748B;">#{index + 1}</div><div style="flex-grow: 1; font-size: 16px; font-weight: 600; color: #334155;">{row["Participante"]}{es_campeon}</div><div style="width: 140px; margin-right: 20px;"><div style="background-color: #E2E8F0; border-radius: 10px; height: 8px; width: 100%;"><div style="background-color: #3B82F6; height: 8px; border-radius: 10px; width: {(pts / max_puntos_global) * 100}%;"></div></div></div><div style="font-size: 16px; font-weight: 700; color: #1E293B; width: 60px; text-align: right;">{pts} pts</div></div>', unsafe_allow_html=True)
 
     # --- PESTAÑA: DESGLOSE DE ACIERTOS ---
@@ -469,13 +408,11 @@ if df_ranking is not None:
         st.markdown("### 🔍 Tabla General de Equipos Colocados")
         st.write("")
         
-        tab_16vos, tab_8vos, tab_4tos, tab_3er, tab_final, tab_podio = st.tabs([
+        tab_16vos, tab_8vos, tab_4tos, tab_semis = st.tabs([
             "🏆 Ronda de 16vos", 
             "⚡ Ronda de 8vos", 
             "🏅 Ronda de Cuartos", 
-            "🔥 Tercer Lugar (H)", 
-            "👑 Gran Final (J)",
-            "⭐ Podio (L, M, N)"
+            "🔥 Ronda de Semifinales"
         ])
         
         def estilar_tabla_aciertos(val):
@@ -509,30 +446,13 @@ if df_ranking is not None:
                 df_estilado_4 = df_desglose_4tos.style.map(estilar_tabla_aciertos, subset=df_desglose_4tos.columns[2:])
                 st.dataframe(df_estilado_4, use_container_width=True, hide_index=True)
 
-        with tab_3er:
-            st.caption("Conteo de aciertos basado en los equipos reales que disputan el Tercer Lugar en la Columna H (Hoja BASE)")
-            # Controlamos que haya por lo menos un equipo colocado en la BASE para no renderizar una tabla vacía
-            if df_desglose_3er.empty or len(df_desglose_3er.columns) <= 2:
-                st.warning("⏳ El partido por el Tercer Lugar aún no está definido. Aparecerá aquí en cuanto termine la fase de Semifinales.")
+        with tab_semis:
+            st.caption("Conteo de aciertos basado en los cuatro semifinalistas oficiales (Francia, España, Inglaterra, Argentina)")
+            if df_desglose_semis.empty or len(df_desglose_semis.columns) <= 2:
+                st.info("No hay datos de Semifinales disponibles aún.")
             else:
-                df_estilado_3er = df_desglose_3er.style.map(estilar_tabla_aciertos, subset=df_desglose_3er.columns[2:])
-                st.dataframe(df_estilado_3er, use_container_width=True, hide_index=True)
-
-        with tab_final:
-            st.caption("Conteo de aciertos basado en los equipos reales que disputan la Gran Final en la Columna J (Hoja BASE)")
-            if df_desglose_final.empty or len(df_desglose_final.columns) <= 2:
-                st.warning("⏳ La Gran Final aún no está definida. Aparecerá aquí en cuanto se jueguen y definan las Semifinales.")
-            else:
-                df_estilado_final = df_desglose_final.style.map(estilar_tabla_aciertos, subset=df_desglose_final.columns[2:])
-                st.dataframe(df_estilado_final, use_container_width=True, hide_index=True)
-
-        with tab_podio:
-            st.caption("Conteo de aciertos basado en el orden del Podio Final en las Columnas L, M y N (Hoja BASE)")
-            if df_desglose_podio.empty or len(df_desglose_podio.columns) <= 2:
-                st.warning("⏳ El Podio definitivo se desbloqueará una vez que terminen de jugarse la Gran Final y el Tercer Lugar.")
-            else:
-                df_estilado_podio = df_desglose_podio.style.map(estilar_tabla_aciertos, subset=df_desglose_podio.columns[2:])
-                st.dataframe(df_estilado_podio, use_container_width=True, hide_index=True)
+                df_estilado_semis = df_desglose_semis.style.map(estilar_tabla_aciertos, subset=df_desglose_semis.columns[2:])
+                st.dataframe(df_estilado_semis, use_container_width=True, hide_index=True)
 
     # --- PESTAÑA PRONÓSTICOS ---
     with tab_hoy:
@@ -541,16 +461,12 @@ if df_ranking is not None:
         
         for idx_f, fecha_select in enumerate(FECHAS_DISPONIBLES):
             with sub_tabs_fechas[idx_f]:
-                _, df_pronosticos_fecha, partidos_fecha, _, _, _, _, _, _, _ = cargar_y_procesar_todo_el_torneo(SPREADSHEET_ID, ID_PESTAÑAS, fecha_select)
+                _, df_pronosticos_fecha, partidos_fecha, _, _, _, _, _ = cargar_y_procesar_todo_el_torneo(SPREADSHEET_ID, ID_PESTAÑAS, fecha_select)
                 if not partidos_fecha or df_pronosticos_fecha.empty:
                     st.info("No hay partidos ni pronósticos registrados para esta fecha.")
                 else:
                     st.caption(f"Visualizando elecciones reales según la columna correspondiente de la fase jugada el {fecha_select}")
                     st.dataframe(df_pronosticos_fecha, use_container_width=True, hide_index=True)
-                    
-                    st.info("""
-                    💡 **Nota sobre 'Ninguno':** Si ves que un participante tiene 'Ninguno' asignado en un partido, significa que los dos equipos que colocó originalmente en su estructura para esta fase del torneo fueron eliminados en las rondas previas. Al no contar con ninguno de los dos rivales vivos en su cuadro real, se queda sin predicción para este juego.
-                    """)
 
     # --- PESTAÑA BRACKET DESARROLLO ---
     with tab_bracket_dev:
@@ -585,13 +501,11 @@ if df_ranking is not None:
             .winner {{ color: #4ade80; font-weight: bold; }}
             .score {{ font-weight: bold; color: #94a3b8; }}
             .phase-title {{ text-align: center; color: #94a3b8; font-size: 13px; font-weight: bold; margin-bottom: 15px; }}
-            .final-card {{ border: 2px solid #f59e0b; }}
         </style>
 
         <div class="b-container">
             <div class="phase-title">16vos (Izq)</div><div class="phase-title">8vos (Izq)</div><div class="phase-title">4tos (Izq)</div><div class="phase-title">Semifinal</div>
-            <div class="phase-title" style="color:#f59e0b;">🏆 FINAL</div>
-            <div class="phase-title">Semifinal</div><div class="phase-title">4tos (Der)</div><div class="phase-title">8vos (Der)</div><div class="phase-title">16vos (Der)</div>
+            <div class="phase-title" style="color:#94a3b8;">Semifinal</div><div class="phase-title">4tos (Der)</div><div class="phase-title">8vos (Der)</div><div class="phase-title">16vos (Der)</div>
 
             <div class="b-column">
                 <div class="b-match">{render_match_html("P1", BRACKET)}</div>
@@ -617,21 +531,11 @@ if df_ranking is not None:
             </div>
 
             <div class="b-column">
-                <div style="grid-row: span 8; display: flex; flex-direction: column; justify-content: center;"><div class="b-card"><div class="b-team"><span>Ganador 4tos Izq 1</span></div><div style="height:1px; background:#334155; margin:4px 0;"></div><div class="b-team"><span>Ganador 4tos Izq 2</span></div></div></div>
+                <div style="grid-row: span 8; display: flex; flex-direction: column; justify-content: center;"><div class="b-card"><div class="b-team"><span>Francia</span></div><div style="height:1px; background:#334155; margin:4px 0;"></div><div class="b-team"><span>España</span></div></div></div>
             </div>
 
             <div class="b-column">
-                <div style="grid-row: span 8; display: flex; flex-direction: column; justify-content: center;">
-                    <div class="b-card final-card">
-                        <div class="b-team" style="font-weight:700;"><span>Finalista Izquierdo</span></div>
-                        <div style="height:1px; background:#f59e0b; margin:6px 0;"></div>
-                        <div class="b-team" style="font-weight:700;"><span>Finalista Derecho</span></div>
-                    </div>
-                </div>
-            </div>
-
-            <div class="b-column">
-                <div style="grid-row: span 8; display: flex; flex-direction: column; justify-content: center;"><div class="b-card"><div class="b-team"><span>Ganador 4tos Der 1</span></div><div style="height:1px; background:#334155; margin:4px 0;"></div><div class="b-team"><span>Ganador 4tos Der 2</span></div></div></div>
+                <div style="grid-row: span 8; display: flex; flex-direction: column; justify-content: center;"><div class="b-card"><div class="b-team"><span>Inglaterra</span></div><div style="height:1px; background:#334155; margin:4px 0;"></div><div class="b-team"><span>Argentina</span></div></div></div>
             </div>
 
             <div class="b-column">
