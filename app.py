@@ -92,8 +92,8 @@ CALENDARIO_COMPLETO = [
     {"Id": "P28", "Fecha": "11/07/2026", "Rival 1": "ARGENTINA", "Rival 2": "SUIZA", "Texto": "Argentina 🆚 Suiza", "Hora": "19:00", "Keys 1": ["ARGENTINA", "ARG"], "Keys 2": ["SUIZA", "SUI"]},
 
     # --- SEMIFINALES ---
-    {"Id": "P29", "Fecha": "14/07/2026", "Rival 1": "FRANCIA", "Rival 2": "ESPAÑA", "Texto": "Francia 🆚 España", "Hora": "19:00", "Keys 1": ["FRANCIA", "FRA"], "Keys 2": ["ESPANA", "ESPAÑA", "ESP"]},
-    {"Id": "P30", "Fecha": "15/07/2026", "Rival 1": "INGLATERRA", "Rival 2": "ARGENTINA", "Texto": "Inglaterra 🆚 Argentina", "Hora": "19:00", "Keys 1": ["INGLATERRA", "ENG"], "Keys 2": ["ARGENTINA", "ARG"]}
+    {"Id": "P29", "Fecha": "14/07/2026", "Rival 1": "FRANCIA", "Rival 2": "ESPAÑA", "Texto": "FRANCIA vs ESPAÑA", "Hora": "19:00", "Keys 1": ["FRANCIA", "FRA"], "Keys 2": ["ESPANA", "ESPAÑA", "ESP"], "Ganador_Real": "ESPAÑA"},
+    {"Id": "P30", "Fecha": "15/07/2026", "Rival 1": "INGLATERRA", "Rival 2": "ARGENTINA", "Texto": "INGLATERRA vs ARGENTINA", "Hora": "19:00", "Keys 1": ["INGLATERRA", "ENG"], "Keys 2": ["ARGENTINA", "ARG"], "Ganador_Real": None}
 ]
 
 SPREADSHEET_ID = "1FTUtzXd-ODXBB0QxIf-68FKf0ZQzVnWM"
@@ -165,17 +165,15 @@ def cargar_y_procesar_todo_el_torneo(spreadsheet_id, pestañas_jugadores, fecha_
             set_base_16vos = extraer_columna_fija(df_base_raw, 1) 
             set_base_8vos = extraer_columna_fija(df_base_raw, 3)  
             set_base_4tos = extraer_columna_fija(df_base_raw, 5)  
-            
-            # Semifinalistas en la columna BASE (usualmente columna H o calculada con base en los clasificados de cuartos)
-            # Para simplificar y blindar, usamos los 4 semifinalistas confirmados: Francia, España, Inglaterra, Argentina
-            set_base_semis = {"FRANCIA", "ESPANA", "ESPAÑA", "INGLATERRA", "ARGENTINA"}
         else:
-            set_base_16vos, set_base_8vos, set_base_4tos, set_base_semis = set(), set(), set(), set()
+            set_base_16vos, set_base_8vos, set_base_4tos = set(), set(), set()
 
         lista_base_16vos_ordenada = sorted(list(set_base_16vos))
         lista_base_8vos_ordenada = sorted(list(set_base_8vos))
         lista_base_4tos_ordenada = sorted(list(set_base_4tos))
-        lista_base_semis_ordenada = ["FRANCIA", "ESPAÑA", "INGLATERRA", "ARGENTINA"]
+        
+        # Dos partidos oficiales de Semifinales
+        lista_partidos_semis = [p for p in CALENDARIO_COMPLETO if p["Id"] in ["P29", "P30"]]
 
         pestaña_cal = [n for n in nombres_pestañas if "CALENDARIO" in n.upper()]
         if pestaña_cal:
@@ -210,7 +208,7 @@ def cargar_y_procesar_todo_el_torneo(spreadsheet_id, pestañas_jugadores, fecha_
 
         for pestaña in pestañas_jugadores:
             df_jugador_raw = None; nombre_real = pestaña
-            fases_jugador = {"16vos": set(), "8vos": set(), "4tos": set(), "semis": set()}
+            fases_jugador = {"16vos": set(), "8vos": set(), "4tos": set(), "semis_clasificados": set()}
             
             if pestaña in nombres_pestañas:
                 df_jugador_raw = excel_file.parse(pestaña, header=None, dtype=str)
@@ -220,8 +218,8 @@ def cargar_y_procesar_todo_el_torneo(spreadsheet_id, pestañas_jugadores, fecha_
                 fases_jugador["8vos"] = extraer_columna_fija(df_jugador_raw, 3)   
                 fases_jugador["4tos"] = extraer_columna_fija(df_jugador_raw, 5)   
                 
-                # Los Semifinalistas en la hoja del jugador son los colocados en la columna F (fase de semifinalistas en su estructura)
-                fases_jugador["semis"] = extraer_columna_fija(df_jugador_raw, 5)
+                # Para validar los aciertos de semifinales, leemos los clasificados que el jugador colocó para la ronda final (Columna G, índice 6)
+                fases_jugador["semis_clasificados"] = extraer_columna_fija(df_jugador_raw, 6)
 
             elecciones_fecha = {"Participante": nombre_real}
             auditoria_16vos = {"Participante": nombre_real}
@@ -234,13 +232,26 @@ def cargar_y_procesar_todo_el_torneo(spreadsheet_id, pestañas_jugadores, fecha_
                 interseccion_8vos = fases_jugador["8vos"].intersection(set_base_8vos)
                 interseccion_4tos = fases_jugador["4tos"].intersection(set_base_4tos)
                 
-                # Intersección real con los 4 semifinalistas confirmados
-                interseccion_semis = {v for v in fases_jugador["semis"] if any(limpiar_texto(x) in v for x in set_base_semis)}
+                # --- EVALUACIÓN DE ACIESTOS SEMIFINALES ---
+                # Validamos únicamente los 2 partidos de semis (P29 y P30). 
+                # El jugador gana un punto por cada partido de semis si el ganador real de ese partido coincide con sus clasificados.
+                puntos_semis = 0
+                for semi_p in lista_partidos_semis:
+                    ganador_real = semi_p["Ganador_Real"]
+                    if ganador_real:
+                        # Si el ganador real está entre los clasificados elegidos por el participante
+                        es_acierto = False
+                        for p_val in fases_jugador["semis_clasificados"]:
+                            if limpiar_texto(ganador_real) in p_val:
+                                es_acierto = True
+                                break
+                        if es_acierto:
+                            puntos_semis += 1
                 
                 puntos_16vos = len(interseccion_16vos)
                 puntos_8vos = len(interseccion_8vos)
                 puntos_4tos = len(interseccion_4tos)
-                puntos_semis = len(interseccion_semis)
+                
                 puntos_totales = puntos_16vos + puntos_8vos + puntos_4tos + puntos_semis
                 
                 datos_ranking.append({
@@ -264,14 +275,27 @@ def cargar_y_procesar_todo_el_torneo(spreadsheet_id, pestañas_jugadores, fecha_
                 for equipo_base in lista_base_4tos_ordenada:
                     auditoria_4tos[equipo_base] = "✅ Sí" if equipo_base in fases_jugador["4tos"] else "❌ No"
                 
+                # Detalle visual por partido en la pestaña de Semifinales
                 auditoria_semis["Aciertos Semifinales"] = puntos_semis
-                for equipo_base in lista_base_semis_ordenada:
-                    es_semi = False
-                    for p_val in fases_jugador["semis"]:
-                        if limpiar_texto(equipo_base) in p_val:
-                            es_semi = True
+                for semi_p in lista_partidos_semis:
+                    ganador_real = semi_p["Ganador_Real"]
+                    match_label = semi_p["Texto"]
+                    
+                    # Ver qué equipo pronosticó el usuario para este partido
+                    pronostico_usuario = "Ninguno"
+                    for p_val in fases_jugador["semis_clasificados"]:
+                        if any(limpiar_texto(k) in p_val for k in semi_p["Keys 1"]):
+                            pronostico_usuario = semi_p["Rival 1"].title()
                             break
-                    auditoria_semis[equipo_base] = "✅ Sí" if es_semi else "❌ No"
+                        elif any(limpiar_texto(k) in p_val for k in semi_p["Keys 2"]):
+                            pronostico_usuario = semi_p["Rival 2"].title()
+                            break
+                    
+                    if ganador_real:
+                        es_correcto = (limpiar_texto(ganador_real) == limpiar_texto(pronostico_usuario))
+                        auditoria_semis[match_label] = f"✅ {pronostico_usuario}" if es_correcto else f"❌ {pronostico_usuario}"
+                    else:
+                        auditoria_semis[match_label] = f"⏳ {pronostico_usuario} (Pendiente)"
                 
                 for p in partidos_fecha:
                     num_partido = int(p["Id"].replace("P", ""))
@@ -304,7 +328,7 @@ def cargar_y_procesar_todo_el_torneo(spreadsheet_id, pestañas_jugadores, fecha_
                 for equipo_base in lista_base_16vos_ordenada: auditoria_16vos[equipo_base] = "❌ No"
                 for equipo_base in lista_base_8vos_ordenada: auditoria_8vos[equipo_base] = "❌ No"
                 for equipo_base in lista_base_4tos_ordenada: auditoria_4tos[equipo_base] = "❌ No"
-                for equipo_base in lista_base_semis_ordenada: auditoria_semis[equipo_base] = "❌ No"
+                for semi_p in lista_partidos_semis: auditoria_semis[semi_p["Texto"]] = "❌ Ninguno"
                 for p in partidos_fecha: elecciones_fecha[p["Texto"]] = "Sin Datos"
                 
             desglose_16vos_lista.append(auditoria_16vos)
@@ -357,9 +381,6 @@ if df_ranking is not None:
 
     # --- PESTAÑA PRINCIPAL ---
     with tab_principal:
-        # ----------------------------------------------------------------------
-        # DETECTAR Y MOSTRAR GANADOR DE LA QUINIELA (CAMPEÓN DECLARADO)
-        # ----------------------------------------------------------------------
         campeon_matematico_nombre = "José Luis Jiménez"
         st.balloons()
         
@@ -368,7 +389,7 @@ if df_ranking is not None:
             <h2 style="margin:0; font-size: 28px;">🏆 ¡TENEMOS GANADOR DE LA QUINIELA! 🏆</h2>
             <p style="margin:10px 0 0 0; font-size: 18px; font-weight:600;">
                 ¡Muchas felicidades a <strong>{campeon_matematico_nombre}</strong>! <br>
-                El título se queda en sus manos. ¡Gran torneo! 👑⚽
+                El título se queda en sus manos de manera indiscutible. ¡Gran torneo! 👑⚽
             </p>
         </div>
         """, unsafe_allow_html=True)
@@ -416,7 +437,13 @@ if df_ranking is not None:
         ])
         
         def estilar_tabla_aciertos(val):
-            if val == "✅ Sí":
+            if isinstance(val, str) and val.startswith("✅"):
+                return 'background-color: #d1fae5; color: #065f46; font-weight: bold; text-align: center;'
+            elif isinstance(val, str) and val.startswith("❌"):
+                return 'background-color: #fee2e2; color: #991b1b; text-align: center;'
+            elif isinstance(val, str) and val.startswith("⏳"):
+                return 'background-color: #fef3c7; color: #92400e; text-align: center;'
+            elif val == "✅ Sí":
                 return 'background-color: #d1fae5; color: #065f46; font-weight: bold; text-align: center;'
             elif val == "❌ No":
                 return 'background-color: #fee2e2; color: #991b1b; text-align: center;'
@@ -447,7 +474,7 @@ if df_ranking is not None:
                 st.dataframe(df_estilado_4, use_container_width=True, hide_index=True)
 
         with tab_semis:
-            st.caption("Conteo de aciertos basado en los cuatro semifinalistas oficiales (Francia, España, Inglaterra, Argentina)")
+            st.caption("En esta pestaña se evalúan exclusivamente los ganadores de los 2 partidos de semifinales.")
             if df_desglose_semis.empty or len(df_desglose_semis.columns) <= 2:
                 st.info("No hay datos de Semifinales disponibles aún.")
             else:
