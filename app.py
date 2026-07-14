@@ -126,12 +126,14 @@ def extraer_columna_fija(df_raw, col_indice):
     if df_raw is None or df_raw.shape[0] < 55 or df_raw.shape[1] <= col_indice:
         return set()
     try:
+        # Extraemos el rango completo de filas de pronósticos
         bloque = df_raw.iloc[54:90, col_indice].dropna().astype(str).str.strip()
         valores_limpios = set(bloque.apply(limpiar_texto))
         
+        # ELIMINADAS 'SEMIS' Y 'FINAL' del filtro de exclusión para que lea correctamente J55 y J56
         valores_filtrados = {
             v for v in valores_limpios 
-            if v not in {"", "0", "NAN", "NINGUNO", "NONE", "NO", "16VOS", "8VOS", "4TOS", "SEMIS", "FINAL", "1ER", "2DO", "3ER"} and len(v) > 2
+            if v not in {"", "0", "NAN", "NINGUNO", "NONE", "NO", "16VOS", "8VOS", "4TOS", "1ER", "2DO", "3ER"} and len(v) > 2
         }
         return valores_filtrados
     except Exception:
@@ -165,7 +167,7 @@ def cargar_y_procesar_todo_el_torneo(spreadsheet_id, pestañas_jugadores, fecha_
             set_base_16vos = extraer_columna_fija(df_base_raw, 1) 
             set_base_8vos = extraer_columna_fija(df_base_raw, 3)  
             set_base_4tos = extraer_columna_fija(df_base_raw, 5)  
-            set_base_semis = extraer_columna_fija(df_base_raw, 6) # Columna G de BASE (Clasificados reales a la final)
+            set_base_semis = extraer_columna_fija(df_base_raw, 6) # Columna G de BASE
         else:
             set_base_16vos, set_base_8vos, set_base_4tos, set_base_semis = set(), set(), set(), set()
 
@@ -216,8 +218,7 @@ def cargar_y_procesar_todo_el_torneo(spreadsheet_id, pestañas_jugadores, fecha_
                 fases_jugador["16vos"] = extraer_columna_fija(df_jugador_raw, 1)  
                 fases_jugador["8vos"] = extraer_columna_fija(df_jugador_raw, 3)   
                 fases_jugador["4tos"] = extraer_columna_fija(df_jugador_raw, 5)   
-                # SE AJUSTA A LA COLUMNA J (ÍNDICE 9 DEL DATAFRAME) PARA BUSCAR LOS GANADORES DE SEMIFINALES
-                fases_jugador["semis"] = extraer_columna_fija(df_jugador_raw, 9) 
+                fases_jugador["semis"] = extraer_columna_fija(df_jugador_raw, 9) # Columna J
 
             elecciones_fecha = {"Participante": nombre_real}
             auditoria_16vos = {"Participante": nombre_real}
@@ -259,7 +260,6 @@ def cargar_y_procesar_todo_el_torneo(spreadsheet_id, pestañas_jugadores, fecha_
                 for equipo_base in lista_base_4tos_ordenada:
                     auditoria_4tos[equipo_base] = "✅ Sí" if equipo_base in fases_jugador["4tos"] else "❌ No"
                 
-                # --- AUDITORÍA DE SEMIFINALES HOMOLOGADA COMPULSAR EN COLUMNA J ---
                 auditoria_semis["Aciertos Semifinales"] = puntos_semis
                 for equipo_base in lista_base_semis_ordenada:
                     auditoria_semis[equipo_base] = "✅ Sí" if equipo_base in fases_jugador["semis"] else "❌ No"
@@ -445,7 +445,7 @@ if df_ranking is not None:
         with tab_semis:
             st.caption("Conteo de aciertos basado en los equipos finalistas reales de la Columna G (Hoja BASE) cruzado con el pronóstico de los participantes (Celdas J55-J56)")
             if df_desglose_semis.empty or len(df_desglose_semis.columns) <= 2:
-                st.info("No hay datos de Semifinales disponibles aún.")
+                st.info("No hay datos de Semifinales disponibles aún o no se han cargado.")
             else:
                 df_estilado_semis = df_desglose_semis.style.map(estilar_tabla_aciertos, subset=df_desglose_semis.columns[2:])
                 st.dataframe(df_estilado_semis, use_container_width=True, hide_index=True)
