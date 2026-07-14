@@ -368,7 +368,7 @@ if df_ranking is not None:
             <h2 style="margin:0; font-size: 28px;">🏆 ¡TENEMOS GANADOR DE LA QUINIELA! 🏆</h2>
             <p style="margin:10px 0 0 0; font-size: 18px; font-weight:600;">
                 ¡Muchas felicidades a <strong>{campeon_matematico_nombre}</strong>! <br>
-                El título se queda en sus manos de manera indiscutible. ¡Gran torneo! 👑⚽
+                El título se queda en sus manos. ¡Gran torneo! 👑⚽
             </p>
         </div>
         """, unsafe_allow_html=True)
