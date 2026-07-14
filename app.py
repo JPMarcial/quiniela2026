@@ -165,7 +165,7 @@ def cargar_y_procesar_todo_el_torneo(spreadsheet_id, pestañas_jugadores, fecha_
             set_base_16vos = extraer_columna_fija(df_base_raw, 1) 
             set_base_8vos = extraer_columna_fija(df_base_raw, 3)  
             set_base_4tos = extraer_columna_fija(df_base_raw, 5)  
-            set_base_semis = extraer_columna_fija(df_base_raw, 6) # Columna G (Clasificados reales a la final desde BASE)
+            set_base_semis = extraer_columna_fija(df_base_raw, 6) # Columna G de BASE (Clasificados reales a la final)
         else:
             set_base_16vos, set_base_8vos, set_base_4tos, set_base_semis = set(), set(), set(), set()
 
@@ -216,7 +216,8 @@ def cargar_y_procesar_todo_el_torneo(spreadsheet_id, pestañas_jugadores, fecha_
                 fases_jugador["16vos"] = extraer_columna_fija(df_jugador_raw, 1)  
                 fases_jugador["8vos"] = extraer_columna_fija(df_jugador_raw, 3)   
                 fases_jugador["4tos"] = extraer_columna_fija(df_jugador_raw, 5)   
-                fases_jugador["semis"] = extraer_columna_fija(df_jugador_raw, 6) # Columna G del participante (sus clasificados a la Final)
+                # SE AJUSTA A LA COLUMNA J (ÍNDICE 9 DEL DATAFRAME) PARA BUSCAR LOS GANADORES DE SEMIFINALES
+                fases_jugador["semis"] = extraer_columna_fija(df_jugador_raw, 9) 
 
             elecciones_fecha = {"Participante": nombre_real}
             auditoria_16vos = {"Participante": nombre_real}
@@ -228,7 +229,7 @@ def cargar_y_procesar_todo_el_torneo(spreadsheet_id, pestañas_jugadores, fecha_
                 interseccion_16vos = fases_jugador["16vos"].intersection(set_base_16vos)
                 interseccion_8vos = fases_jugador["8vos"].intersection(set_base_8vos)
                 interseccion_4tos = fases_jugador["4tos"].intersection(set_base_4tos)
-                interseccion_semis = fases_jugador["semis"].intersection(set_base_semis) # Comparación directa y homologada
+                interseccion_semis = fases_jugador["semis"].intersection(set_base_semis) 
                 
                 puntos_16vos = len(interseccion_16vos)
                 puntos_8vos = len(interseccion_8vos)
@@ -258,7 +259,7 @@ def cargar_y_procesar_todo_el_torneo(spreadsheet_id, pestañas_jugadores, fecha_
                 for equipo_base in lista_base_4tos_ordenada:
                     auditoria_4tos[equipo_base] = "✅ Sí" if equipo_base in fases_jugador["4tos"] else "❌ No"
                 
-                # --- AUDITORÍA DE SEMIFINALES HOMOLOGADA ---
+                # --- AUDITORÍA DE SEMIFINALES HOMOLOGADA COMPULSAR EN COLUMNA J ---
                 auditoria_semis["Aciertos Semifinales"] = puntos_semis
                 for equipo_base in lista_base_semis_ordenada:
                     auditoria_semis[equipo_base] = "✅ Sí" if equipo_base in fases_jugador["semis"] else "❌ No"
@@ -442,7 +443,7 @@ if df_ranking is not None:
                 st.dataframe(df_estilado_4, use_container_width=True, hide_index=True)
 
         with tab_semis:
-            st.caption("Conteo de aciertos basado en los equipos finalistas reales de la Columna G (Hoja BASE)")
+            st.caption("Conteo de aciertos basado en los equipos finalistas reales de la Columna G (Hoja BASE) cruzado con el pronóstico de los participantes (Celdas J55-J56)")
             if df_desglose_semis.empty or len(df_desglose_semis.columns) <= 2:
                 st.info("No hay datos de Semifinales disponibles aún.")
             else:
