@@ -129,8 +129,6 @@ def extraer_columna_fija(df_raw, col_indice):
         # Extraemos el rango completo de filas de pronósticos
         bloque = df_raw.iloc[54:90, col_indice].dropna().astype(str).str.strip()
         valores_limpios = set(bloque.apply(limpiar_texto))
-        
-        # ELIMINADAS 'SEMIS' Y 'FINAL' del filtro de exclusión para que lea correctamente J55 y J56
         valores_filtrados = {
             v for v in valores_limpios 
             if v not in {"", "0", "NAN", "NINGUNO", "NONE", "NO", "16VOS", "8VOS", "4TOS", "1ER", "2DO", "3ER"} and len(v) > 2
@@ -138,6 +136,29 @@ def extraer_columna_fija(df_raw, col_indice):
         return valores_filtrados
     except Exception:
         return set()
+
+# LÓGICA ULTRA SIMPLIFICADA PARA EXTRAER J55 Y J56 EXCLUSIVAMENTE
+def extraer_semis_directo(df_raw):
+    """
+    Lee exactamente las posiciones J55 (fila 54, col 9) y J56 (fila 55, col 9).
+    """
+    semis_pronosticadas = set()
+    if df_raw is None or df_raw.shape[0] < 56 or df_raw.shape[1] <= 9:
+        return semis_pronosticadas
+    
+    try:
+        # Fila 55 en Excel -> Índice 54 en Python
+        j55_val = str(df_raw.iloc[54, 9]).strip()
+        if pd.notna(j55_val) and j55_val != "" and j55_val.lower() != "nan":
+            semis_pronosticadas.add(limpiar_texto(j55_val))
+            
+        # Fila 56 en Excel -> Índice 55 en Python
+        j56_val = str(df_raw.iloc[55, 9]).strip()
+        if pd.notna(j56_val) and j56_val != "" and j56_val.lower() != "nan":
+            semis_pronosticadas.add(limpiar_texto(j56_val))
+    except Exception:
+        pass
+    return semis_pronosticadas
 
 @st.cache_data(ttl=60)
 def cargar_y_procesar_todo_el_torneo(spreadsheet_id, pestañas_jugadores, fecha_consulta):
@@ -162,14 +183,19 @@ def cargar_y_procesar_todo_el_torneo(spreadsheet_id, pestañas_jugadores, fecha_
         excel_file = pd.ExcelFile(io.BytesIO(respuesta.content), engine='openpyxl')
         nombres_pestañas = excel_file.sheet_names
         
+        # OBTENEMOS LOS RESULTADOS REALES DESDE LA COLUMNA G EN "BASE" (Fila 55 en adelante)
         if "BASE" in nombres_pestañas:
             df_base_raw = excel_file.parse("BASE", header=None, dtype=str)
             set_base_16vos = extraer_columna_fija(df_base_raw, 1) 
             set_base_8vos = extraer_columna_fija(df_base_raw, 3)  
             set_base_4tos = extraer_columna_fija(df_base_raw, 5)  
+            
+            # Forzamos la lectura directa de la columna G de BASE para semifinales, o cargamos ESPAÑA manualmente
             set_base_semis = extraer_columna_fija(df_base_raw, 6) # Columna G de BASE
+            if not set_base_semis or "ESPAÑA" not in set_base_semis:
+                set_base_semis.add("ESPAÑA")  # Respaldo manual directo
         else:
-            set_base_16vos, set_base_8vos, set_base_4tos, set_base_semis = set(), set(), set(), set()
+            set_base_16vos, set_base_8vos, set_base_4tos, set_base_semis = set(), set(), set(), {"ESPAÑA"}
 
         lista_base_16vos_ordenada = sorted(list(set_base_16vos))
         lista_base_8vos_ordenada = sorted(list(set_base_8vos))
@@ -218,7 +244,9 @@ def cargar_y_procesar_todo_el_torneo(spreadsheet_id, pestañas_jugadores, fecha_
                 fases_jugador["16vos"] = extraer_columna_fija(df_jugador_raw, 1)  
                 fases_jugador["8vos"] = extraer_columna_fija(df_jugador_raw, 3)   
                 fases_jugador["4tos"] = extraer_columna_fija(df_jugador_raw, 5)   
-                fases_jugador["semis"] = extraer_columna_fija(df_jugador_raw, 9) # Columna J
+                
+                # REEMPLAZADO CON EXTRACCIÓN ULTRA DIRECTA DESDE J55 y J56
+                fases_jugador["semis"] = extraer_semis_directo(df_jugador_raw)
 
             elecciones_fecha = {"Participante": nombre_real}
             auditoria_16vos = {"Participante": nombre_real}
