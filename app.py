@@ -492,7 +492,7 @@ if df_ranking is not None:
                     st.caption(f"Visualizando elecciones reales según la columna correspondiente de la fase jugada el {fecha_select}")
                     st.dataframe(df_pronosticos_fecha, use_container_width=True, hide_index=True)
 
-    # --- PESTAÑA BRACKET DESARROLLO ---
+   # --- PESTAÑA BRACKET DESARROLLO ---
     with tab_bracket_dev:
         st.markdown("### 🏗️ Bracket del Mundial 2026")
         
@@ -517,7 +517,7 @@ if df_ranking is not None:
 
         bracket_html = f"""
         <style>
-            .b-container {{ display: grid; grid-template-columns: repeat(9, 1fr); gap: 12px; background-color: #0f172a; padding: 20px; border-radius: 12px; font-family: sans-serif; min-width: 1400px; }}
+            .b-container {{ display: grid; grid-template-columns: repeat(8, 1fr); gap: 12px; background-color: #0f172a; padding: 20px; border-radius: 12px; font-family: sans-serif; min-width: 1400px; }}
             .b-column {{ display: grid; grid-template-rows: repeat(8, 1fr); height: 850px; }}
             .b-match {{ display: flex; flex-direction: column; justify-content: center; padding: 2px 0; }}
             .b-card {{ background: #1e293b; border: 1px solid #334155; border-radius: 8px; padding: 10px; color: white; font-size: 11px; }}
@@ -528,9 +528,16 @@ if df_ranking is not None:
         </style>
 
         <div class="b-container">
-            <div class="phase-title">16vos (Izq)</div><div class="phase-title">8vos (Izq)</div><div class="phase-title">4tos (Izq)</div><div class="phase-title">Semifinal</div>
-            <div class="phase-title" style="color:#94a3b8;">Semifinal</div><div class="phase-title">4tos (Der)</div><div class="phase-title">8vos (Der)</div><div class="phase-title">16vos (Der)</div>
+            <div class="phase-title">16vos (Izq)</div>
+            <div class="phase-title">8vos (Izq)</div>
+            <div class="phase-title">4tos (Izq)</div>
+            <div class="phase-title">Semifinal (Izq)</div>
+            <div class="phase-title">Semifinal (Der)</div>
+            <div class="phase-title">4tos (Der)</div>
+            <div class="phase-title">8vos (Der)</div>
+            <div class="phase-title">16vos (Der)</div>
 
+            <!-- Columna 1: 16vos Izquierda -->
             <div class="b-column">
                 <div class="b-match">{render_match_html("P1", BRACKET)}</div>
                 <div class="b-match">{render_match_html("P2", BRACKET)}</div>
@@ -542,6 +549,7 @@ if df_ranking is not None:
                 <div class="b-match">{render_match_html("P8", BRACKET)}</div>
             </div>
 
+            <!-- Columna 2: 8vos Izquierda -->
             <div class="b-column">
                 <div style="grid-row: span 2; display: flex; flex-direction: column; justify-content: center;">{render_match_html("P18", BRACKET)}</div>
                 <div style="grid-row: span 2; display: flex; flex-direction: column; justify-content: center;">{render_match_html("P17", BRACKET)}</div>
@@ -549,24 +557,65 @@ if df_ranking is not None:
                 <div style="grid-row: span 2; display: flex; flex-direction: column; justify-content: center;">{render_match_html("P21", BRACKET)}</div>
             </div>
 
+            <!-- Columna 3: 4tos Izquierda -->
             <div class="b-column">
-                <div style="grid-row: span 4; display: flex; flex-direction: column; justify-content: center;"><div class="b-card"><div class="b-team"><span>{w['P18']}</span></div><div style="height:1px; background:#334155; margin:4px 0;"></div><div class="b-team"><span>{w['P17']}</span></div></div></div>
-                <div style="grid-row: span 4; display: flex; flex-direction: column; justify-content: center;"><div class="b-card"><div class="b-team"><span>{w['P22']}</span></div><div style="height:1px; background:#334155; margin:4px 0;"></div><div class="b-team"><span>{w['P21']}</span></div></div></div>
+                <div style="grid-row: span 4; display: flex; flex-direction: column; justify-content: center;">
+                    <div class="b-card">
+                        <div class="b-team"><span>{w['P18']}</span></div>
+                        <div style="height:1px; background:#334155; margin:4px 0;"></div>
+                        <div class="b-team"><span>{w['P17']}</span></div>
+                    </div>
+                </div>
+                <div style="grid-row: span 4; display: flex; flex-direction: column; justify-content: center;">
+                    <div class="b-card">
+                        <div class="b-team"><span>{w['P22']}</span></div>
+                        <div style="height:1px; background:#334155; margin:4px 0;"></div>
+                        <div class="b-team"><span>{w['P21']}</span></div>
+                    </div>
+                </div>
             </div>
 
+            <!-- Columna 4: Semifinal Izquierda -->
             <div class="b-column">
-                <div style="grid-row: span 8; display: flex; flex-direction: column; justify-content: center;"><div class="b-card"><div class="b-team"><span>Francia</span></div><div style="height:1px; background:#334155; margin:4px 0;"></div><div class="b-team"><span>España</span></div></div></div>
+                <div style="grid-row: span 8; display: flex; flex-direction: column; justify-content: center;">
+                    <div class="b-card">
+                        <div class="b-team"><span>Francia</span></div>
+                        <div style="height:1px; background:#334155; margin:4px 0;"></div>
+                        <div class="b-team"><span>España</span></div>
+                    </div>
+                </div>
             </div>
 
+            <!-- Columna 5: Semifinal Derecha -->
             <div class="b-column">
-                <div style="grid-row: span 8; display: flex; flex-direction: column; justify-content: center;"><div class="b-card"><div class="b-team"><span>Inglaterra</span></div><div style="height:1px; background:#334155; margin:4px 0;"></div><div class="b-team"><span>Argentina</span></div></div></div>
+                <div style="grid-row: span 8; display: flex; flex-direction: column; justify-content: center;">
+                    <div class="b-card">
+                        <div class="b-team"><span>Inglaterra</span></div>
+                        <div style="height:1px; background:#334155; margin:4px 0;"></div>
+                        <div class="b-team"><span>Argentina</span></div>
+                    </div>
+                </div>
             </div>
 
+            <!-- Columna 6: 4tos Derecha -->
             <div class="b-column">
-                <div style="grid-row: span 4; display: flex; flex-direction: column; justify-content: center;"><div class="b-card"><div class="b-team"><span>{w['P19']}</span></div><div style="height:1px; background:#334155; margin:4px 0;"></div><div class="b-team"><span>{w['P20']}</span></div></div></div>
-                <div style="grid-row: span 4; display: flex; flex-direction: column; justify-content: center;"><div class="b-card"><div class="b-team"><span>{w['P23']}</span></div><div style="height:1px; background:#334155; margin:4px 0;"></div><div class="b-team"><span>{w['P24']}</span></div></div></div>
+                <div style="grid-row: span 4; display: flex; flex-direction: column; justify-content: center;">
+                    <div class="b-card">
+                        <div class="b-team"><span>{w['P19']}</span></div>
+                        <div style="height:1px; background:#334155; margin:4px 0;"></div>
+                        <div class="b-team"><span>{w['P20']}</span></div>
+                    </div>
+                </div>
+                <div style="grid-row: span 4; display: flex; flex-direction: column; justify-content: center;">
+                    <div class="b-card">
+                        <div class="b-team"><span>{w['P23']}</span></div>
+                        <div style="height:1px; background:#334155; margin:4px 0;"></div>
+                        <div class="b-team"><span>{w['P24']}</span></div>
+                    </div>
+                </div>
             </div>
 
+            <!-- Columna 7: 8vos Derecha -->
             <div class="b-column">
                 <div style="grid-row: span 2; display: flex; flex-direction: column; justify-content: center;">{render_match_html("P19", BRACKET)}</div>
                 <div style="grid-row: span 2; display: flex; flex-direction: column; justify-content: center;">{render_match_html("P20", BRACKET)}</div>
@@ -574,6 +623,7 @@ if df_ranking is not None:
                 <div style="grid-row: span 2; display: flex; flex-direction: column; justify-content: center;">{render_match_html("P24", BRACKET)}</div>
             </div>
 
+            <!-- Columna 8: 16vos Derecha -->
             <div class="b-column">
                 <div class="b-match">{render_match_html("P9", BRACKET)}</div>
                 <div class="b-match">{render_match_html("P10", BRACKET)}</div>
