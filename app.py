@@ -517,7 +517,7 @@ if df_ranking is not None:
 
         bracket_html = f"""
         <style>
-            .b-container {{ display: grid; grid-template-columns: repeat(8, 1fr); gap: 12px; background-color: #0f172a; padding: 20px; border-radius: 12px; font-family: sans-serif; min-width: 1400px; }}
+            .b-container {{ display: grid; grid-template-columns: repeat(9, 1fr); gap: 12px; background-color: #0f172a; padding: 20px; border-radius: 12px; font-family: sans-serif; min-width: 1400px; }}
             .b-column {{ display: grid; grid-template-rows: repeat(8, 1fr); height: 850px; }}
             .b-match {{ display: flex; flex-direction: column; justify-content: center; padding: 2px 0; }}
             .b-card {{ background: #1e293b; border: 1px solid #334155; border-radius: 8px; padding: 10px; color: white; font-size: 11px; }}
@@ -532,6 +532,7 @@ if df_ranking is not None:
             <div class="phase-title">8vos (Izq)</div>
             <div class="phase-title">4tos (Izq)</div>
             <div class="phase-title">Semifinal (Izq)</div>
+            <div class="phase-title" style="color: #fbbf24;">🏆 GRAN FINAL 🏆</div>
             <div class="phase-title">Semifinal (Der)</div>
             <div class="phase-title">4tos (Der)</div>
             <div class="phase-title">8vos (Der)</div>
@@ -586,7 +587,20 @@ if df_ranking is not None:
                 </div>
             </div>
 
-            <!-- Columna 5: Semifinal Derecha -->
+            <!-- Columna 5: COLUMNA DE LA FINAL (Centro) -->
+            <div class="b-column">
+                <div style="grid-row: span 8; display: flex; flex-direction: column; justify-content: center;">
+                    <div class="b-card" style="border: 2px solid #fbbf24; background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);">
+                        <div style="text-align: center; font-weight: bold; color: #fbbf24; margin-bottom: 8px; font-size: 12px;">🏆 FINALISTA 1</div>
+                        <div class="b-team" style="font-size: 13px; font-weight: bold; justify-content: center;"><span>España</span></div>
+                        <div style="height:2px; background:#fbbf24; margin:10px 0;"></div>
+                        <div style="text-align: center; font-weight: bold; color: #fbbf24; margin-bottom: 8px; font-size: 12px;">🏆 FINALISTA 2</div>
+                        <div class="b-team" style="font-size: 13px; font-weight: bold; justify-content: center;"><span>Por Definir</span></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Columna 6: Semifinal Derecha -->
             <div class="b-column">
                 <div style="grid-row: span 8; display: flex; flex-direction: column; justify-content: center;">
                     <div class="b-card">
@@ -597,7 +611,7 @@ if df_ranking is not None:
                 </div>
             </div>
 
-            <!-- Columna 6: 4tos Derecha -->
+            <!-- Columna 7: 4tos Derecha -->
             <div class="b-column">
                 <div style="grid-row: span 4; display: flex; flex-direction: column; justify-content: center;">
                     <div class="b-card">
@@ -615,7 +629,7 @@ if df_ranking is not None:
                 </div>
             </div>
 
-            <!-- Columna 7: 8vos Derecha -->
+            <!-- Columna 8: 8vos Derecha -->
             <div class="b-column">
                 <div style="grid-row: span 2; display: flex; flex-direction: column; justify-content: center;">{render_match_html("P19", BRACKET)}</div>
                 <div style="grid-row: span 2; display: flex; flex-direction: column; justify-content: center;">{render_match_html("P20", BRACKET)}</div>
@@ -623,7 +637,7 @@ if df_ranking is not None:
                 <div style="grid-row: span 2; display: flex; flex-direction: column; justify-content: center;">{render_match_html("P24", BRACKET)}</div>
             </div>
 
-            <!-- Columna 8: 16vos Derecha -->
+            <!-- Columna 9: 16vos Derecha -->
             <div class="b-column">
                 <div class="b-match">{render_match_html("P9", BRACKET)}</div>
                 <div class="b-match">{render_match_html("P10", BRACKET)}</div>
